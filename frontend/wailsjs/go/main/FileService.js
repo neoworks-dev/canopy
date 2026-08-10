@@ -9,3 +9,7 @@ export function HomeDirectory() {
 export function ListDirectory(arg1) {
   return window['go']['main']['FileService']['ListDirectory'](arg1);
 }
+
+export function Places() {
+  return window['go']['main']['FileService']['Places']();
+}

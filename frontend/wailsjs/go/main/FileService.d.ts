@@ -5,3 +5,5 @@ import {filesystem} from '../models';
 export function HomeDirectory():Promise<string>;
 
 export function ListDirectory(arg1:string):Promise<filesystem.Listing>;
+
+export function Places():Promise<Array<filesystem.Place>>;

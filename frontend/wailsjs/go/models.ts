@@ -54,6 +54,22 @@ export namespace filesystem {
 		    return a;
 		}
 	}
+	export class Place {
+	    name: string;
+	    path: string;
+	    kind: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Place(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.path = source["path"];
+	        this.kind = source["kind"];
+	    }
+	}
 
 }
 

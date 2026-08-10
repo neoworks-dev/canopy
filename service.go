@@ -24,3 +24,8 @@ func (service *FileService) ListDirectory(path string) (filesystem.Listing, erro
 func (service *FileService) HomeDirectory() (string, error) {
 	return os.UserHomeDir()
 }
+
+// Places lists the sidebar shortcuts to well-known directories.
+func (service *FileService) Places() []filesystem.Place {
+	return filesystem.Places()
+}
