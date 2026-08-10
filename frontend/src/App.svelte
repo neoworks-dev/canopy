@@ -8,22 +8,70 @@
 	import EyeSlashIcon from "phosphor-svelte/lib/EyeSlashIcon";
 	import WarningIcon from "phosphor-svelte/lib/WarningIcon";
 	import { ListDirectory } from "../wailsjs/go/main/FileService";
-	import type { filesystem } from "../wailsjs/go/models";
+	import { IndexStatus, Search } from "../wailsjs/go/main/IndexService";
+	import type { filesystem, proto } from "../wailsjs/go/models";
 	import EntryIcon from "./lib/EntryIcon.svelte";
 	import PathBreadcrumb from "./lib/PathBreadcrumb.svelte";
-	import { formatFileSize, formatModifiedTime } from "./lib/format";
+	import SearchField from "./lib/SearchField.svelte";
+	import SearchResults from "./lib/SearchResults.svelte";
+	import { formatFileSize, formatModifiedTime, parentDirectoryOf } from "./lib/format";
+
+	// Long enough that typing a word does not fire a query per keystroke, short
+	// enough that results feel immediate.
+	const searchDebounceMilliseconds = 150;
+	const statusPollMilliseconds = 3000;
+
+	type SearchOutcome = {
+		hits: proto.Hit[];
+		truncated: boolean;
+		errorMessage: string;
+	};
 
 	let listing = $state<filesystem.Listing | null>(null);
 	let errorMessage = $state("");
 	let isLoading = $state(false);
 	let showHidden = $state(false);
 
+	let searchQuery = $state("");
+	let searchHits = $state<proto.Hit[]>([]);
+	let searchTruncated = $state(false);
+	let searchErrorMessage = $state("");
+	let isSearching = $state(false);
+	let indexStatus = $state<proto.StatusResult | null>(null);
+
+	// Guards against an early slow search — the first one also starts the daemon —
+	// overwriting the results of a later, faster one.
+	let latestSearchSequence = 0;
+
 	const currentPath = $derived(pathOf(listing));
 	const canGoUp = $derived(Boolean(listing?.parentPath));
 	const visibleEntries = $derived.by(collectVisibleEntries);
+	const isSearchActive = $derived(searchQuery.trim().length > 0);
+	const isIndexing = $derived(indexStatus?.state === "scanning");
 
 	onMount(() => {
 		navigateTo("");
+	});
+
+	$effect(() => {
+		const query = searchQuery.trim();
+		if (!query) {
+			clearSearch();
+			return;
+		}
+		const timer = setTimeout(() => runSearch(query), searchDebounceMilliseconds);
+		return () => clearTimeout(timer);
+	});
+
+	// The index is built in the background, so a query typed during the first crawl
+	// needs to say that the result set is still growing.
+	$effect(() => {
+		if (!isSearchActive) {
+			return;
+		}
+		refreshIndexStatus();
+		const timer = setInterval(refreshIndexStatus, statusPollMilliseconds);
+		return () => clearInterval(timer);
 	});
 
 	async function navigateTo(path: string) {
@@ -35,6 +83,58 @@
 			errorMessage = describeError(error);
 		}
 		isLoading = false;
+	}
+
+	async function runSearch(query: string) {
+		const sequence = ++latestSearchSequence;
+		isSearching = true;
+		const outcome = await requestSearch(query);
+		if (sequence !== latestSearchSequence) {
+			return;
+		}
+		applySearchOutcome(outcome);
+		isSearching = false;
+	}
+
+	async function requestSearch(query: string): Promise<SearchOutcome> {
+		try {
+			const result = await Search(query);
+			return { hits: result.hits, truncated: result.truncated, errorMessage: "" };
+		} catch (error) {
+			return { hits: [], truncated: false, errorMessage: describeError(error) };
+		}
+	}
+
+	function applySearchOutcome(outcome: SearchOutcome) {
+		searchHits = outcome.hits;
+		searchTruncated = outcome.truncated;
+		searchErrorMessage = outcome.errorMessage;
+	}
+
+	function clearSearch() {
+		latestSearchSequence++;
+		searchHits = [];
+		searchTruncated = false;
+		searchErrorMessage = "";
+		isSearching = false;
+	}
+
+	async function refreshIndexStatus() {
+		try {
+			indexStatus = await IndexStatus();
+		} catch {
+			indexStatus = null;
+		}
+	}
+
+	// Opening a file means revealing it, since the explorer cannot launch it yet.
+	function openHit(hit: proto.Hit) {
+		searchQuery = "";
+		if (hit.isDir) {
+			navigateTo(hit.path);
+			return;
+		}
+		navigateTo(parentDirectoryOf(hit.path));
 	}
 
 	function collectVisibleEntries(): filesystem.Entry[] {
@@ -59,6 +159,11 @@
 			return;
 		}
 		navigateTo(listing.parentPath);
+	}
+
+	function goHome() {
+		searchQuery = "";
+		navigateTo("");
 	}
 
 	function toggleHidden() {
@@ -100,25 +205,51 @@
 		}
 		return `${count} items`;
 	}
+
+	function indexingLabel(status: proto.StatusResult): string {
+		return `Indexing ${status.filesIndexed.toLocaleString()} entries so far`;
+	}
 </script>
 
 <div class="flex h-full flex-col bg-canvas">
 	<header class="flex items-center gap-2 border-b border-line px-4 py-3">
 		<Button size="sm" variant="ghost" icon={ArrowUpIcon} disabled={!canGoUp} onclick={goUp} />
-		<Button size="sm" variant="ghost" icon={HouseIcon} onclick={() => navigateTo("")} />
+		<Button size="sm" variant="ghost" icon={HouseIcon} onclick={goHome} />
 
 		<PathBreadcrumb path={currentPath} onNavigate={navigateTo} />
 
-		<Button
-			size="sm"
-			variant="ghost"
-			icon={hiddenToggleIcon()}
-			onclick={toggleHidden}
-		/>
+		<SearchField bind:value={searchQuery} />
+
+		<Button size="sm" variant="ghost" icon={hiddenToggleIcon()} onclick={toggleHidden} />
 	</header>
 
 	<main class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-		{#if errorMessage}
+		{#if isSearchActive}
+			{#if searchErrorMessage}
+				<Card>
+					<div class="flex items-center gap-3">
+						<WarningIcon size={20} class="shrink-0 text-red" />
+						<div class="min-w-0">
+							<p class="text-sm font-medium text-default">Search is unavailable</p>
+							<p class="truncate text-xs text-dim">{searchErrorMessage}</p>
+						</div>
+					</div>
+				</Card>
+			{:else if isSearching && searchHits.length === 0}
+				<div class="flex justify-center py-12">
+					<LoadingSpinner />
+				</div>
+			{:else}
+				{#if isIndexing && indexStatus}
+					<p class="mb-2 text-xs text-dim">{indexingLabel(indexStatus)}</p>
+				{/if}
+				{#if searchHits.length === 0}
+					<SectionHeader title="No matches" />
+				{:else}
+					<SearchResults hits={searchHits} truncated={searchTruncated} onOpen={openHit} />
+				{/if}
+			{/if}
+		{:else if errorMessage}
 			<Card>
 				<div class="flex items-center gap-3">
 					<WarningIcon size={20} class="shrink-0 text-red" />

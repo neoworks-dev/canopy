@@ -3,10 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wails dev -tags webkit2_41",
-    "build": "wails build -tags webkit2_41",
+    "dev": "bun run daemon:build && NEOWORKSD_BIN=\"$PWD/build/bin/neoworksd\" wails dev -tags webkit2_41",
+    "build": "bun run daemon:build && wails build -tags webkit2_41",
+    "daemon:build": "cd daemon && go build -o ../build/bin/neoworksd ./cmd/neoworksd",
     "bindings": "wails generate module -tags webkit2_41",
-    "test:go": "go test ./...",
+    "test:go": "go test ./... && cd daemon && go test ./...",
     "check": "cd frontend && bun run check"
   },
   "devDependencies": {
