@@ -3,10 +3,16 @@
 package proto
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 )
+
+// maxSocketPathLength is the portable floor for the kernel's sun_path field
+// (macOS allows 104 bytes, Linux 108). Exceeding it fails with a bare
+// "invalid argument", so the limit is checked explicitly instead.
+const maxSocketPathLength = 103
 
 const applicationDirectoryName = "neoworks"
 
@@ -33,6 +39,18 @@ func RuntimeDirectory() string {
 
 func SocketPath() string {
 	return filepath.Join(RuntimeDirectory(), "daemon.sock")
+}
+
+// ValidateSocketPath reports a path the kernel cannot bind. Both sides check it,
+// because a client that cannot dial would otherwise spawn a daemon that cannot
+// listen.
+func ValidateSocketPath(socketPath string) error {
+	if len(socketPath) <= maxSocketPathLength {
+		return nil
+	}
+	return fmt.Errorf(
+		"socket path %q is %d bytes, over the %d byte kernel limit; point %s at a shorter directory",
+		socketPath, len(socketPath), maxSocketPathLength, RuntimeDirectoryEnvironmentVariable)
 }
 
 // DaemonLockPath is held by the daemon for its entire lifetime, which is what

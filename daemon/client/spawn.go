@@ -25,6 +25,9 @@ const dialPollInterval = 25 * time.Millisecond
 
 // dialOrSpawn connects to a running daemon, starting one if there is none.
 func dialOrSpawn(options Options) (net.Conn, error) {
+	if err := proto.ValidateSocketPath(options.SocketPath); err != nil {
+		return nil, err
+	}
 	connection, err := dial(options.SocketPath)
 	if err == nil {
 		return connection, nil

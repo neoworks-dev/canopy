@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -50,6 +51,9 @@ type ScanSession struct {
 // Open opens or creates the index database. WAL keeps searches responsive while
 // a crawl is writing.
 func Open(databasePath string) (*Store, error) {
+	if err := ensurePrivateDatabaseFile(databasePath); err != nil {
+		return nil, err
+	}
 	database, err := sql.Open("sqlite", buildDataSourceName(databasePath))
 	if err != nil {
 		return nil, err
@@ -60,6 +64,21 @@ func Open(databasePath string) (*Store, error) {
 		return nil, err
 	}
 	return &Store{database: database}, nil
+}
+
+// ensurePrivateDatabaseFile creates or tightens the database before SQLite opens
+// it. The index holds the name of every file the user owns, and SQLite copies the
+// main file's mode onto the -wal and -shm files, so setting it here covers all
+// three. A zero-length file is a valid empty database.
+func ensurePrivateDatabaseFile(databasePath string) error {
+	file, err := os.OpenFile(databasePath, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	return os.Chmod(databasePath, 0o600)
 }
 
 func (store *Store) Close() error {

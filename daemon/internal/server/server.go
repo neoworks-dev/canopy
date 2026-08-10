@@ -89,6 +89,9 @@ func (server *Server) Serve(runContext context.Context) error {
 // because the caller already holds the daemon lock, which proves no live daemon
 // owns that path.
 func (server *Server) listen() (*net.UnixListener, error) {
+	if err := proto.ValidateSocketPath(server.options.SocketPath); err != nil {
+		return nil, err
+	}
 	if err := proto.EnsurePrivateDirectory(filepath.Dir(server.options.SocketPath)); err != nil {
 		return nil, err
 	}
