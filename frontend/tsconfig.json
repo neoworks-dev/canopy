@@ -1,0 +1,18 @@
+{
+	"compilerOptions": {
+		"target": "ESNext",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"lib": ["ESNext", "DOM", "DOM.Iterable"],
+		"types": ["vite/client"],
+		"strict": true,
+		"noEmit": true,
+		"isolatedModules": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"allowJs": true,
+		"checkJs": true,
+		"verbatimModuleSyntax": true
+	},
+	"include": ["src/**/*.ts", "src/**/*.svelte", "wailsjs/**/*.ts", "vite.config.ts"]
+}
