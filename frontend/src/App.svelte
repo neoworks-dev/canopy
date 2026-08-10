@@ -7,11 +7,12 @@
 	import EyeIcon from "phosphor-svelte/lib/EyeIcon";
 	import EyeSlashIcon from "phosphor-svelte/lib/EyeSlashIcon";
 	import WarningIcon from "phosphor-svelte/lib/WarningIcon";
-	import { ListDirectory } from "../wailsjs/go/main/FileService";
+	import { ListDirectory, Places } from "../wailsjs/go/main/FileService";
 	import { IndexStatus, Search } from "../wailsjs/go/main/IndexService";
 	import type { filesystem, proto } from "../wailsjs/go/models";
 	import EntryIcon from "./lib/EntryIcon.svelte";
 	import PathBreadcrumb from "./lib/PathBreadcrumb.svelte";
+	import PlacesSidebar from "./lib/PlacesSidebar.svelte";
 	import SearchField from "./lib/SearchField.svelte";
 	import SearchResults from "./lib/SearchResults.svelte";
 	import { formatFileSize, formatModifiedTime, parentDirectoryOf } from "./lib/format";
@@ -28,6 +29,7 @@
 	};
 
 	let listing = $state<filesystem.Listing | null>(null);
+	let places = $state<filesystem.Place[]>([]);
 	let errorMessage = $state("");
 	let isLoading = $state(false);
 	let showHidden = $state(false);
@@ -51,6 +53,7 @@
 
 	onMount(() => {
 		navigateTo("");
+		loadPlaces();
 	});
 
 	$effect(() => {
@@ -83,6 +86,16 @@
 			errorMessage = describeError(error);
 		}
 		isLoading = false;
+	}
+
+	// The sidebar is a convenience, so a failed lookup hides it rather than
+	// blocking the listing behind an error.
+	async function loadPlaces() {
+		try {
+			places = await Places();
+		} catch {
+			places = [];
+		}
 	}
 
 	async function runSearch(query: string) {
@@ -166,6 +179,11 @@
 		navigateTo("");
 	}
 
+	function openPlace(path: string) {
+		searchQuery = "";
+		navigateTo(path);
+	}
+
 	function toggleHidden() {
 		showHidden = !showHidden;
 	}
@@ -211,74 +229,80 @@
 	}
 </script>
 
-<div class="flex h-full flex-col bg-canvas">
-	<header class="flex items-center gap-2 border-b border-line px-4 py-3">
-		<Button size="sm" variant="ghost" icon={ArrowUpIcon} disabled={!canGoUp} onclick={goUp} />
-		<Button size="sm" variant="ghost" icon={HouseIcon} onclick={goHome} />
+<div class="flex h-full bg-canvas">
+	{#if places.length > 0}
+		<PlacesSidebar {places} {currentPath} onNavigate={openPlace} />
+	{/if}
 
-		<PathBreadcrumb path={currentPath} onNavigate={navigateTo} />
+	<div class="flex min-w-0 flex-1 flex-col">
+		<header class="flex items-center gap-2 border-b border-line px-4 py-3">
+			<Button size="sm" variant="ghost" icon={ArrowUpIcon} disabled={!canGoUp} onclick={goUp} />
+			<Button size="sm" variant="ghost" icon={HouseIcon} onclick={goHome} />
 
-		<SearchField bind:value={searchQuery} />
+			<PathBreadcrumb path={currentPath} onNavigate={navigateTo} />
 
-		<Button size="sm" variant="ghost" icon={hiddenToggleIcon()} onclick={toggleHidden} />
-	</header>
+			<SearchField bind:value={searchQuery} />
 
-	<main class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-		{#if isSearchActive}
-			{#if searchErrorMessage}
+			<Button size="sm" variant="ghost" icon={hiddenToggleIcon()} onclick={toggleHidden} />
+		</header>
+
+		<main class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+			{#if isSearchActive}
+				{#if searchErrorMessage}
+					<Card>
+						<div class="flex items-center gap-3">
+							<WarningIcon size={20} class="shrink-0 text-red" />
+							<div class="min-w-0">
+								<p class="text-sm font-medium text-default">Search is unavailable</p>
+								<p class="truncate text-xs text-dim">{searchErrorMessage}</p>
+							</div>
+						</div>
+					</Card>
+				{:else if isSearching && searchHits.length === 0}
+					<div class="flex justify-center py-12">
+						<LoadingSpinner />
+					</div>
+				{:else}
+					{#if isIndexing && indexStatus}
+						<p class="mb-2 text-xs text-dim">{indexingLabel(indexStatus)}</p>
+					{/if}
+					{#if searchHits.length === 0}
+						<SectionHeader title="No matches" />
+					{:else}
+						<SearchResults hits={searchHits} truncated={searchTruncated} onOpen={openHit} />
+					{/if}
+				{/if}
+			{:else if errorMessage}
 				<Card>
 					<div class="flex items-center gap-3">
 						<WarningIcon size={20} class="shrink-0 text-red" />
 						<div class="min-w-0">
-							<p class="text-sm font-medium text-default">Search is unavailable</p>
-							<p class="truncate text-xs text-dim">{searchErrorMessage}</p>
+							<p class="text-sm font-medium text-default">Could not open this folder</p>
+							<p class="truncate text-xs text-dim">{errorMessage}</p>
 						</div>
 					</div>
 				</Card>
-			{:else if isSearching && searchHits.length === 0}
+			{:else if isLoading}
 				<div class="flex justify-center py-12">
 					<LoadingSpinner />
 				</div>
 			{:else}
-				{#if isIndexing && indexStatus}
-					<p class="mb-2 text-xs text-dim">{indexingLabel(indexStatus)}</p>
-				{/if}
-				{#if searchHits.length === 0}
-					<SectionHeader title="No matches" />
-				{:else}
-					<SearchResults hits={searchHits} truncated={searchTruncated} onOpen={openHit} />
-				{/if}
-			{/if}
-		{:else if errorMessage}
-			<Card>
-				<div class="flex items-center gap-3">
-					<WarningIcon size={20} class="shrink-0 text-red" />
-					<div class="min-w-0">
-						<p class="text-sm font-medium text-default">Could not open this folder</p>
-						<p class="truncate text-xs text-dim">{errorMessage}</p>
-					</div>
+				<SectionHeader title={itemCountLabel(visibleEntries.length)} />
+				<div class="mt-2 flex flex-col gap-1">
+					{#each visibleEntries as entry (entry.path)}
+						<ListRow
+							title={entry.name}
+							subtitle={entrySubtitle(entry)}
+							chevron={entry.isDir}
+							onclick={() => openEntry(entry)}
+						>
+							{#snippet leading()}
+								<EntryIcon {entry} />
+							{/snippet}
+						</ListRow>
+					{/each}
 				</div>
-			</Card>
-		{:else if isLoading}
-			<div class="flex justify-center py-12">
-				<LoadingSpinner />
-			</div>
-		{:else}
-			<SectionHeader title={itemCountLabel(visibleEntries.length)} />
-			<div class="mt-2 flex flex-col gap-1">
-				{#each visibleEntries as entry (entry.path)}
-					<ListRow
-						title={entry.name}
-						subtitle={entrySubtitle(entry)}
-						chevron={entry.isDir}
-						onclick={() => openEntry(entry)}
-					>
-						{#snippet leading()}
-							<EntryIcon {entry} />
-						{/snippet}
-					</ListRow>
-				{/each}
-			</div>
-		{/if}
-	</main>
+			{/if}
+		</main>
+	</div>
 </div>
