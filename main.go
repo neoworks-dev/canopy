@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 
 	"github.com/wailsapp/wails/v2"
@@ -13,6 +14,7 @@ var assets embed.FS
 
 func main() {
 	fileService := NewFileService()
+	indexService := NewIndexService()
 
 	err := wails.Run(&options.App{
 		Title:  "Neoworks Files",
@@ -24,6 +26,10 @@ func main() {
 		BackgroundColour: &options.RGBA{R: 10, G: 10, B: 11, A: 1},
 		Bind: []interface{}{
 			fileService,
+			indexService,
+		},
+		OnShutdown: func(_ context.Context) {
+			indexService.shutdown()
 		},
 	})
 

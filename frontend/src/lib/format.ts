@@ -30,7 +30,21 @@ export function formatModifiedTime(timestamp: string): string {
 	if (!timestamp) {
 		return "—";
 	}
-	const parsed = new Date(timestamp);
+	return formatLocalDate(new Date(timestamp));
+}
+
+/**
+ * Renders a Unix timestamp in seconds, which is how the search index reports
+ * modification times, as a short local date.
+ */
+export function formatModifiedUnixTime(secondsSinceEpoch: number): string {
+	if (secondsSinceEpoch <= 0) {
+		return "—";
+	}
+	return formatLocalDate(new Date(secondsSinceEpoch * 1000));
+}
+
+function formatLocalDate(parsed: Date): string {
 	if (Number.isNaN(parsed.getTime())) {
 		return "—";
 	}
@@ -39,6 +53,18 @@ export function formatModifiedTime(timestamp: string): string {
 		month: "short",
 		day: "numeric",
 	});
+}
+
+/**
+ * The directory containing a path. Search results live anywhere in the indexed
+ * roots, so each one shows where it came from.
+ */
+export function parentDirectoryOf(absolutePath: string): string {
+	const lastSeparator = absolutePath.lastIndexOf("/");
+	if (lastSeparator <= 0) {
+		return "/";
+	}
+	return absolutePath.slice(0, lastSeparator);
 }
 
 /**
