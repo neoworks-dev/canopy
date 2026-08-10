@@ -13,3 +13,7 @@ export function ListDirectory(arg1) {
 export function Places() {
   return window['go']['main']['FileService']['Places']();
 }
+
+export function PreviewFile(arg1) {
+  return window['go']['main']['FileService']['PreviewFile'](arg1);
+}

@@ -6,6 +6,7 @@ export namespace filesystem {
 	    isDir: boolean;
 	    size: number;
 	    modTime: string;
+	    mode: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Entry(source);
@@ -18,6 +19,7 @@ export namespace filesystem {
 	        this.isDir = source["isDir"];
 	        this.size = source["size"];
 	        this.modTime = source["modTime"];
+	        this.mode = source["mode"];
 	    }
 	}
 	export class Listing {
@@ -68,6 +70,28 @@ export namespace filesystem {
 	        this.name = source["name"];
 	        this.path = source["path"];
 	        this.kind = source["kind"];
+	    }
+	}
+	export class Preview {
+	    path: string;
+	    kind: string;
+	    text: string;
+	    dataUrl: string;
+	    truncated: boolean;
+	    size: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Preview(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.kind = source["kind"];
+	        this.text = source["text"];
+	        this.dataUrl = source["dataUrl"];
+	        this.truncated = source["truncated"];
+	        this.size = source["size"];
 	    }
 	}
 

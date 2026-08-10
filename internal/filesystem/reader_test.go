@@ -3,6 +3,7 @@ package filesystem
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -46,6 +47,31 @@ func TestReadDirectoryReportsSizeAndParent(t *testing.T) {
 	}
 	if listing.Entries[0].ModTime == "" {
 		t.Error("ModTime is empty, want an RFC3339 timestamp")
+	}
+}
+
+func TestReadDirectoryReportsPermissions(t *testing.T) {
+	root := t.TempDir()
+	filePath := filepath.Join(root, "script.sh")
+	if err := os.WriteFile(filePath, []byte("#!/bin/sh\n"), 0o750); err != nil {
+		t.Fatalf("writing fixture failed: %v", err)
+	}
+	mustMakeDir(t, filepath.Join(root, "nested"))
+
+	listing, err := ReadDirectory(root)
+	if err != nil {
+		t.Fatalf("ReadDirectory returned error: %v", err)
+	}
+
+	modesByName := map[string]string{}
+	for _, entry := range listing.Entries {
+		modesByName[entry.Name] = entry.Mode
+	}
+	if modesByName["script.sh"] != "-rwxr-x---" {
+		t.Errorf("file mode = %q, want -rwxr-x---", modesByName["script.sh"])
+	}
+	if !strings.HasPrefix(modesByName["nested"], "d") {
+		t.Errorf("directory mode = %q, want a leading d", modesByName["nested"])
 	}
 }
 

@@ -8,6 +8,7 @@ type Entry struct {
 	IsDir   bool   `json:"isDir"`
 	Size    int64  `json:"size"`
 	ModTime string `json:"modTime"`
+	Mode    string `json:"mode"`
 }
 
 // Listing is the result of reading one directory.

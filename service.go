@@ -25,6 +25,11 @@ func (service *FileService) HomeDirectory() (string, error) {
 	return os.UserHomeDir()
 }
 
+// PreviewFile reads as much of one file as the preview pane can show.
+func (service *FileService) PreviewFile(path string) (filesystem.Preview, error) {
+	return filesystem.ReadPreview(path)
+}
+
 // Places lists the sidebar shortcuts to well-known directories.
 func (service *FileService) Places() []filesystem.Place {
 	return filesystem.Places()

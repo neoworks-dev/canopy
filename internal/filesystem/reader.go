@@ -49,6 +49,7 @@ func toEntry(parentPath string, directoryEntry os.DirEntry) Entry {
 	}
 	entry.Size = info.Size()
 	entry.ModTime = info.ModTime().Format(time.RFC3339)
+	entry.Mode = info.Mode().String()
 	return entry
 }
 
