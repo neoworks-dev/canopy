@@ -67,6 +67,22 @@ const EXTENSIONS_BY_KIND: Record<string, FileKind> = {
 	csv: "text",
 };
 
+const LABELS_BY_KIND: Record<FileKind, string> = {
+	folder: "Folder",
+	image: "Image",
+	audio: "Audio",
+	video: "Video",
+	archive: "Archive",
+	pdf: "PDF",
+	code: "Code",
+	text: "Text",
+	file: "File",
+};
+
+export function kindLabel(kind: FileKind): string {
+	return LABELS_BY_KIND[kind];
+}
+
 export function classifyEntry(entry: { name: string; isDir: boolean }): FileKind {
 	if (entry.isDir) {
 		return "folder";

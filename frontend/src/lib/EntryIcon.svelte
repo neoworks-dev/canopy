@@ -12,7 +12,13 @@
 	import VideoCameraIcon from "phosphor-svelte/lib/VideoCameraIcon";
 	import { classifyEntry, type FileKind } from "./fileKind";
 
-	let { entry }: { entry: { name: string; isDir: boolean } } = $props();
+	let {
+		entry,
+		size = "sm",
+	}: {
+		entry: { name: string; isDir: boolean };
+		size?: "sm" | "md" | "lg";
+	} = $props();
 
 	const iconsByKind: Record<FileKind, IconComponent> = {
 		folder: FolderIcon,
@@ -41,4 +47,4 @@
 	const kind = $derived(classifyEntry(entry));
 </script>
 
-<IconCircle icon={iconsByKind[kind]} tone={tonesByKind[kind]} size="sm" />
+<IconCircle icon={iconsByKind[kind]} tone={tonesByKind[kind]} {size} />

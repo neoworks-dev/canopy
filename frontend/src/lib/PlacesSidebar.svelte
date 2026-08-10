@@ -72,12 +72,12 @@
 
 <Card
 	surface="elevated"
-	padding="sm"
-	class="m-3 flex w-52 shrink-0 flex-col overflow-y-auto shadow-lg"
+	padding="none"
+	class="flex w-52 shrink-0 flex-col gap-2 overflow-y-auto p-2 shadow-lg"
 >
 	<SectionHeader title="Places" />
 
-	<nav class="flex flex-col gap-0.5">
+	<nav class="flex flex-col gap-2">
 		{#each places as place (place.path)}
 			{@const PlaceIcon = iconFor(place)}
 			<button
@@ -85,7 +85,7 @@
 				use:ripple
 				onclick={() => onNavigate(place.path)}
 				aria-current={currentMarker(place)}
-				class="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition duration-fast {rowClasses(
+				class="flex items-center gap-2 rounded-lg p-2 text-left text-sm transition duration-fast {rowClasses(
 					place,
 				)}"
 			>
