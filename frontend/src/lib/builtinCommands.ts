@@ -149,6 +149,7 @@ export const staticCommandDescriptors: CommandDescriptor[] = [
 	{ id: "search.here", title: "Search this folder", category: "Search" },
 	{ id: "search.global", title: "Search everywhere", category: "Search" },
 	{ id: "search.close", title: "Close search", category: "Search", when: "searchOpen" },
+	{ id: "search.save", title: "Save this search", category: "Search", when: "searchOpen" },
 	{ id: "zoxide.jump", title: "Jump to a folder", category: "Navigation" },
 	{
 		id: "palette.open",
@@ -251,6 +252,7 @@ export const defaultKeymap: Keybinding[] = [
 	{ key: "Z", command: "zoxide.jump", when: "listActive" },
 	{ key: "ctrl+j", command: "zoxide.jump" },
 	{ key: "escape", command: "search.close", when: "searchOpen" },
+	{ key: "ctrl+s", command: "search.save", when: "searchOpen" },
 
 	{ key: "ctrl+shift+p", command: "palette.open" },
 	{ key: ":", command: "palette.open", when: "listActive" },

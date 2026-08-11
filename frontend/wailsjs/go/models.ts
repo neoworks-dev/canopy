@@ -431,6 +431,27 @@ export namespace recents {
 
 }
 
+export namespace searches {
+	
+	export class Search {
+	    name: string;
+	    query: string;
+	    scope: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Search(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.query = source["query"];
+	        this.scope = source["scope"];
+	    }
+	}
+
+}
+
 export namespace settings {
 	
 	export class Keybinding {

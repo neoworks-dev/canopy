@@ -15,8 +15,10 @@
 	import BookmarkSimpleIcon from "phosphor-svelte/lib/BookmarkSimpleIcon";
 	import PlugsConnectedIcon from "phosphor-svelte/lib/PlugsConnectedIcon";
 	import TagIcon from "phosphor-svelte/lib/TagIcon";
+	import MagnifyingGlassIcon from "phosphor-svelte/lib/MagnifyingGlassIcon";
 	import type { bookmarks, filesystem, recents } from "../../wailsjs/go/models";
 	import type { DropOperation } from "./dragDrop";
+	import { searchDescription, type SavedSearch } from "./savedSearches";
 	import { formatFileSize } from "./format";
 	import SidebarItem from "./SidebarItem.svelte";
 	import SidebarSection from "./SidebarSection.svelte";
@@ -28,6 +30,8 @@
 		pinned,
 		recent,
 		tagNames,
+		savedSearches,
+		openSearchName,
 		currentPath,
 		isTrashOpen,
 		openTag,
@@ -40,6 +44,9 @@
 		onOpenTag,
 		onRemoveBookmark,
 		onForgetTag,
+		onOpenSearch,
+		onRenameSearch,
+		onForgetSearch,
 		onDropOnFolder,
 		onDropInTrash,
 	}: {
@@ -48,6 +55,9 @@
 		pinned: bookmarks.Bookmark[];
 		recent: recents.Entry[];
 		tagNames: string[];
+		savedSearches: SavedSearch[];
+		/** The saved search whose results are on screen, or "" when none is. */
+		openSearchName: string;
 		currentPath: string;
 		isTrashOpen: boolean;
 		/** The tag whose pane is on screen, or "" when none is. */
@@ -61,6 +71,9 @@
 		onOpenTag: (name: string) => void;
 		onRemoveBookmark: (path: string) => void;
 		onForgetTag: (name: string) => void;
+		onOpenSearch: (search: SavedSearch) => void;
+		onRenameSearch: (search: SavedSearch) => void;
+		onForgetSearch: (name: string) => void;
 		/** A drag landed on a folder in the rail: the same drop a pane would take. */
 		onDropOnFolder: (sources: string[], destination: string, operation: DropOperation) => void;
 		onDropInTrash: (sources: string[]) => void;
@@ -223,6 +236,29 @@
 			{/each}
 			{#if pinned.length === 0}
 				<p class="px-2 py-1 text-2xs text-faint">Pin a folder to keep it here</p>
+			{/if}
+		</SidebarSection>
+
+		<SidebarSection
+			title="Searches"
+			isCollapsed={isCollapsed("searches")}
+			onToggle={() => onToggleSection("searches")}
+		>
+			{#each savedSearches as search (search.name)}
+				<SidebarItem
+					icon={MagnifyingGlassIcon}
+					label={search.name}
+					title={searchDescription(search)}
+					active={openSearchName === search.name}
+					onSelect={() => onOpenSearch(search)}
+					onEdit={() => onRenameSearch(search)}
+					editLabel="Rename {search.name}"
+					onRemove={() => onForgetSearch(search.name)}
+					removeLabel="Remove {search.name} from the sidebar"
+				/>
+			{/each}
+			{#if savedSearches.length === 0}
+				<p class="px-2 py-1 text-2xs text-faint">Save a search to keep it here</p>
 			{/if}
 		</SidebarSection>
 

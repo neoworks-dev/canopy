@@ -50,6 +50,10 @@ export function FilesWithTag(arg1) {
   return window['go']['main']['FileService']['FilesWithTag'](arg1);
 }
 
+export function ForgetSearch(arg1) {
+  return window['go']['main']['FileService']['ForgetSearch'](arg1);
+}
+
 export function ForgetTag(arg1) {
   return window['go']['main']['FileService']['ForgetTag'](arg1);
 }
@@ -126,6 +130,10 @@ export function RenameEntry(arg1, arg2) {
   return window['go']['main']['FileService']['RenameEntry'](arg1, arg2);
 }
 
+export function RenameSearch(arg1, arg2) {
+  return window['go']['main']['FileService']['RenameSearch'](arg1, arg2);
+}
+
 export function ResolveConflict(arg1, arg2, arg3) {
   return window['go']['main']['FileService']['ResolveConflict'](arg1, arg2, arg3);
 }
@@ -138,8 +146,16 @@ export function ResumeOperation(arg1) {
   return window['go']['main']['FileService']['ResumeOperation'](arg1);
 }
 
+export function SaveSearch(arg1, arg2, arg3) {
+  return window['go']['main']['FileService']['SaveSearch'](arg1, arg2, arg3);
+}
+
 export function SaveSettings(arg1) {
   return window['go']['main']['FileService']['SaveSettings'](arg1);
+}
+
+export function SavedSearches() {
+  return window['go']['main']['FileService']['SavedSearches']();
 }
 
 export function SetDefaultApplication(arg1, arg2) {

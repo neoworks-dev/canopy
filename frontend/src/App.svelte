@@ -15,6 +15,7 @@
 		Bookmarks,
 		CopyPathsToClipboard,
 		Devices,
+		ForgetSearch,
 		ForgetTag,
 		HomeDirectory,
 		KnownTags,
@@ -28,7 +29,10 @@
 		RecentEntries,
 		RemoveBookmark,
 		RemoveTag,
+		RenameSearch,
+		SaveSearch,
 		SaveSettings,
+		SavedSearches,
 		SetDefaultApplication,
 		TagsOf,
 		WatchDirectories,
@@ -48,6 +52,7 @@
 	import PathBar from "./lib/PathBar.svelte";
 	import PlacesSidebar from "./lib/PlacesSidebar.svelte";
 	import PreviewPane from "./lib/PreviewPane.svelte";
+	import SaveSearchDialog from "./lib/SaveSearchDialog.svelte";
 	import SearchField from "./lib/SearchField.svelte";
 	import TabStrip from "./lib/TabStrip.svelte";
 	import TagDialog from "./lib/TagDialog.svelte";
@@ -85,6 +90,11 @@
 	import type { Movement } from "./lib/movement";
 	import { emptyPaneStatus, type PaneStatus } from "./lib/paneStatus";
 	import { defaultPaneWidths, paneGutterWidth } from "./lib/panes";
+	import {
+		searchDescription,
+		suggestedName,
+		type SavedSearch,
+	} from "./lib/savedSearches";
 	import { sectionsAfterToggle, type SidebarSectionId } from "./lib/sidebar";
 	import { itemCount, summarize, type StatusInput } from "./lib/statusStrip";
 	import { defaultViewSettings, viewSettingsFrom, type ViewMode } from "./lib/settings";
@@ -133,6 +143,15 @@
 		errorMessage: string;
 	};
 
+	// Naming a search, either the one being saved or one already in the sidebar.
+	type SearchDialogState = {
+		title: string;
+		initialName: string;
+		description: string;
+		/** The search being renamed, or null while the current query is saved. */
+		renaming: SavedSearch | null;
+	};
+
 	// The menu holds only where it was opened and which set it shows: what each
 	// row does depends on the selection, which the pane reports a moment after
 	// the click that opened it.
@@ -158,6 +177,10 @@
 	let pinned = $state<bookmarks.Bookmark[]>([]);
 	let recent = $state<recents.Entry[]>([]);
 	let tagNames = $state<string[]>([]);
+	let savedSearches = $state<SavedSearch[]>([]);
+	// The saved search whose results are on screen, or "" while none is.
+	let openSearchName = $state("");
+	let searchDialog = $state<SearchDialogState | null>(null);
 	let collapsedSections = $state<SidebarSectionId[]>([]);
 	// The tags on the selection, read when the dialog opens so it can show them.
 	let selectionTags = $state<string[]>([]);
@@ -384,6 +407,11 @@
 		await refreshPins();
 		await refreshRecents();
 		await refreshTagNames();
+		await refreshSavedSearches();
+	}
+
+	async function refreshSavedSearches() {
+		savedSearches = await orEmpty(SavedSearches());
 	}
 
 	async function refreshPins() {
@@ -620,12 +648,81 @@
 		searchScope = scope;
 		searchQuery = "";
 		isSearchOpen = true;
+		openSearchName = "";
 		await tick();
 		searchInput?.focus();
 	}
 
 	function searchThisFolder() {
 		openSearch(currentPath);
+	}
+
+	// Opening a saved search runs it again rather than showing what it once found,
+	// which is the whole reason for keeping the query rather than its results.
+	async function openSavedSearch(search: SavedSearch) {
+		searchScope = search.scope;
+		searchQuery = search.query;
+		isSearchOpen = true;
+		openSearchName = search.name;
+		await tick();
+		searchInput?.focus();
+	}
+
+	function startSavingSearch() {
+		if (searchQuery.trim() === "") {
+			return;
+		}
+		searchDialog = {
+			title: "Save this search",
+			initialName: suggestedName(searchQuery, searchScope),
+			description: searchDescription({ name: "", query: searchQuery, scope: searchScope }),
+			renaming: null,
+		};
+	}
+
+	function startRenamingSearch(search: SavedSearch) {
+		searchDialog = {
+			title: "Rename this search",
+			initialName: search.name,
+			description: searchDescription(search),
+			renaming: search,
+		};
+	}
+
+	async function commitSearchName(name: string) {
+		const dialog = searchDialog;
+		searchDialog = null;
+		if (!dialog) {
+			return;
+		}
+		await applySearchName(dialog, name);
+		await refreshSavedSearches();
+	}
+
+	async function applySearchName(dialog: SearchDialogState, name: string) {
+		if (dialog.renaming) {
+			await renameSavedSearch(dialog.renaming, name);
+			return;
+		}
+		await SaveSearch(name, searchQuery, searchScope);
+	}
+
+	// The sidebar marks whichever saved search is on screen, so renaming the open
+	// one has to carry that mark across.
+	async function renameSavedSearch(search: SavedSearch, name: string) {
+		await RenameSearch(search.name, name);
+		if (openSearchName !== search.name) {
+			return;
+		}
+		openSearchName = name;
+	}
+
+	async function forgetSavedSearch(name: string) {
+		await ForgetSearch(name);
+		if (openSearchName === name) {
+			openSearchName = "";
+		}
+		await refreshSavedSearches();
 	}
 
 	function searchEverywhere() {
@@ -636,6 +733,7 @@
 		searchQuery = "";
 		searchScope = "";
 		isSearchOpen = false;
+		openSearchName = "";
 		activePane()?.focusList();
 	}
 
@@ -883,6 +981,7 @@
 			"search.here": searchThisFolder,
 			"search.global": searchEverywhere,
 			"search.close": closeSearch,
+			"search.save": startSavingSearch,
 		};
 	}
 
@@ -1247,6 +1346,7 @@
 				indexingLabel={indexingNotice()}
 				{isSearching}
 				onOpenHit={openHit}
+				onSave={startSavingSearch}
 				onClose={closeSearch}
 			/>
 		{:else}
@@ -1281,6 +1381,8 @@
 				{pinned}
 				{recent}
 				{tagNames}
+				{savedSearches}
+				{openSearchName}
 				{currentPath}
 				isTrashOpen={tab.location.kind === "trash"}
 				openTag={tab.location.kind === "tag" ? tab.location.name : ""}
@@ -1293,6 +1395,9 @@
 				onOpenTag={openTagPane}
 				onRemoveBookmark={unpinFolder}
 				onForgetTag={forgetTag}
+				onOpenSearch={openSavedSearch}
+				onRenameSearch={startRenamingSearch}
+				onForgetSearch={forgetSavedSearch}
 				onDropOnFolder={dropOntoFolder}
 				onDropInTrash={dropIntoTrash}
 			/>
@@ -1443,6 +1548,17 @@
 		onApply={applyTag}
 		onRemove={dropTag}
 		onClose={() => (isTagDialogOpen = false)}
+	/>
+{/if}
+
+{#if searchDialog}
+	<SaveSearchDialog
+		title={searchDialog.title}
+		initialName={searchDialog.initialName}
+		description={searchDialog.description}
+		saved={savedSearches}
+		onSave={commitSearchName}
+		onClose={() => (searchDialog = null)}
 	/>
 {/if}
 

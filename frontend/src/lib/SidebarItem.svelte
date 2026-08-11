@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { ripple } from "@neoworks-dev/ui";
 	import type { IconComponent } from "@neoworks-dev/ui";
+	import PencilSimpleIcon from "phosphor-svelte/lib/PencilSimpleIcon";
 	import XIcon from "phosphor-svelte/lib/XIcon";
 	import { dragSourceOf, dropOperation, readDraggedPaths, type DropOperation } from "./dragDrop";
 
@@ -16,6 +17,8 @@
 		onSelect,
 		onRemove = undefined,
 		removeLabel = "",
+		onEdit = undefined,
+		editLabel = "",
 		onDropPaths = undefined,
 	}: {
 		icon: IconComponent;
@@ -28,6 +31,9 @@
 		/** Present on the items that can be taken out of the sidebar. */
 		onRemove?: () => void;
 		removeLabel?: string;
+		/** Present on the items that can be renamed in place. */
+		onEdit?: () => void;
+		editLabel?: string;
 		/** Present on the items a drag can be dropped on. */
 		onDropPaths?: (sources: string[], operation: DropOperation) => void;
 	} = $props();
@@ -101,6 +107,17 @@
 			<span class="shrink-0 text-2xs text-faint tabular-nums">{detail}</span>
 		{/if}
 	</button>
+
+	{#if onEdit}
+		<button
+			type="button"
+			onclick={onEdit}
+			aria-label={editLabel}
+			class="shrink-0 rounded-md p-1 text-faint opacity-0 transition duration-fast group-hover/item:opacity-100 hover:bg-hover hover:text-default focus-visible:opacity-100"
+		>
+			<PencilSimpleIcon size={12} />
+		</button>
+	{/if}
 
 	{#if onRemove}
 		<button

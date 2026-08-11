@@ -7,6 +7,7 @@ import {git} from '../models';
 import {fileops} from '../models';
 import {settings} from '../models';
 import {recents} from '../models';
+import {searches} from '../models';
 import {thumbnail} from '../models';
 import {zoxide} from '../models';
 
@@ -33,6 +34,8 @@ export function Devices():Promise<Array<filesystem.Device>>;
 export function EmptyTrash():Promise<void>;
 
 export function FilesWithTag(arg1:string):Promise<Array<filesystem.Entry>>;
+
+export function ForgetSearch(arg1:string):Promise<void>;
 
 export function ForgetTag(arg1:string):Promise<void>;
 
@@ -72,13 +75,19 @@ export function RemoveTag(arg1:Array<string>,arg2:string):Promise<void>;
 
 export function RenameEntry(arg1:string,arg2:string):Promise<string>;
 
+export function RenameSearch(arg1:string,arg2:string):Promise<void>;
+
 export function ResolveConflict(arg1:string,arg2:string,arg3:boolean):Promise<void>;
 
 export function RestoreFromTrash(arg1:string):Promise<string>;
 
 export function ResumeOperation(arg1:string):Promise<void>;
 
+export function SaveSearch(arg1:string,arg2:string,arg3:string):Promise<void>;
+
 export function SaveSettings(arg1:settings.Settings):Promise<void>;
+
+export function SavedSearches():Promise<Array<searches.Search>>;
 
 export function SetDefaultApplication(arg1:string,arg2:string):Promise<void>;
 

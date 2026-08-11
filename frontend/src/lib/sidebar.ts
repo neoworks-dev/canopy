@@ -3,12 +3,19 @@
  * of the DOM so the stored state can be checked the same way every other
  * setting is.
  */
-export type SidebarSectionId = "places" | "devices" | "bookmarks" | "tags" | "recent";
+export type SidebarSectionId =
+	| "places"
+	| "devices"
+	| "bookmarks"
+	| "searches"
+	| "tags"
+	| "recent";
 
 export const sidebarSectionIds: SidebarSectionId[] = [
 	"places",
 	"devices",
 	"bookmarks",
+	"searches",
 	"tags",
 	"recent",
 ];

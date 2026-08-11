@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Card, LoadingSpinner } from "@neoworks-dev/ui";
+	import BookmarkSimpleIcon from "phosphor-svelte/lib/BookmarkSimpleIcon";
 	import MagnifyingGlassIcon from "phosphor-svelte/lib/MagnifyingGlassIcon";
 	import WarningIcon from "phosphor-svelte/lib/WarningIcon";
 	import XIcon from "phosphor-svelte/lib/XIcon";
@@ -25,6 +26,7 @@
 		indexingLabel = "",
 		isSearching = false,
 		onOpenHit,
+		onSave,
 		onClose,
 		input = $bindable<HTMLInputElement | undefined>(),
 	}: {
@@ -39,6 +41,8 @@
 		indexingLabel?: string;
 		isSearching?: boolean;
 		onOpenHit: (hit: proto.Hit) => void;
+		/** Keeps the query in the sidebar to be run again later. */
+		onSave: () => void;
 		onClose: () => void;
 		/** Exposed so a shortcut elsewhere can put the caret in this field. */
 		input?: HTMLInputElement;
@@ -55,6 +59,8 @@
 		activeSuggestion = -1;
 	});
 
+	// The field takes the keyboard for itself while it has focus, so the shortcuts
+	// that belong to a search are answered here rather than by the window's keymap.
 	function handleKeydown(event: KeyboardEvent) {
 		event.stopPropagation();
 		if (event.key === "Escape") {
@@ -65,7 +71,19 @@
 			openChosenHit();
 			return;
 		}
+		if (event.key === "s" && (event.ctrlKey || event.metaKey)) {
+			event.preventDefault();
+			save();
+			return;
+		}
 		moveSuggestion(event);
+	}
+
+	function save() {
+		if (value.trim() === "") {
+			return;
+		}
+		onSave();
 	}
 
 	function openChosenHit() {
@@ -160,6 +178,16 @@
 		{#if isSearching}
 			<LoadingSpinner size={14} class="shrink-0 text-faint" />
 		{/if}
+		<button
+			type="button"
+			onclick={save}
+			disabled={value.trim() === ""}
+			aria-label="Save this search"
+			title="Save this search"
+			class="shrink-0 rounded-md p-1 text-faint transition duration-fast hover:bg-hover hover:text-default disabled:text-line-faint disabled:hover:bg-transparent"
+		>
+			<BookmarkSimpleIcon size={14} />
+		</button>
 		<button
 			type="button"
 			onclick={onClose}

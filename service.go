@@ -16,6 +16,7 @@ import (
 	"file-explorer-neoworks/internal/launcher"
 	"file-explorer-neoworks/internal/mediaserver"
 	"file-explorer-neoworks/internal/recents"
+	"file-explorer-neoworks/internal/searches"
 	"file-explorer-neoworks/internal/settings"
 	"file-explorer-neoworks/internal/tags"
 	"file-explorer-neoworks/internal/thumbnail"
@@ -40,6 +41,7 @@ type FileService struct {
 	zoxide   *zoxide.Database
 	recents  *recents.Store
 	tagNames *tags.Vocabulary
+	searches *searches.Store
 	media    mediaserver.Server
 
 	// The last state the frontend saved, so the window geometry captured at
@@ -60,6 +62,7 @@ func NewFileService() *FileService {
 	service.zoxide = zoxide.New()
 	service.recents = recents.Open()
 	service.tagNames = tags.OpenVocabulary()
+	service.searches = searches.Open()
 	return service
 }
 
@@ -369,6 +372,24 @@ func (service *FileService) OpenPath(path string) error {
 	}
 	service.recents.Record(path, false)
 	return nil
+}
+
+// SavedSearches lists the queries kept in the sidebar.
+func (service *FileService) SavedSearches() []searches.Search {
+	return service.searches.List()
+}
+
+// SaveSearch keeps a query under a name, replacing one already saved under it.
+func (service *FileService) SaveSearch(name string, query string, scope string) error {
+	return service.searches.Save(searches.Search{Name: name, Query: query, Scope: scope})
+}
+
+func (service *FileService) RenameSearch(name string, newName string) error {
+	return service.searches.Rename(name, newName)
+}
+
+func (service *FileService) ForgetSearch(name string) error {
+	return service.searches.Forget(name)
 }
 
 // MediaURL is where the webview can play or stream one file from. An empty
