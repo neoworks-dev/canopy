@@ -999,10 +999,18 @@
 			return;
 		}
 		operations.start(operation, sources, destination);
+		settlePanesAfterDrop();
 	}
 
 	function dropIntoTrash(sources: string[]) {
 		operations.start("trash", sources, "");
+		settlePanesAfterDrop();
+	}
+
+	// The pane a drag left reports its own end, but the row it started on may have
+	// been unmounted by then; settling from here does not depend on that event.
+	function settlePanesAfterDrop() {
+		layout.groups.forEach((paneGroup) => paneFor(paneGroup.id)?.endDrag());
 	}
 
 	function confirmPermanentDelete() {

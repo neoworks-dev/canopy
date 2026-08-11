@@ -673,15 +673,13 @@
 		writeDragPayload(event.dataTransfer, pathsForDrag(selection.paths, entry.path));
 	}
 
-	// Entries that landed somewhere are no longer what the user is working on, so
-	// the selection goes with them and the details pane stays shut. A drag that
-	// was cancelled leaves everything as it was.
-	function endDrag(event: DragEvent) {
+	// Dragged entries are no longer what the user is working on, so the selection
+	// goes with them and the details pane stays shut. The transfer's dropEffect
+	// would say whether the drag was cancelled, but the webview does not report it
+	// reliably, so a cancelled drag clears the selection too.
+	export function endDrag() {
 		isDraggingEntries = false;
 		clearDragFeedback();
-		if (event.dataTransfer?.dropEffect === "none") {
-			return;
-		}
 		selection = emptySelection;
 	}
 
