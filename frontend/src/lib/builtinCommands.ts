@@ -148,6 +148,12 @@ export const staticCommandDescriptors: CommandDescriptor[] = [
 		when: "listActive && folderPinned",
 	},
 
+	{
+		id: "search.duplicates",
+		title: "Find duplicate files here",
+		category: "Search",
+		when: "directoryOpen",
+	},
 	{ id: "search.here", title: "Search this folder", category: "Search" },
 	{ id: "search.global", title: "Search everywhere", category: "Search" },
 	{ id: "search.close", title: "Close search", category: "Search", when: "searchOpen" },
@@ -255,6 +261,7 @@ export const defaultKeymap: Keybinding[] = [
 	{ key: "f", command: "search.here", when: "listActive" },
 	{ key: "z", command: "search.global", when: "listActive" },
 	{ key: "ctrl+f", command: "search.here" },
+	{ key: "g d", command: "search.duplicates", when: "listActive" },
 	{ key: "Z", command: "zoxide.jump", when: "listActive" },
 	{ key: "ctrl+j", command: "zoxide.jump" },
 	{ key: "escape", command: "search.close", when: "searchOpen" },

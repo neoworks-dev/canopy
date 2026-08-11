@@ -11,6 +11,7 @@ import (
 	"file-explorer-neoworks/internal/bookmarks"
 	"file-explorer-neoworks/internal/clipboard"
 	"file-explorer-neoworks/internal/diskusage"
+	"file-explorer-neoworks/internal/duplicates"
 	"file-explorer-neoworks/internal/fileops"
 	"file-explorer-neoworks/internal/filesystem"
 	"file-explorer-neoworks/internal/git"
@@ -36,8 +37,10 @@ const EventDirectoryChanged = "watch:changed"
 // FileService is the Wails-bound bridge between the frontend and the filesystem,
 // operation engine and launcher packages.
 type FileService struct {
-	engine   *fileops.Engine
-	usage    *diskusage.Scanner
+	engine     *fileops.Engine
+	usage      *diskusage.Scanner
+	duplicates *duplicates.Scanner
+
 	watcher  *watcher.Watcher
 	settings *settings.Store
 	zoxide   *zoxide.Database
@@ -59,6 +62,7 @@ func NewFileService() *FileService {
 	service := &FileService{}
 	service.engine = fileops.New(service.emit)
 	service.usage = diskusage.New(service.emit)
+	service.duplicates = duplicates.New(service.emit)
 	service.watcher = watcher.New(service.emitDirectoryChanged)
 	service.settings = settings.Open()
 	service.current = service.settings.Load()
@@ -130,6 +134,22 @@ func (service *FileService) MeasureFolder(path string) (string, error) {
 // CancelMeasurement stops a folder measurement nobody is waiting for any more.
 func (service *FileService) CancelMeasurement(measurementID string) error {
 	return service.usage.Cancel(measurementID)
+}
+
+// FindDuplicates starts searching a folder for files holding the same bytes and
+// reports the id its events carry. What it finds arrives with the finished
+// event, since reading a tree takes far longer than a call may.
+func (service *FileService) FindDuplicates(root string) (string, error) {
+	absolutePath, err := filesystem.ResolvePath(root)
+	if err != nil {
+		return "", err
+	}
+	return service.duplicates.Start(absolutePath)
+}
+
+// CancelDuplicateSearch stops a search nobody is waiting for any more.
+func (service *FileService) CancelDuplicateSearch(searchID string) error {
+	return service.duplicates.Cancel(searchID)
 }
 
 // LoadSettings reports the preferences this launch started from.

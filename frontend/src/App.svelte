@@ -465,6 +465,16 @@
 		showLocation({ kind: "tag", name });
 	}
 
+	// The duplicates of a folder open in a tab of their own, so the folder they
+	// were found in is still there to go back to.
+	function openDuplicatesPane() {
+		if (!currentPath) {
+			return;
+		}
+		closeSearch();
+		layout = openTab(layout, { kind: "duplicates", path: currentPath }, nextId);
+	}
+
 	function goUp() {
 		if (!status.parentPath) {
 			return;
@@ -980,6 +990,7 @@
 			"bookmark.pin": pinCurrentFolder,
 			"bookmark.unpin": () => unpinFolder(currentPath),
 
+			"search.duplicates": openDuplicatesPane,
 			"search.here": searchThisFolder,
 			"search.global": searchEverywhere,
 			"search.close": closeSearch,

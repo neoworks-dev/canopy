@@ -242,6 +242,15 @@ describe("what is watched and what is labelled", () => {
 		expect(tabTitle(activeTab(activeGroup(tagged)))).toBe("work");
 	});
 
+	test("a pane of duplicates says which folder they were found in", () => {
+		const found = withLocation(layoutAt("/a"), {
+			kind: "duplicates",
+			path: "/home/moritz/Downloads",
+		});
+
+		expect(tabTitle(activeTab(activeGroup(found)))).toBe("Duplicates in Downloads");
+	});
+
 	test("a saved search is labelled with its name", () => {
 		const saved = withLocation(layoutAt("/a"), { kind: "search", name: "Invoices" });
 
@@ -256,6 +265,7 @@ describe("recording a location in history", () => {
 			{ kind: "trash" } as const,
 			{ kind: "tag", name: "work" } as const,
 			{ kind: "search", name: "Invoices" } as const,
+			{ kind: "duplicates", path: "/home/moritz/Downloads" } as const,
 		];
 
 		for (const location of locations) {

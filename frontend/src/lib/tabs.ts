@@ -14,7 +14,9 @@ export type TabLocation =
 	| { kind: "trash" }
 	| { kind: "tag"; name: string }
 	/** A saved search, shown as a folder of whatever it matches now. */
-	| { kind: "search"; name: string };
+	| { kind: "search"; name: string }
+	/** The files under a folder that hold the same bytes as each other. */
+	| { kind: "duplicates"; path: string };
 
 export type Tab = {
 	id: string;
@@ -86,6 +88,9 @@ export function tabTitle(tab: Tab): string {
 	}
 	if (tab.location.kind === "tag" || tab.location.kind === "search") {
 		return tab.location.name;
+	}
+	if (tab.location.kind === "duplicates") {
+		return `Duplicates in ${folderName(tab.location.path)}`;
 	}
 	return folderName(tab.location.path);
 }
@@ -242,6 +247,9 @@ export function locationKey(location: TabLocation): string {
 	if (location.kind === "search") {
 		return `search:${location.name}`;
 	}
+	if (location.kind === "duplicates") {
+		return `duplicates:${location.path}`;
+	}
 	return location.path;
 }
 
@@ -254,6 +262,9 @@ export function locationFromKey(key: string): TabLocation {
 	}
 	if (key.startsWith("search:")) {
 		return { kind: "search", name: key.slice("search:".length) };
+	}
+	if (key.startsWith("duplicates:")) {
+		return { kind: "duplicates", path: key.slice("duplicates:".length) };
 	}
 	return directoryLocation(key);
 }

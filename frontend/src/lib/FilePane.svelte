@@ -12,6 +12,7 @@
 	} from "../../wailsjs/go/main/FileService";
 	import { EventsOn } from "../../wailsjs/runtime/runtime";
 	import type { filesystem, git } from "../../wailsjs/go/models";
+	import DuplicatesPane from "./DuplicatesPane.svelte";
 	import EntryGrid from "./EntryGrid.svelte";
 	import EntryRows from "./EntryRows.svelte";
 	import FindField from "./FindField.svelte";
@@ -828,10 +829,14 @@
 		return savedSearches.find((search) => search.name === name);
 	}
 
-	// A tagged file, or one a saved search found, is shown where it lives, which
-	// means moving this pane to the folder holding it.
+	// A tagged file, one a saved search found, or one copy of several, is shown
+	// where it lives, which means moving this pane to the folder holding it.
 	function revealTaggedEntry(entry: filesystem.Entry) {
-		onNavigate({ kind: "directory", path: parentDirectoryOf(entry.path) });
+		revealPathInFolder(entry.path);
+	}
+
+	function revealPathInFolder(path: string) {
+		onNavigate({ kind: "directory", path: parentDirectoryOf(path) });
 	}
 </script>
 
@@ -858,6 +863,15 @@
 				{:else}
 					<p class="text-sm text-dim">This search is no longer saved.</p>
 				{/if}
+			</div>
+		{:else if location.kind === "duplicates"}
+			<div class="flex min-h-0 flex-col gap-2 overflow-y-auto">
+				<DuplicatesPane
+					path={location.path}
+					onOpen={onLaunch}
+					onReveal={revealPathInFolder}
+					onChanged={() => onChanged()}
+				/>
 			</div>
 		{:else if location.kind === "tag"}
 			<div class="flex min-h-0 flex-col gap-2 overflow-y-auto">

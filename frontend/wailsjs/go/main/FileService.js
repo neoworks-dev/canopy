@@ -18,6 +18,10 @@ export function Bookmarks() {
   return window['go']['main']['FileService']['Bookmarks']();
 }
 
+export function CancelDuplicateSearch(arg1) {
+  return window['go']['main']['FileService']['CancelDuplicateSearch'](arg1);
+}
+
 export function CancelMeasurement(arg1) {
   return window['go']['main']['FileService']['CancelMeasurement'](arg1);
 }
@@ -52,6 +56,10 @@ export function EmptyTrash() {
 
 export function FilesWithTag(arg1) {
   return window['go']['main']['FileService']['FilesWithTag'](arg1);
+}
+
+export function FindDuplicates(arg1) {
+  return window['go']['main']['FileService']['FindDuplicates'](arg1);
 }
 
 export function ForgetSearch(arg1) {

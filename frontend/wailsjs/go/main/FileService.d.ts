@@ -19,6 +19,8 @@ export function ApplicationsFor(arg1:string):Promise<Array<launcher.Application>
 
 export function Bookmarks():Promise<Array<bookmarks.Bookmark>>;
 
+export function CancelDuplicateSearch(arg1:string):Promise<void>;
+
 export function CancelMeasurement(arg1:string):Promise<void>;
 
 export function CancelOperation(arg1:string):Promise<void>;
@@ -36,6 +38,8 @@ export function Devices():Promise<Array<filesystem.Device>>;
 export function EmptyTrash():Promise<void>;
 
 export function FilesWithTag(arg1:string):Promise<Array<filesystem.Entry>>;
+
+export function FindDuplicates(arg1:string):Promise<string>;
 
 export function ForgetSearch(arg1:string):Promise<void>;
 
