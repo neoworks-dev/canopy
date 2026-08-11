@@ -10,6 +10,7 @@ import (
 
 	"file-explorer-neoworks/internal/bookmarks"
 	"file-explorer-neoworks/internal/clipboard"
+	"file-explorer-neoworks/internal/diskusage"
 	"file-explorer-neoworks/internal/fileops"
 	"file-explorer-neoworks/internal/filesystem"
 	"file-explorer-neoworks/internal/git"
@@ -36,6 +37,7 @@ const EventDirectoryChanged = "watch:changed"
 // operation engine and launcher packages.
 type FileService struct {
 	engine   *fileops.Engine
+	usage    *diskusage.Scanner
 	watcher  *watcher.Watcher
 	settings *settings.Store
 	zoxide   *zoxide.Database
@@ -56,6 +58,7 @@ type FileService struct {
 func NewFileService() *FileService {
 	service := &FileService{}
 	service.engine = fileops.New(service.emit)
+	service.usage = diskusage.New(service.emit)
 	service.watcher = watcher.New(service.emitDirectoryChanged)
 	service.settings = settings.Open()
 	service.current = service.settings.Load()
@@ -111,6 +114,22 @@ func (service *FileService) ListDirectory(path string, order filesystem.Order) (
 	}
 	service.recents.Record(listing.Path, true)
 	return listing, nil
+}
+
+// MeasureFolder starts counting what a folder holds and reports the id its
+// progress events carry. A folder deep enough to be worth measuring takes long
+// enough that the answer arrives over events rather than from this call.
+func (service *FileService) MeasureFolder(path string) (string, error) {
+	absolutePath, err := filesystem.ResolvePath(path)
+	if err != nil {
+		return "", err
+	}
+	return service.usage.Start(absolutePath)
+}
+
+// CancelMeasurement stops a folder measurement nobody is waiting for any more.
+func (service *FileService) CancelMeasurement(measurementID string) error {
+	return service.usage.Cancel(measurementID)
 }
 
 // LoadSettings reports the preferences this launch started from.

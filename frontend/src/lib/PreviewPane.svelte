@@ -1,12 +1,23 @@
 <script lang="ts">
 	import { Card, LoadingSpinner } from "@neoworks-dev/ui";
-	import { PreviewFile } from "../../wailsjs/go/main/FileService";
+	import {
+		CancelMeasurement,
+		MeasureFolder,
+		PreviewFile,
+	} from "../../wailsjs/go/main/FileService";
 	import type { filesystem } from "../../wailsjs/go/models";
+	import { EventsOn } from "../../wailsjs/runtime/runtime";
 	import AudioPreview from "./AudioPreview.svelte";
 	import CodeCanvas from "./CodeCanvas.svelte";
 	import EntryIcon from "./EntryIcon.svelte";
 	import { describeError } from "./errors";
 	import { classifyEntry, kindLabel } from "./fileKind";
+	import {
+		measuredContentsLabel,
+		measuredSizeLabel,
+		usageEvents,
+		type Measurement,
+	} from "./folderSize";
 	import { formatFileSize, formatModifiedTime } from "./format";
 
 	let { entries, width }: { entries: filesystem.Entry[]; width: number } = $props();
@@ -14,10 +25,17 @@
 	let preview = $state<filesystem.Preview | null>(null);
 	let errorMessage = $state("");
 	let isLoading = $state(false);
+	let measurement = $state<Measurement | null>(null);
+	let isCounting = $state(false);
 
 	// Guards against a slow preview of an earlier selection landing after a
 	// faster one that replaced it.
 	let latestRequest = 0;
+
+	// The measurement the size row is following, and the counter that tells a
+	// walk started for a selection nobody is looking at any more.
+	let measurementID = "";
+	let latestMeasurement = 0;
 
 	const singleEntry = $derived(onlyEntry(entries));
 	const totalSize = $derived(entries.reduce((sum, entry) => sum + entry.size, 0));
@@ -29,6 +47,23 @@
 			return;
 		}
 		loadPreview(entry.path);
+	});
+
+	$effect(() => {
+		const entry = singleEntry;
+		stopMeasuring();
+		if (!entry || !entry.isDir) {
+			return;
+		}
+		startMeasuring(entry.path);
+	});
+
+	$effect(() => {
+		const stops = [
+			EventsOn(usageEvents.progress, (update: Measurement) => applyMeasurement(update, true)),
+			EventsOn(usageEvents.finished, (update: Measurement) => applyMeasurement(update, false)),
+		];
+		return () => stops.forEach((stop) => stop());
 	});
 
 	async function loadPreview(path: string) {
@@ -62,6 +97,50 @@
 		isLoading = false;
 	}
 
+	async function startMeasuring(path: string) {
+		const request = ++latestMeasurement;
+		measurement = null;
+		isCounting = true;
+		const started = await MeasureFolder(path).catch(() => "");
+		adoptMeasurement(request, started);
+	}
+
+	// A walk whose selection is already gone by the time it reports its id has
+	// nobody to count for, so it is called off rather than followed.
+	function adoptMeasurement(request: number, started: string) {
+		if (request !== latestMeasurement) {
+			cancelMeasurement(started);
+			return;
+		}
+		measurementID = started;
+		isCounting = started !== "";
+	}
+
+	function stopMeasuring() {
+		latestMeasurement++;
+		cancelMeasurement(measurementID);
+		measurementID = "";
+		measurement = null;
+		isCounting = false;
+	}
+
+	// A measurement that has already finished is unknown to the scanner, which is
+	// nothing the pane has to react to.
+	function cancelMeasurement(id: string) {
+		if (!id) {
+			return;
+		}
+		CancelMeasurement(id).catch(() => {});
+	}
+
+	function applyMeasurement(update: Measurement, counting: boolean) {
+		if (update.id !== measurementID || update.cancelled) {
+			return;
+		}
+		measurement = update;
+		isCounting = counting;
+	}
+
 	function onlyEntry(selected: filesystem.Entry[]): filesystem.Entry | null {
 		if (selected.length !== 1) {
 			return null;
@@ -73,14 +152,24 @@
 		return [
 			{ label: "Type", value: kindLabel(classifyEntry(entry)) },
 			{ label: "Size", value: sizeLabel(entry) },
+			...contentsRows(entry),
 			{ label: "Modified", value: formatModifiedTime(entry.modTime) },
 			{ label: "Permissions", value: entry.mode },
 		];
 	}
 
+	function contentsRows(entry: filesystem.Entry): Array<{ label: string; value: string }> {
+		if (!entry.isDir) {
+			return [];
+		}
+		return [{ label: "Contents", value: measuredContentsLabel(measurement) }];
+	}
+
+	// A folder's own size says nothing about what it holds, so the row follows the
+	// walk instead.
 	function sizeLabel(entry: filesystem.Entry): string {
 		if (entry.isDir) {
-			return "—";
+			return measuredSizeLabel(measurement, isCounting);
 		}
 		return formatFileSize(entry.size);
 	}

@@ -18,6 +18,10 @@ export function Bookmarks() {
   return window['go']['main']['FileService']['Bookmarks']();
 }
 
+export function CancelMeasurement(arg1) {
+  return window['go']['main']['FileService']['CancelMeasurement'](arg1);
+}
+
 export function CancelOperation(arg1) {
   return window['go']['main']['FileService']['CancelOperation'](arg1);
 }
@@ -80,6 +84,10 @@ export function ListTrash() {
 
 export function LoadSettings() {
   return window['go']['main']['FileService']['LoadSettings']();
+}
+
+export function MeasureFolder(arg1) {
+  return window['go']['main']['FileService']['MeasureFolder'](arg1);
 }
 
 export function MediaURL(arg1) {

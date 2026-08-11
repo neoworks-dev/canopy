@@ -19,6 +19,8 @@ export function ApplicationsFor(arg1:string):Promise<Array<launcher.Application>
 
 export function Bookmarks():Promise<Array<bookmarks.Bookmark>>;
 
+export function CancelMeasurement(arg1:string):Promise<void>;
+
 export function CancelOperation(arg1:string):Promise<void>;
 
 export function ClearRecents():Promise<void>;
@@ -50,6 +52,8 @@ export function ListDirectory(arg1:string,arg2:filesystem.Order):Promise<filesys
 export function ListTrash():Promise<Array<fileops.TrashedItem>>;
 
 export function LoadSettings():Promise<settings.Settings>;
+
+export function MeasureFolder(arg1:string):Promise<string>;
 
 export function MediaURL(arg1:string):Promise<string>;
 
