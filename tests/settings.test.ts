@@ -21,6 +21,15 @@ describe("viewSettingsFrom", () => {
 		expect(applied.lastDirectory).toBe("/home/moritz");
 	});
 
+	test("stored pane widths are applied, out-of-range ones clamped", () => {
+		const applied = viewSettingsFrom({ panes: { sidebar: 300, details: 5000 } });
+		expect(applied.panes).toEqual({ sidebar: 300, details: 640 });
+	});
+
+	test("a file without pane widths keeps the defaults", () => {
+		expect(viewSettingsFrom({ panes: {} }).panes).toEqual(defaultViewSettings.panes);
+	});
+
 	test("an unknown view mode falls back to rows", () => {
 		expect(viewSettingsFrom({ viewMode: "columns" }).viewMode).toBe("rows");
 	});

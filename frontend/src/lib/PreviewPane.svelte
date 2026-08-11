@@ -7,7 +7,7 @@
 	import { classifyEntry, kindLabel } from "./fileKind";
 	import { formatFileSize, formatModifiedTime } from "./format";
 
-	let { entries }: { entries: filesystem.Entry[] } = $props();
+	let { entries, width }: { entries: filesystem.Entry[]; width: number } = $props();
 
 	let preview = $state<filesystem.Preview | null>(null);
 	let errorMessage = $state("");
@@ -84,64 +84,66 @@
 	}
 </script>
 
-<Card
-	surface="elevated"
-	padding="none"
-	class="flex w-80 shrink-0 flex-col gap-2 overflow-y-auto p-2 shadow-lg"
->
-	{#if singleEntry}
-		<div class="flex items-center gap-2">
-			<EntryIcon entry={singleEntry} size="md" />
-			<div class="min-w-0">
-				<p class="truncate text-sm font-medium text-default">{singleEntry.name}</p>
-				<p class="truncate text-2xs text-faint">{singleEntry.path}</p>
-			</div>
-		</div>
-
-		<dl class="flex flex-col gap-2 rounded-lg bg-raised p-2">
-			{#each metadataRows(singleEntry) as row (row.label)}
-				<div class="flex items-baseline justify-between gap-2">
-					<dt class="text-2xs tracking-caps text-faint uppercase">{row.label}</dt>
-					<dd class="truncate text-xs text-muted">{row.value}</dd>
+<div class="flex shrink-0 flex-col" style="width: {width}px">
+	<Card
+		surface="elevated"
+		padding="none"
+		class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2 shadow-lg"
+	>
+		{#if singleEntry}
+			<div class="flex items-center gap-2">
+				<EntryIcon entry={singleEntry} size="md" />
+				<div class="min-w-0">
+					<p class="truncate text-sm font-medium text-default">{singleEntry.name}</p>
+					<p class="truncate text-2xs text-faint">{singleEntry.path}</p>
 				</div>
-			{/each}
-		</dl>
-
-		{#if errorMessage}
-			<p class="text-xs text-red">{errorMessage}</p>
-		{:else if isLoading}
-			<div class="flex justify-center p-2">
-				<LoadingSpinner />
 			</div>
-		{:else if preview?.kind === "image"}
-			<img
-				src={preview.dataUrl}
-				alt={singleEntry.name}
-				class="max-h-80 w-full rounded-lg bg-raised object-contain p-2"
-			/>
-		{:else if preview?.kind === "text"}
-			<pre
-				class="max-h-96 overflow-auto rounded-lg bg-raised p-2 font-mono text-2xs whitespace-pre-wrap text-muted">{preview.text}</pre>
-			{#if preview.truncated}
-				<p class="text-2xs text-faint">Preview shows the start of the file only.</p>
+
+			<dl class="flex flex-col gap-2 rounded-lg bg-raised p-2">
+				{#each metadataRows(singleEntry) as row (row.label)}
+					<div class="flex items-baseline justify-between gap-2">
+						<dt class="text-2xs tracking-caps text-faint uppercase">{row.label}</dt>
+						<dd class="truncate text-xs text-muted">{row.value}</dd>
+					</div>
+				{/each}
+			</dl>
+
+			{#if errorMessage}
+				<p class="text-xs text-red">{errorMessage}</p>
+			{:else if isLoading}
+				<div class="flex justify-center p-2">
+					<LoadingSpinner />
+				</div>
+			{:else if preview?.kind === "image"}
+				<img
+					src={preview.dataUrl}
+					alt={singleEntry.name}
+					class="max-h-80 w-full rounded-lg bg-raised object-contain p-2"
+				/>
+			{:else if preview?.kind === "text"}
+				<pre
+					class="max-h-96 overflow-auto rounded-lg bg-raised p-2 font-mono text-2xs whitespace-pre-wrap text-muted">{preview.text}</pre>
+				{#if preview.truncated}
+					<p class="text-2xs text-faint">Preview shows the start of the file only.</p>
+				{/if}
+			{:else if preview?.kind === "unsupported"}
+				<p class="text-xs text-dim">No preview for this file type.</p>
 			{/if}
-		{:else if preview?.kind === "unsupported"}
-			<p class="text-xs text-dim">No preview for this file type.</p>
+		{:else if entries.length === 0}
+			<p class="m-auto px-2 text-center text-xs text-faint">
+				Select an item to see its details
+			</p>
+		{:else}
+			<p class="text-sm font-medium text-default">{entries.length} items selected</p>
+			<p class="text-xs text-dim">{formatFileSize(totalSize)} in total</p>
+			<div class="flex min-h-0 flex-col gap-2 overflow-y-auto">
+				{#each entries as entry (entry.path)}
+					<div class="flex items-center gap-2">
+						<EntryIcon {entry} />
+						<span class="min-w-0 flex-1 truncate text-xs text-muted">{entry.name}</span>
+					</div>
+				{/each}
+			</div>
 		{/if}
-	{:else if entries.length === 0}
-		<p class="m-auto px-2 text-center text-xs text-faint">
-			Select an item to see its details
-		</p>
-	{:else}
-		<p class="text-sm font-medium text-default">{entries.length} items selected</p>
-		<p class="text-xs text-dim">{formatFileSize(totalSize)} in total</p>
-		<div class="flex min-h-0 flex-col gap-2 overflow-y-auto">
-			{#each entries as entry (entry.path)}
-				<div class="flex items-center gap-2">
-					<EntryIcon {entry} />
-					<span class="min-w-0 flex-1 truncate text-xs text-muted">{entry.name}</span>
-				</div>
-			{/each}
-		</div>
-	{/if}
-</Card>
+	</Card>
+</div>

@@ -20,12 +20,14 @@
 		places,
 		currentPath,
 		isTrashOpen,
+		width,
 		onNavigate,
 		onOpenTrash,
 	}: {
 		places: filesystem.Place[];
 		currentPath: string;
 		isTrashOpen: boolean;
+		width: number;
 		onNavigate: (path: string) => void;
 		onOpenTrash: () => void;
 	} = $props();
@@ -68,48 +70,50 @@
 	}
 </script>
 
-<Card
-	surface="elevated"
-	padding="none"
-	class="flex w-52 shrink-0 flex-col gap-2 overflow-y-auto p-2 shadow-lg"
->
-	<nav class="flex flex-col gap-2">
-		{#each places as place (place.path)}
-			{@const PlaceIcon = iconFor(place)}
-			{@const active = isActive(place)}
+<div class="flex shrink-0 flex-col" style="width: {width}px">
+	<Card
+			surface="elevated"
+			padding="none"
+			class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2 shadow-lg"
+		>
+		<nav class="flex flex-col gap-2">
+			{#each places as place (place.path)}
+				{@const PlaceIcon = iconFor(place)}
+				{@const active = isActive(place)}
+				<button
+					type="button"
+					use:ripple
+					onclick={() => onNavigate(place.path)}
+					aria-current={currentMarker(active)}
+					class="flex items-center gap-2 rounded-lg p-2 text-left text-sm transition duration-fast"
+					class:bg-raised={active}
+					class:font-medium={active}
+					class:text-default={active}
+					class:text-muted={!active}
+					class:hover:bg-hover={!active}
+					class:hover:text-default={!active}
+				>
+					<PlaceIcon size={16} weight={iconWeight(active)} class="shrink-0" />
+					<span class="truncate">{place.name}</span>
+				</button>
+			{/each}
+
 			<button
 				type="button"
 				use:ripple
-				onclick={() => onNavigate(place.path)}
-				aria-current={currentMarker(active)}
+				onclick={onOpenTrash}
+				aria-current={currentMarker(isTrashOpen)}
 				class="flex items-center gap-2 rounded-lg p-2 text-left text-sm transition duration-fast"
-				class:bg-raised={active}
-				class:font-medium={active}
-				class:text-default={active}
-				class:text-muted={!active}
-				class:hover:bg-hover={!active}
-				class:hover:text-default={!active}
+				class:bg-raised={isTrashOpen}
+				class:font-medium={isTrashOpen}
+				class:text-default={isTrashOpen}
+				class:text-muted={!isTrashOpen}
+				class:hover:bg-hover={!isTrashOpen}
+				class:hover:text-default={!isTrashOpen}
 			>
-				<PlaceIcon size={16} weight={iconWeight(active)} class="shrink-0" />
-				<span class="truncate">{place.name}</span>
+				<TrashIcon size={16} weight={iconWeight(isTrashOpen)} class="shrink-0" />
+				<span class="truncate">Trash</span>
 			</button>
-		{/each}
-
-		<button
-			type="button"
-			use:ripple
-			onclick={onOpenTrash}
-			aria-current={currentMarker(isTrashOpen)}
-			class="flex items-center gap-2 rounded-lg p-2 text-left text-sm transition duration-fast"
-			class:bg-raised={isTrashOpen}
-			class:font-medium={isTrashOpen}
-			class:text-default={isTrashOpen}
-			class:text-muted={!isTrashOpen}
-			class:hover:bg-hover={!isTrashOpen}
-			class:hover:text-default={!isTrashOpen}
-		>
-			<TrashIcon size={16} weight={iconWeight(isTrashOpen)} class="shrink-0" />
-			<span class="truncate">Trash</span>
-		</button>
-	</nav>
-</Card>
+		</nav>
+	</Card>
+</div>

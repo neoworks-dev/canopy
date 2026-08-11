@@ -38,6 +38,7 @@
 	import JumpField from "./lib/JumpField.svelte";
 	import OpenWithDialog from "./lib/OpenWithDialog.svelte";
 	import OperationProgress from "./lib/OperationProgress.svelte";
+	import PaneResizer from "./lib/PaneResizer.svelte";
 	import PathBar from "./lib/PathBar.svelte";
 	import PlacesSidebar from "./lib/PlacesSidebar.svelte";
 	import PreviewPane from "./lib/PreviewPane.svelte";
@@ -86,6 +87,7 @@
 		type Rectangle,
 	} from "./lib/marquee";
 	import { targetIndexFor, type Movement } from "./lib/movement";
+	import { defaultPaneWidths } from "./lib/panes";
 	import {
 		defaultViewSettings,
 		viewSettingsFrom,
@@ -124,6 +126,9 @@
 	// Long enough that typing a word does not fire a query per keystroke, short
 	// enough that results feel immediate.
 	const searchDebounceMilliseconds = 150;
+	// Dragging a gutter changes a setting on every pointer move; the file is
+	// written once the drag settles instead of once per frame.
+	const settingsSaveDebounceMilliseconds = 300;
 	const statusPollMilliseconds = 3000;
 
 	type SearchOutcome = {
@@ -159,6 +164,8 @@
 	let viewport = $state<Viewport>({ scrollTop: 0, height: 0 });
 	let listContainer = $state<HTMLDivElement>();
 	let searchInput = $state<HTMLInputElement>();
+	let sidebarWidth = $state(defaultPaneWidths.sidebar);
+	let detailsWidth = $state(defaultPaneWidths.details);
 
 	let clipboardPaths = $state<string[]>([]);
 	let isClipboardCut = $state(false);
@@ -246,7 +253,8 @@
 		if (!areSettingsLoaded) {
 			return;
 		}
-		SaveSettings(next);
+		const timer = setTimeout(() => SaveSettings(next), settingsSaveDebounceMilliseconds);
+		return () => clearTimeout(timer);
 	});
 
 	$effect(() => {
@@ -327,6 +335,8 @@
 		visibleColumnIds = stored.columns;
 		showHidden = stored.showHidden;
 		sortOrder = stored.sort;
+		sidebarWidth = stored.panes.sidebar;
+		detailsWidth = stored.panes.details;
 		userKeybindings = stored.keybindings;
 		areSettingsLoaded = true;
 		return stored;
@@ -350,6 +360,7 @@
 			showHidden,
 			sort: sortOrder,
 			lastDirectory: currentPath,
+			panes: { sidebar: sidebarWidth, details: detailsWidth },
 		});
 	}
 
@@ -1355,14 +1366,21 @@
 		<Button size="sm" variant="ghost" icon={hiddenToggleIcon()} onclick={toggleHidden} />
 	</div>
 
-	<div class="flex min-h-0 flex-1 gap-2">
+	<div class="flex min-h-0 flex-1">
 		{#if places.length > 0}
 			<PlacesSidebar
 				{places}
 				{currentPath}
 				{isTrashOpen}
+				width={sidebarWidth}
 				onNavigate={openPlace}
 				onOpenTrash={openTrash}
+			/>
+			<PaneResizer
+				side="left"
+				width={sidebarWidth}
+				label="Resize the places sidebar"
+				onWidth={(width) => (sidebarWidth = width)}
 			/>
 		{/if}
 
@@ -1463,7 +1481,14 @@
 			{/if}
 		</Card>
 
-		<PreviewPane entries={selectedEntries} />
+		<PaneResizer
+			side="right"
+			width={detailsWidth}
+			label="Resize the details pane"
+			onWidth={(width) => (detailsWidth = width)}
+		/>
+
+		<PreviewPane entries={selectedEntries} width={detailsWidth} />
 	</div>
 
 	<!-- Status strip: floats on the canvas like the top bar, and is empty until it

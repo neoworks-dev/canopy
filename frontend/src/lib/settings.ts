@@ -6,6 +6,7 @@
 import { availableColumns, defaultColumnIds, type ColumnId } from "./columns";
 import { parseKeySequence } from "./keys";
 import type { Keybinding } from "./keymap";
+import { defaultPaneWidths, paneWidthFrom, type PaneWidths } from "./panes";
 import { defaultSortOrder, type SortKey, type SortOrder } from "./sorting";
 import { whenClauseIsValid } from "./whenClause";
 
@@ -18,6 +19,8 @@ export type ViewSettings = {
 	showHidden: boolean;
 	sort: SortOrder;
 	lastDirectory: string;
+	/** Widths of the panes flanking the listing. */
+	panes: PaneWidths;
 	/** Appended after the built-in keymap, so these override it. */
 	keybindings: Keybinding[];
 };
@@ -32,6 +35,7 @@ export type StoredSettings = {
 	showHidden?: boolean;
 	sort?: { key?: string; descending?: boolean; directoriesFirst?: boolean };
 	lastDirectory?: string;
+	panes?: { sidebar?: number; details?: number };
 	keybindings?: Array<{ key?: string; command?: string; when?: string }>;
 };
 
@@ -45,6 +49,7 @@ export const defaultViewSettings: ViewSettings = {
 	showHidden: false,
 	sort: defaultSortOrder,
 	lastDirectory: "",
+	panes: defaultPaneWidths,
 	keybindings: [],
 };
 
@@ -56,7 +61,18 @@ export function viewSettingsFrom(stored: StoredSettings): ViewSettings {
 		showHidden: stored.showHidden === true,
 		sort: sortOrderFrom(stored.sort),
 		lastDirectory: pathFrom(stored.lastDirectory),
+		panes: paneWidthsFrom(stored.panes),
 		keybindings: keybindingsFrom(stored.keybindings),
+	};
+}
+
+function paneWidthsFrom(stored: StoredSettings["panes"]): PaneWidths {
+	if (!stored) {
+		return defaultPaneWidths;
+	}
+	return {
+		sidebar: paneWidthFrom("left", stored.sidebar, defaultPaneWidths.sidebar),
+		details: paneWidthFrom("right", stored.details, defaultPaneWidths.details),
 	};
 }
 

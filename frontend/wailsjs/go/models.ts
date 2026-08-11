@@ -260,6 +260,20 @@ export namespace settings {
 	        this.when = source["when"];
 	    }
 	}
+	export class Panes {
+	    sidebar: number;
+	    details: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Panes(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sidebar = source["sidebar"];
+	        this.details = source["details"];
+	    }
+	}
 	export class Window {
 	    width: number;
 	    height: number;
@@ -286,6 +300,7 @@ export namespace settings {
 	    sort: filesystem.Order;
 	    lastDirectory: string;
 	    window: Window;
+	    panes: Panes;
 	    keybindings?: Keybinding[];
 	
 	    static createFrom(source: any = {}) {
@@ -301,6 +316,7 @@ export namespace settings {
 	        this.sort = this.convertValues(source["sort"], filesystem.Order);
 	        this.lastDirectory = source["lastDirectory"];
 	        this.window = this.convertValues(source["window"], Window);
+	        this.panes = this.convertValues(source["panes"], Panes);
 	        this.keybindings = this.convertValues(source["keybindings"], Keybinding);
 	    }
 	

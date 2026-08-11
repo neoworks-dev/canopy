@@ -17,6 +17,14 @@ type Window struct {
 	Y      int `json:"y"`
 }
 
+// Panes is the width in pixels of the panes flanking the listing. Zero means
+// the frontend's own default, so a file written before these existed still
+// opens on a sensible layout.
+type Panes struct {
+	Sidebar int `json:"sidebar"`
+	Details int `json:"details"`
+}
+
 // Keybinding is one entry in the user's keymap, appended after the built-in
 // bindings so it overrides them. What the fields mean is the frontend's
 // business; the file only has to carry them across a launch.
@@ -39,6 +47,7 @@ type Settings struct {
 	Sort          filesystem.Order `json:"sort"`
 	LastDirectory string           `json:"lastDirectory"`
 	Window        Window           `json:"window"`
+	Panes         Panes            `json:"panes"`
 	// Written by hand only. The store restores whatever was on disk before every
 	// write, so the application cannot overwrite them.
 	Keybindings []Keybinding `json:"keybindings,omitempty"`
