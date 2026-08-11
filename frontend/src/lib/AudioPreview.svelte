@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { untrack } from "svelte";
-	import MusicNotesIcon from "phosphor-svelte/lib/MusicNotesIcon";
 	import PauseIcon from "phosphor-svelte/lib/PauseIcon";
 	import PlayIcon from "phosphor-svelte/lib/PlayIcon";
 	import { MediaURL } from "../../wailsjs/go/main/FileService";
@@ -208,13 +207,13 @@
 </script>
 
 <div class="flex min-h-0 flex-col gap-2">
-	<div class="flex shrink-0 items-center justify-center rounded-lg bg-raised p-2">
-		{#if coverUrl}
+	<!-- A track with no cover art shows none: the pane's own header already names
+		 the file and carries its icon. -->
+	{#if coverUrl}
+		<div class="flex shrink-0 items-center justify-center rounded-lg bg-raised p-2">
 			<img src={coverUrl} alt="Cover art for {name}" class="max-h-48 rounded-md object-contain" />
-		{:else}
-			<MusicNotesIcon size={48} class="text-faint" />
-		{/if}
-	</div>
+		</div>
+	{/if}
 
 	{#if details.title || details.artist}
 		<div class="shrink-0">
