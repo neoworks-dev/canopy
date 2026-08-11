@@ -4,7 +4,10 @@
  * value that comes back is checked rather than trusted.
  */
 import { availableColumns, defaultColumnIds, type ColumnId } from "./columns";
+import { parseKeySequence } from "./keys";
+import type { Keybinding } from "./keymap";
 import { defaultSortOrder, type SortKey, type SortOrder } from "./sorting";
+import { whenClauseIsValid } from "./whenClause";
 
 export type ViewMode = "rows" | "grid";
 
@@ -15,6 +18,8 @@ export type ViewSettings = {
 	showHidden: boolean;
 	sort: SortOrder;
 	lastDirectory: string;
+	/** Appended after the built-in keymap, so these override it. */
+	keybindings: Keybinding[];
 };
 
 /**
@@ -27,7 +32,10 @@ export type StoredSettings = {
 	showHidden?: boolean;
 	sort?: { key?: string; descending?: boolean; directoriesFirst?: boolean };
 	lastDirectory?: string;
+	keybindings?: Array<{ key?: string; command?: string; when?: string }>;
 };
+
+type StoredKeybinding = NonNullable<StoredSettings["keybindings"]>[number];
 
 const sortKeys: SortKey[] = ["name", "size", "modified", "permissions"];
 
@@ -37,6 +45,7 @@ export const defaultViewSettings: ViewSettings = {
 	showHidden: false,
 	sort: defaultSortOrder,
 	lastDirectory: "",
+	keybindings: [],
 };
 
 /** Reads a stored file into state, replacing anything unusable with a default. */
@@ -47,7 +56,46 @@ export function viewSettingsFrom(stored: StoredSettings): ViewSettings {
 		showHidden: stored.showHidden === true,
 		sort: sortOrderFrom(stored.sort),
 		lastDirectory: pathFrom(stored.lastDirectory),
+		keybindings: keybindingsFrom(stored.keybindings),
 	};
+}
+
+/**
+ * The keymap is hand-edited, so a line with a key nobody can read or a clause
+ * that does not parse is dropped on its own rather than taking the rest of the
+ * file with it.
+ */
+function keybindingsFrom(stored: StoredSettings["keybindings"]): Keybinding[] {
+	if (!Array.isArray(stored)) {
+		return [];
+	}
+	return stored.filter(isUsableKeybinding).map(toKeybinding);
+}
+
+function isUsableKeybinding(stored: StoredKeybinding): boolean {
+	if (typeof stored.key !== "string" || parseKeySequence(stored.key).length === 0) {
+		return false;
+	}
+	if (typeof stored.command !== "string") {
+		return false;
+	}
+	return whenClauseIsValid(whenFrom(stored.when));
+}
+
+// An empty command is how a line unbinds a built-in key rather than replacing it.
+function toKeybinding(stored: StoredKeybinding): Keybinding {
+	return {
+		key: String(stored.key),
+		command: String(stored.command),
+		when: whenFrom(stored.when),
+	};
+}
+
+function whenFrom(stored: string | undefined): string {
+	if (typeof stored !== "string") {
+		return "";
+	}
+	return stored;
 }
 
 function viewModeFrom(stored: string | undefined): ViewMode {

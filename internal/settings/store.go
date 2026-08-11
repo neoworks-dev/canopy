@@ -27,8 +27,11 @@ type Store struct {
 	// Fields a newer version of the application wrote, kept so rewriting the
 	// file here does not drop them.
 	unknown map[string]json.RawMessage
-	pending *Settings
-	timer   *time.Timer
+	// The keymap as it was last read. Nothing in the application authors one, so
+	// restoring it before every write is what keeps a hand-edited file intact.
+	keybindings []Keybinding
+	pending     *Settings
+	timer       *time.Timer
 }
 
 // Open resolves the settings path. A store whose path cannot be resolved still
@@ -60,7 +63,14 @@ func (store *Store) parse(contents []byte) Settings {
 		return Defaults()
 	}
 	store.rememberUnknownFields(contents)
+	store.rememberKeybindings(loaded.Keybindings)
 	return loaded
+}
+
+func (store *Store) rememberKeybindings(keybindings []Keybinding) {
+	store.mutex.Lock()
+	defer store.mutex.Unlock()
+	store.keybindings = keybindings
 }
 
 func (store *Store) rememberUnknownFields(contents []byte) {
@@ -129,6 +139,7 @@ func (store *Store) write(next Settings) error {
 		return nil
 	}
 	next.Version = currentVersion
+	next.Keybindings = store.storedKeybindings()
 	contents, err := store.encode(next)
 	if err != nil {
 		return err
@@ -151,6 +162,12 @@ func (store *Store) encode(next Settings) ([]byte, error) {
 		fields[name] = value
 	}
 	return json.MarshalIndent(fields, "", "  ")
+}
+
+func (store *Store) storedKeybindings() []Keybinding {
+	store.mutex.Lock()
+	defer store.mutex.Unlock()
+	return store.keybindings
 }
 
 func writeAtomically(path string, contents []byte) error {

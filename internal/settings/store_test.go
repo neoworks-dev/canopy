@@ -163,3 +163,55 @@ func TestAStoreWithoutAPathNeverWrites(t *testing.T) {
 		t.Fatal("a store without a path should still report defaults")
 	}
 }
+
+func TestAHandEditedKeymapIsReadBack(t *testing.T) {
+	store := storeIn(t)
+	writeFile(t, store, `{
+		"version": 1,
+		"keybindings": [
+			{"key": "f", "command": "search.here"},
+			{"key": "g g", "command": "list.move.first", "when": "listActive"}
+		]
+	}`)
+
+	loaded := store.Load()
+	if len(loaded.Keybindings) != 2 {
+		t.Fatalf("read %d bindings, want 2", len(loaded.Keybindings))
+	}
+	if loaded.Keybindings[1].Key != "g g" || loaded.Keybindings[1].When != "listActive" {
+		t.Fatalf("second binding %+v, want the sequence with its clause", loaded.Keybindings[1])
+	}
+}
+
+// Nothing in the application authors a keymap, so a save that knows nothing
+// about one must not be able to erase it.
+func TestSavingDoesNotDropAHandEditedKeymap(t *testing.T) {
+	store := storeIn(t)
+	writeFile(t, store, `{"version": 1, "keybindings": [{"key": "f", "command": "search.here"}]}`)
+	store.Load()
+
+	saved := Defaults()
+	saved.ViewMode = "grid"
+	if err := store.write(saved); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	reloaded := store.Load()
+	if len(reloaded.Keybindings) != 1 || reloaded.Keybindings[0].Command != "search.here" {
+		t.Fatalf("keybindings %+v, want the hand-edited one intact", reloaded.Keybindings)
+	}
+	if reloaded.ViewMode != "grid" {
+		t.Fatalf("view mode %q, want the saved one", reloaded.ViewMode)
+	}
+}
+
+// An absent keymap should not add an empty list to a file that never had one.
+func TestAFileWithoutAKeymapStaysWithoutOne(t *testing.T) {
+	store := storeIn(t)
+	if err := store.write(Defaults()); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if _, present := readFile(t, store)["keybindings"]; present {
+		t.Fatal("keybindings written into a file that had none")
+	}
+}

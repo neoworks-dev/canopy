@@ -17,6 +17,17 @@ type Window struct {
 	Y      int `json:"y"`
 }
 
+// Keybinding is one entry in the user's keymap, appended after the built-in
+// bindings so it overrides them. What the fields mean is the frontend's
+// business; the file only has to carry them across a launch.
+type Keybinding struct {
+	// A chord, or a sequence of them separated by spaces: "ctrl+c", "g g".
+	Key string `json:"key"`
+	// Empty unbinds whatever the built-in keymap put on this key.
+	Command string `json:"command"`
+	When    string `json:"when,omitempty"`
+}
+
 // Settings is the whole persisted file. Fields the frontend owns are left empty
 // here, so their defaults live in one place rather than two: an empty view mode
 // or column list means "whatever the frontend starts with".
@@ -28,6 +39,9 @@ type Settings struct {
 	Sort          filesystem.Order `json:"sort"`
 	LastDirectory string           `json:"lastDirectory"`
 	Window        Window           `json:"window"`
+	// Written by hand only. The store restores whatever was on disk before every
+	// write, so the application cannot overwrite them.
+	Keybindings []Keybinding `json:"keybindings,omitempty"`
 }
 
 // Defaults are what a first launch, or an unreadable file, starts from.

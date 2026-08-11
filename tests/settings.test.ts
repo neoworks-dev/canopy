@@ -51,3 +51,47 @@ describe("viewSettingsFrom", () => {
 		expect(viewSettingsFrom({ lastDirectory: undefined }).lastDirectory).toBe("");
 	});
 });
+
+describe("stored keybindings", () => {
+	test("a file without a keymap contributes none", () => {
+		expect(viewSettingsFrom({}).keybindings).toEqual([]);
+	});
+
+	test("a binding is read with its clause", () => {
+		expect(
+			viewSettingsFrom({
+				keybindings: [{ key: "g g", command: "list.move.first", when: "listActive" }],
+			}).keybindings,
+		).toEqual([{ key: "g g", command: "list.move.first", when: "listActive" }]);
+	});
+
+	test("a missing clause becomes an unconditional binding", () => {
+		expect(viewSettingsFrom({ keybindings: [{ key: "f", command: "search.here" }] }).keybindings)
+			.toEqual([{ key: "f", command: "search.here", when: "" }]);
+	});
+
+	// An empty command is how a line unbinds a built-in key.
+	test("an empty command is kept", () => {
+		expect(viewSettingsFrom({ keybindings: [{ key: "f", command: "" }] }).keybindings).toEqual([
+			{ key: "f", command: "", when: "" },
+		]);
+	});
+
+	// One bad line in a hand-edited file must not cost the others.
+	test("a line that cannot be read is dropped on its own", () => {
+		const kept = viewSettingsFrom({
+			keybindings: [
+				{ key: "hyper+q", command: "search.here" },
+				{ key: "f", command: "search.here" },
+				{ key: "z", command: "search.global", when: "listActive &&" },
+				{ command: "search.here" },
+				{ key: "x" },
+			],
+		}).keybindings;
+		expect(kept.map((binding) => binding.key)).toEqual(["f"]);
+	});
+
+	test("a keymap of the wrong shape is ignored", () => {
+		expect(viewSettingsFrom({ keybindings: undefined }).keybindings).toEqual([]);
+	});
+});

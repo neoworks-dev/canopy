@@ -244,6 +244,22 @@ export namespace proto {
 
 export namespace settings {
 	
+	export class Keybinding {
+	    key: string;
+	    command: string;
+	    when?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Keybinding(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.command = source["command"];
+	        this.when = source["when"];
+	    }
+	}
 	export class Window {
 	    width: number;
 	    height: number;
@@ -270,6 +286,7 @@ export namespace settings {
 	    sort: filesystem.Order;
 	    lastDirectory: string;
 	    window: Window;
+	    keybindings?: Keybinding[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Settings(source);
@@ -284,6 +301,7 @@ export namespace settings {
 	        this.sort = this.convertValues(source["sort"], filesystem.Order);
 	        this.lastDirectory = source["lastDirectory"];
 	        this.window = this.convertValues(source["window"], Window);
+	        this.keybindings = this.convertValues(source["keybindings"], Keybinding);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

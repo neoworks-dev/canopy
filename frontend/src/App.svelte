@@ -57,7 +57,13 @@
 	import { iconForCommand } from "./lib/commandIcons";
 	import { CommandRegistry, type Command, type MenuItem } from "./lib/commands";
 	import { chordFromEvent } from "./lib/keys";
-	import { compileKeymap, resolveChord, shortcutFor, type ChordResolution } from "./lib/keymap";
+	import {
+		compileKeymap,
+		resolveChord,
+		shortcutFor,
+		type ChordResolution,
+		type Keybinding,
+	} from "./lib/keymap";
 	import type { WhenContext } from "./lib/whenClause";
 	import { columnsFor, defaultColumnIds, type ColumnId } from "./lib/columns";
 	import { entryElementId, indexOfOption } from "./lib/entryList";
@@ -167,6 +173,7 @@
 	let findOrigin: Selection = emptySelection;
 	// Chords typed so far in a sequence such as "g g", waiting for the rest.
 	let pendingChords = $state<string[]>([]);
+	let userKeybindings = $state<Keybinding[]>([]);
 
 	let band = $state<Rectangle | null>(null);
 	let bandOrigin: Point = { x: 0, y: 0 };
@@ -197,7 +204,8 @@
 	const isSearchActive = $derived(searchQuery.trim().length > 0);
 	const isIndexing = $derived(indexStatus?.state === "scanning");
 	const commandContext = $derived(currentCommandContext());
-	const keymap = $derived(compileKeymap(defaultKeymap));
+	// The user's bindings come last, so any of them overrides a built-in.
+	const keymap = $derived(compileKeymap([...defaultKeymap, ...userKeybindings]));
 	const conflict = $derived(operations.conflict);
 	// Only a cut marks entries as pending; a copy leaves them as they are.
 	const cutPaths = $derived(new Set(pathsHeldByCut()));
@@ -310,6 +318,7 @@
 		visibleColumnIds = stored.columns;
 		showHidden = stored.showHidden;
 		sortOrder = stored.sort;
+		userKeybindings = stored.keybindings;
 		areSettingsLoaded = true;
 		return stored;
 	}
@@ -323,6 +332,8 @@
 		}
 	}
 
+	// The keymap is left out on purpose: nothing here authors one, and the store
+	// puts the file's own back before every write.
 	function currentViewSettings(): storedSettings.Settings {
 		return storedSettings.Settings.createFrom({
 			viewMode,
