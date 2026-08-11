@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Card, SectionHeader, ripple } from "@neoworks-dev/ui";
+	import { Card, ripple } from "@neoworks-dev/ui";
 	import type { IconComponent } from "@neoworks-dev/ui";
 	import HouseIcon from "phosphor-svelte/lib/HouseIcon";
 	import DesktopIcon from "phosphor-svelte/lib/DesktopIcon";
@@ -73,8 +73,6 @@
 	padding="none"
 	class="flex w-52 shrink-0 flex-col gap-2 overflow-y-auto p-2 shadow-lg"
 >
-	<SectionHeader title="Places" />
-
 	<nav class="flex flex-col gap-2">
 		{#each places as place (place.path)}
 			{@const PlaceIcon = iconFor(place)}

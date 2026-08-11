@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from "svelte";
-	import { Button, Card, LoadingSpinner, SectionHeader } from "@neoworks-dev/ui";
+	import { Button, Card, LoadingSpinner } from "@neoworks-dev/ui";
 	import type { IconComponent } from "@neoworks-dev/ui";
 	import CaretLeftIcon from "phosphor-svelte/lib/CaretLeftIcon";
 	import CaretRightIcon from "phosphor-svelte/lib/CaretRightIcon";
@@ -1272,14 +1272,6 @@
 		return `${count} items`;
 	}
 
-	function listingSummary(): string {
-		const items = itemCountLabel(visibleEntries.length);
-		if (selection.paths.length === 0) {
-			return items;
-		}
-		return `${items} · ${selection.paths.length} selected`;
-	}
-
 	function indexingLabel(status: proto.StatusResult): string {
 		return `Indexing ${status.filesIndexed.toLocaleString()} entries so far`;
 	}
@@ -1396,7 +1388,6 @@
 					<LoadingSpinner />
 				</div>
 			{:else}
-				<SectionHeader title={listingSummary()} />
 				{#if actionError}
 					<button
 						type="button"
@@ -1474,6 +1465,10 @@
 
 		<PreviewPane entries={selectedEntries} />
 	</div>
+
+	<!-- Status strip: floats on the canvas like the top bar, and is empty until it
+	     is given something to carry. -->
+	<div class="flex h-8 shrink-0 items-center gap-2 px-1"></div>
 </div>
 
 {#if band}
