@@ -102,6 +102,10 @@ export function SuggestName(arg1, arg2) {
   return window['go']['main']['FileService']['SuggestName'](arg1, arg2);
 }
 
+export function ThumbnailFor(arg1) {
+  return window['go']['main']['FileService']['ThumbnailFor'](arg1);
+}
+
 export function Undo() {
   return window['go']['main']['FileService']['Undo']();
 }

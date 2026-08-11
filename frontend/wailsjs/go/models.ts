@@ -341,6 +341,25 @@ export namespace settings {
 
 }
 
+export namespace thumbnail {
+	
+	export class Thumbnail {
+	    path: string;
+	    dataUrl: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Thumbnail(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.dataUrl = source["dataUrl"];
+	    }
+	}
+
+}
+
 export namespace zoxide {
 	
 	export class Entry {

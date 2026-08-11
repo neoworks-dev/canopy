@@ -12,6 +12,7 @@ import (
 	"file-explorer-neoworks/internal/filesystem"
 	"file-explorer-neoworks/internal/launcher"
 	"file-explorer-neoworks/internal/settings"
+	"file-explorer-neoworks/internal/thumbnail"
 	"file-explorer-neoworks/internal/watcher"
 	"file-explorer-neoworks/internal/zoxide"
 )
@@ -148,6 +149,17 @@ func (service *FileService) HomeDirectory() (string, error) {
 // PreviewFile reads as much of one file as the preview pane can show.
 func (service *FileService) PreviewFile(path string) (filesystem.Preview, error) {
 	return filesystem.ReadPreview(path)
+}
+
+// ThumbnailFor renders the preview image one entry is drawn with. A file with
+// no preview comes back with an empty image rather than an error, so a listing
+// full of plain files reports nothing to handle.
+func (service *FileService) ThumbnailFor(path string) thumbnail.Thumbnail {
+	absolutePath, err := filesystem.ResolvePath(path)
+	if err != nil {
+		return thumbnail.Thumbnail{Path: path}
+	}
+	return thumbnail.Render(absolutePath)
 }
 
 // Places lists the sidebar shortcuts to well-known directories.

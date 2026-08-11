@@ -4,6 +4,7 @@ import {launcher} from '../models';
 import {filesystem} from '../models';
 import {fileops} from '../models';
 import {settings} from '../models';
+import {thumbnail} from '../models';
 import {zoxide} from '../models';
 
 export function ApplicationsFor(arg1:string):Promise<Array<launcher.Application>>;
@@ -55,6 +56,8 @@ export function StartOperation(arg1:string,arg2:Array<string>,arg3:string):Promi
 export function StopWatching():Promise<void>;
 
 export function SuggestName(arg1:string,arg2:string):Promise<string>;
+
+export function ThumbnailFor(arg1:string):Promise<thumbnail.Thumbnail>;
 
 export function Undo():Promise<string>;
 

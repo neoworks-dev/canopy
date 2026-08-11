@@ -92,7 +92,7 @@
 				class:ring-line-strong={index === focusIndex}
 				class:opacity-50={cutPaths.has(entry.path)}
 			>
-				<EntryIcon {entry} size="lg" />
+				<EntryIcon {entry} size="xl" />
 				{#if entry.path === renamingPath}
 					<RenameField
 						initialName={entry.name}

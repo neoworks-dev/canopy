@@ -6,6 +6,7 @@
 	import type { proto } from "../../wailsjs/go/models";
 	import EntryIcon from "./EntryIcon.svelte";
 	import { parentDirectoryOf } from "./format";
+	import type { ThumbnailSource } from "./thumbnails";
 
 	// The dropdown is where results live, so it holds enough of them to pick from
 	// without covering the listing it is opening things in.
@@ -102,6 +103,17 @@
 		return parentDirectoryOf(hit.path);
 	}
 
+	// The index reports an instant rather than a formatted time; only the preview
+	// cache reads it, and it only has to change when the file does.
+	function thumbnailSourceFor(hit: proto.Hit): ThumbnailSource {
+		return {
+			name: hit.name,
+			path: hit.path,
+			isDir: hit.isDir,
+			modTime: String(hit.modTimeUnix),
+		};
+	}
+
 	function emptyLabel(): string {
 		if (isSearching) {
 			return "Searching…";
@@ -185,7 +197,7 @@
 							class:bg-hover={index === activeSuggestion}
 							class:hover:bg-hover={index !== activeSuggestion}
 						>
-							<EntryIcon entry={{ name: hit.name, isDir: hit.isDir }} />
+							<EntryIcon entry={thumbnailSourceFor(hit)} />
 							<span class="min-w-0 flex-1">
 								<span class="block truncate text-sm text-default">{hit.name}</span>
 								<span class="block truncate text-xs text-dim">{hitLocation(hit)}</span>
