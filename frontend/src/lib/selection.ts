@@ -93,6 +93,34 @@ export function selectAll(allPaths: string[]): Selection {
 	return { paths: [...allPaths], anchorIndex: 0, focusIndex: allPaths.length - 1 };
 }
 
+/**
+ * Follows the entries the anchor and focus pointed at after the listing was
+ * re-read, so an entry created or deleted by something else shifts the indexes
+ * without moving the focus ring onto a different entry.
+ */
+export function selectionAfterRelisting(
+	current: Selection,
+	previousPaths: string[],
+	allPaths: string[],
+): Selection {
+	const paths = current.paths.filter((path) => allPaths.includes(path));
+	if (paths.length === 0) {
+		return emptySelection;
+	}
+	return {
+		paths,
+		anchorIndex: followIndex(current.anchorIndex, previousPaths, allPaths),
+		focusIndex: followIndex(current.focusIndex, previousPaths, allPaths),
+	};
+}
+
+function followIndex(index: number, previousPaths: string[], allPaths: string[]): number {
+	if (!isWithinBounds(previousPaths, index)) {
+		return -1;
+	}
+	return allPaths.indexOf(previousPaths[index]);
+}
+
 /** Drops entries that are no longer listed, e.g. after hiding dotfiles. */
 export function pruneSelection(current: Selection, allPaths: string[]): Selection {
 	const remaining = current.paths.filter((path) => allPaths.includes(path));

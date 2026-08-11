@@ -32,6 +32,7 @@ func main() {
 			fileService.startup(applicationContext)
 		},
 		OnShutdown: func(_ context.Context) {
+			fileService.StopWatching()
 			indexService.shutdown()
 		},
 	})

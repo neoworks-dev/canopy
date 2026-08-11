@@ -6,6 +6,7 @@ import {
 	selectionAfterClick,
 	selectionAfterJump,
 	selectionAfterMove,
+	selectionAfterRelisting,
 	type Selection,
 } from "../frontend/src/lib/selection";
 
@@ -139,5 +140,36 @@ describe("pruneSelection", () => {
 
 	test("empties the selection when nothing survives", () => {
 		expect(pruneSelection(selectionOf(["/gone"], 0, 0), paths)).toEqual(emptySelection);
+	});
+});
+
+describe("selectionAfterRelisting", () => {
+	test("the focus follows its entry when one is inserted before it", () => {
+		const withInsert = ["/a", "/a2", "/b", "/c", "/d", "/e"];
+		const selection = selectionAfterRelisting(selectionOf(["/c"], 2, 2), paths, withInsert);
+		expect(selection.focusIndex).toBe(3);
+		expect(selection.anchorIndex).toBe(3);
+	});
+
+	test("the focus follows its entry when one before it disappears", () => {
+		const withRemoval = ["/b", "/c", "/d", "/e"];
+		const selection = selectionAfterRelisting(selectionOf(["/c"], 2, 2), paths, withRemoval);
+		expect(selection.focusIndex).toBe(1);
+	});
+
+	test("drops entries that are gone and keeps the rest", () => {
+		const withRemoval = ["/a", "/c", "/d", "/e"];
+		const selection = selectionAfterRelisting(selectionOf(["/a", "/b"], 0, 1), paths, withRemoval);
+		expect(selection.paths).toEqual(["/a"]);
+		expect(selection.focusIndex).toBe(-1);
+	});
+
+	test("empties the selection when nothing survives", () => {
+		const selection = selectionAfterRelisting(selectionOf(["/b"], 1, 1), paths, ["/a"]);
+		expect(selection).toEqual(emptySelection);
+	});
+
+	test("an empty selection stays empty", () => {
+		expect(selectionAfterRelisting(emptySelection, paths, paths)).toEqual(emptySelection);
 	});
 });

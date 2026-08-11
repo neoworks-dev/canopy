@@ -22,9 +22,12 @@
 		ReadClipboardPaths,
 		RenameEntry,
 		SetDefaultApplication,
+		StopWatching,
 		SuggestName,
+		WatchDirectory,
 	} from "../wailsjs/go/main/FileService";
 	import { IndexStatus, Search } from "../wailsjs/go/main/IndexService";
+	import { EventsOn } from "../wailsjs/runtime/runtime";
 	import type { filesystem, proto } from "../wailsjs/go/models";
 	import ColumnMenu from "./lib/ColumnMenu.svelte";
 	import ConfirmDialog from "./lib/ConfirmDialog.svelte";
@@ -75,9 +78,11 @@
 		selectAll,
 		selectionAfterClick,
 		selectionAfterJump,
+		selectionAfterRelisting,
 		selectionFromIndexes,
 		type Selection,
 	} from "./lib/selection";
+	import { directoryChangedEvent } from "./lib/watch";
 	import {
 		emptyTypeAhead,
 		isTypeAheadKey,
@@ -160,11 +165,22 @@
 	const conflict = $derived(operations.conflict);
 	// Only a cut marks entries as pending; a copy leaves them as they are.
 	const cutPaths = $derived(new Set(pathsHeldByCut()));
+	// The trash and search panes replace the listing, so nothing is watched then.
+	const watchedPath = $derived(directoryOnScreen());
 
 	onMount(() => {
 		navigateTo("");
 		loadPlaces();
-		return operations.listen();
+		const stopOperations = operations.listen();
+		const stopWatching = EventsOn(directoryChangedEvent, applyExternalChange);
+		return () => {
+			stopOperations();
+			stopWatching();
+		};
+	});
+
+	$effect(() => {
+		followDirectory(watchedPath);
 	});
 
 	$effect(() => {
@@ -225,11 +241,41 @@
 		if (!currentPath) {
 			return;
 		}
+		const previousPaths = visiblePaths;
 		try {
 			listing = await ListDirectory(currentPath);
 		} catch (error) {
 			errorMessage = describeError(error);
+			return;
 		}
+		selection = selectionAfterRelisting(selection, previousPaths, visiblePaths);
+	}
+
+	function directoryOnScreen(): string {
+		if (isTrashOpen || isSearchActive) {
+			return "";
+		}
+		return currentPath;
+	}
+
+	async function followDirectory(path: string) {
+		if (!path) {
+			await StopWatching();
+			return;
+		}
+		try {
+			await WatchDirectory(path);
+		} catch {
+			// A directory that cannot be watched still lists, it just stays a snapshot.
+		}
+	}
+
+	// A change reported for a directory the user has already left is stale.
+	function applyExternalChange(path: string) {
+		if (path !== currentPath) {
+			return;
+		}
+		reloadListing();
 	}
 
 	// The sidebar is a convenience, so a failed lookup hides it rather than

@@ -11,12 +11,18 @@ import (
 	"file-explorer-neoworks/internal/fileops"
 	"file-explorer-neoworks/internal/filesystem"
 	"file-explorer-neoworks/internal/launcher"
+	"file-explorer-neoworks/internal/watcher"
 )
+
+// EventDirectoryChanged carries the path of a watched directory whose contents
+// changed underneath the listing.
+const EventDirectoryChanged = "watch:changed"
 
 // FileService is the Wails-bound bridge between the frontend and the filesystem,
 // operation engine and launcher packages.
 type FileService struct {
-	engine *fileops.Engine
+	engine  *fileops.Engine
+	watcher *watcher.Watcher
 
 	contextMutex sync.RWMutex
 	context      context.Context
@@ -25,7 +31,12 @@ type FileService struct {
 func NewFileService() *FileService {
 	service := &FileService{}
 	service.engine = fileops.New(service.emit)
+	service.watcher = watcher.New(service.emitDirectoryChanged)
 	return service
+}
+
+func (service *FileService) emitDirectoryChanged(path string) {
+	service.emit(EventDirectoryChanged, path)
 }
 
 // startup captures the context Wails needs to deliver events to the frontend.
@@ -50,6 +61,21 @@ func (service *FileService) emit(name string, data any) {
 // directory.
 func (service *FileService) ListDirectory(path string) (filesystem.Listing, error) {
 	return filesystem.ReadDirectory(path)
+}
+
+// WatchDirectory follows one directory and emits EventDirectoryChanged when its
+// contents change. It replaces any previous watch.
+func (service *FileService) WatchDirectory(path string) error {
+	absolutePath, err := filesystem.ResolvePath(path)
+	if err != nil {
+		return err
+	}
+	return service.watcher.Watch(absolutePath)
+}
+
+// StopWatching drops the current watch, for the panes that show no directory.
+func (service *FileService) StopWatching() {
+	service.watcher.Stop()
 }
 
 // HomeDirectory is the frontend's starting location.

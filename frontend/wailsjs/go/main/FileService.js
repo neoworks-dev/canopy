@@ -86,6 +86,10 @@ export function StartOperation(arg1, arg2, arg3) {
   return window['go']['main']['FileService']['StartOperation'](arg1, arg2, arg3);
 }
 
+export function StopWatching() {
+  return window['go']['main']['FileService']['StopWatching']();
+}
+
 export function SuggestName(arg1, arg2) {
   return window['go']['main']['FileService']['SuggestName'](arg1, arg2);
 }
@@ -100,4 +104,8 @@ export function UndoLabel() {
 
 export function ValidateEntryName(arg1) {
   return window['go']['main']['FileService']['ValidateEntryName'](arg1);
+}
+
+export function WatchDirectory(arg1) {
+  return window['go']['main']['FileService']['WatchDirectory'](arg1);
 }

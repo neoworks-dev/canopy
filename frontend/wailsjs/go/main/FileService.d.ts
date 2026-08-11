@@ -46,6 +46,8 @@ export function SetDefaultApplication(arg1:string,arg2:string):Promise<void>;
 
 export function StartOperation(arg1:string,arg2:Array<string>,arg3:string):Promise<string>;
 
+export function StopWatching():Promise<void>;
+
 export function SuggestName(arg1:string,arg2:string):Promise<string>;
 
 export function Undo():Promise<string>;
@@ -53,3 +55,5 @@ export function Undo():Promise<string>;
 export function UndoLabel():Promise<string>;
 
 export function ValidateEntryName(arg1:string):Promise<void>;
+
+export function WatchDirectory(arg1:string):Promise<void>;
