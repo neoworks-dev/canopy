@@ -12,6 +12,7 @@ import (
 	"file-explorer-neoworks/internal/clipboard"
 	"file-explorer-neoworks/internal/fileops"
 	"file-explorer-neoworks/internal/filesystem"
+	"file-explorer-neoworks/internal/git"
 	"file-explorer-neoworks/internal/launcher"
 	"file-explorer-neoworks/internal/recents"
 	"file-explorer-neoworks/internal/settings"
@@ -188,6 +189,17 @@ func (service *FileService) ThumbnailFor(path string) thumbnail.Thumbnail {
 		return thumbnail.Thumbnail{Path: path}
 	}
 	return thumbnail.Render(absolutePath)
+}
+
+// GitReport describes one directory to the pane showing it: the branch it is
+// on and the state of the entries inside it. A directory outside a working
+// tree reports no repository, which is not a failure.
+func (service *FileService) GitReport(path string) git.Report {
+	absolutePath, err := filesystem.ResolvePath(path)
+	if err != nil {
+		return git.Report{Statuses: map[string]string{}}
+	}
+	return git.Describe(absolutePath)
 }
 
 // Places lists the sidebar shortcuts to well-known directories.

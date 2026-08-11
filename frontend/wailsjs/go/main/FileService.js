@@ -54,6 +54,10 @@ export function ForgetTag(arg1) {
   return window['go']['main']['FileService']['ForgetTag'](arg1);
 }
 
+export function GitReport(arg1) {
+  return window['go']['main']['FileService']['GitReport'](arg1);
+}
+
 export function HomeDirectory() {
   return window['go']['main']['FileService']['HomeDirectory']();
 }

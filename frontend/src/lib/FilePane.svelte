@@ -5,12 +5,13 @@
 	import {
 		CreateFile,
 		CreateFolder,
+		GitReport,
 		ListDirectory,
 		RenameEntry,
 		SuggestName,
 	} from "../../wailsjs/go/main/FileService";
 	import { EventsOn } from "../../wailsjs/runtime/runtime";
-	import type { filesystem } from "../../wailsjs/go/models";
+	import type { filesystem, git } from "../../wailsjs/go/models";
 	import EntryGrid from "./EntryGrid.svelte";
 	import EntryRows from "./EntryRows.svelte";
 	import FindField from "./FindField.svelte";
@@ -100,6 +101,11 @@
 	let listContainer = $state<HTMLDivElement>();
 	let renamingPath = $state("");
 	let isFindOpen = $state(false);
+	let gitReport = $state<git.Report | null>(null);
+
+	// Guards against the report of a folder this pane has already left arriving
+	// after the one it is showing now.
+	let latestGitRequest = 0;
 
 	// What the selection was before the find prompt started moving it, so
 	// cancelling puts it back.
@@ -120,6 +126,7 @@
 		visibleEntries.filter((entry) => selectedPaths.has(entry.path)),
 	);
 	const activeColumns = $derived(columnsFor(visibleColumnIds));
+	const gitStatuses = $derived(reportedStatuses());
 	// Only the entries around the viewport are mounted, so a directory of a
 	// hundred thousand builds a screenful of DOM rather than all of it.
 	const mountedWindow = $derived(listWindow(listMetrics, visibleEntries.length, viewport));
@@ -257,7 +264,45 @@
 			hiddenCount: hiddenEntryCount(),
 			selected: selectedEntries,
 			isListActive: isListActive(),
+			branch: reportedBranch(),
 		};
+	}
+
+	function reportedStatuses(): Record<string, string> {
+		if (!gitReport) {
+			return {};
+		}
+		return gitReport.statuses;
+	}
+
+	function reportedBranch(): string {
+		if (!gitReport?.isRepo) {
+			return "";
+		}
+		return gitReport.repository.branch;
+	}
+
+	// The working tree is read after the listing rather than with it, so a folder
+	// appears at once and picks up its marks a moment later.
+	async function refreshGitReport(path: string) {
+		const request = ++latestGitRequest;
+		if (!path) {
+			gitReport = null;
+			return;
+		}
+		const reported = await requestGitReport(path);
+		if (request !== latestGitRequest) {
+			return;
+		}
+		gitReport = reported;
+	}
+
+	async function requestGitReport(path: string): Promise<git.Report | null> {
+		try {
+			return await GitReport(path);
+		} catch {
+			return null;
+		}
 	}
 
 	function parentPathOf(current: filesystem.Listing | null): string {
@@ -296,6 +341,7 @@
 			errorMessage = describeError(error);
 		}
 		isLoading = false;
+		refreshGitReport(wanted.path);
 	}
 
 	/** Re-reads the directory in place, keeping the selection where it can. */
@@ -311,6 +357,7 @@
 			return;
 		}
 		selection = selectionAfterRelisting(selection, previousPaths, visiblePaths);
+		refreshGitReport(directoryPath);
 	}
 
 	// A change reported for a directory this pane is not showing belongs to
@@ -659,6 +706,7 @@
 					columns={activeColumns}
 					{selectedPaths}
 					{cutPaths}
+					{gitStatuses}
 					focusIndex={selection.focusIndex}
 					{renamingPath}
 					onSelect={selectEntry}
@@ -677,6 +725,7 @@
 					columns={activeColumns}
 					{selectedPaths}
 					{cutPaths}
+					{gitStatuses}
 					focusIndex={selection.focusIndex}
 					{renamingPath}
 					onSelect={selectEntry}

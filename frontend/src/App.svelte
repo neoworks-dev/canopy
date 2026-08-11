@@ -7,6 +7,7 @@
 	import HouseIcon from "phosphor-svelte/lib/HouseIcon";
 	import EyeIcon from "phosphor-svelte/lib/EyeIcon";
 	import EyeSlashIcon from "phosphor-svelte/lib/EyeSlashIcon";
+	import GitBranchIcon from "phosphor-svelte/lib/GitBranchIcon";
 	import WarningIcon from "phosphor-svelte/lib/WarningIcon";
 	import {
 		AddBookmark,
@@ -1260,6 +1261,13 @@
 	<!-- Status strip: floats on the canvas like the top bar, and lines up with
 	     the listing rather than the window. -->
 	<div class="flex h-8 shrink-0 items-center gap-2 px-1" style={stripInset()}>
+		{#if status.branch}
+			<span class="flex shrink-0 items-center gap-1 text-xs text-dim" title="On branch {status.branch}">
+				<GitBranchIcon size={12} />
+				<span class="max-w-40 truncate">{status.branch}</span>
+			</span>
+			<span class="shrink-0 text-faint">·</span>
+		{/if}
 		{#if actionError}
 			<button
 				type="button"

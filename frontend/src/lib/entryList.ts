@@ -24,6 +24,8 @@ export type EntryViewProps = {
 	selectedPaths: Set<string>;
 	/** Entries a cut is holding: dimmed until the paste lands. */
 	cutPaths: Set<string>;
+	/** What the working tree says about each entry, keyed by name. */
+	gitStatuses: Record<string, string>;
 	focusIndex: number;
 	renamingPath: string;
 	onSelect: (index: number, event: MouseEvent) => void;

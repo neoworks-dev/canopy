@@ -1,5 +1,6 @@
 <script lang="ts">
 	import EntryIcon from "./EntryIcon.svelte";
+	import { gitMarkFor } from "./gitStatus";
 	import RenameField from "./RenameField.svelte";
 	import SortHeader from "./SortHeader.svelte";
 	import { entryElementId, type EntryViewProps } from "./entryList";
@@ -16,6 +17,7 @@
 		columns,
 		selectedPaths,
 		cutPaths,
+		gitStatuses,
 		focusIndex,
 		renamingPath,
 		onSelect,
@@ -48,6 +50,41 @@
 		reportMetrics();
 	});
 
+
+	function markTone(name: string): string {
+		const mark = gitMarkFor(gitStatuses[name]);
+		if (!mark) {
+			return "";
+		}
+		return mark.toneClass;
+	}
+
+	function markLetter(name: string): string {
+		const mark = gitMarkFor(gitStatuses[name]);
+		if (!mark) {
+			return "";
+		}
+		return mark.letter;
+	}
+
+	function markLabel(name: string): string {
+		const mark = gitMarkFor(gitStatuses[name]);
+		if (!mark) {
+			return "";
+		}
+		return mark.label;
+	}
+
+	// An ignored entry is drawn back rather than marked, the way an editor greys
+	// out what the working tree does not follow.
+	function isMuted(name: string): boolean {
+		const mark = gitMarkFor(gitStatuses[name]);
+		if (!mark) {
+			return false;
+		}
+		return mark.isMuted;
+	}
+
 	function reportMetrics() {
 		const row = list?.querySelector('[role="option"]');
 		if (!(row instanceof HTMLElement) || !header) {
@@ -63,6 +100,7 @@
 		class="flex items-center gap-2 px-2 pb-1 text-2xs tracking-caps text-faint uppercase"
 	>
 		<span class="w-8 shrink-0"></span>
+		<span class="w-3 shrink-0"></span>
 		<SortHeader
 			label="Name"
 			sortKey="name"
@@ -109,8 +147,15 @@
 			class:ring-inset={index === focusIndex}
 			class:ring-line-strong={index === focusIndex}
 			class:opacity-50={cutPaths.has(entry.path)}
+			class:opacity-60={isMuted(entry.name)}
 		>
 			<EntryIcon {entry} />
+			<span
+				class="w-3 shrink-0 text-center text-2xs font-medium {markTone(entry.name)}"
+				title={markLabel(entry.name)}
+			>
+				{markLetter(entry.name)}
+			</span>
 			{#if entry.path === renamingPath}
 				<RenameField initialName={entry.name} onCommit={onRenameCommit} onCancel={onRenameCancel} />
 			{:else}

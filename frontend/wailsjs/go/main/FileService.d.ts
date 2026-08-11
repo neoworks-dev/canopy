@@ -3,6 +3,7 @@
 import {launcher} from '../models';
 import {bookmarks} from '../models';
 import {filesystem} from '../models';
+import {git} from '../models';
 import {fileops} from '../models';
 import {settings} from '../models';
 import {recents} from '../models';
@@ -34,6 +35,8 @@ export function EmptyTrash():Promise<void>;
 export function FilesWithTag(arg1:string):Promise<Array<filesystem.Entry>>;
 
 export function ForgetTag(arg1:string):Promise<void>;
+
+export function GitReport(arg1:string):Promise<git.Report>;
 
 export function HomeDirectory():Promise<string>;
 

@@ -13,6 +13,8 @@ export type PaneStatus = {
 	selected: filesystem.Entry[];
 	/** The listing is what the pane is showing, rather than trash, tags or an error. */
 	isListActive: boolean;
+	/** The branch the folder is on, empty outside a working tree. */
+	branch: string;
 };
 
 export const emptyPaneStatus: PaneStatus = {
@@ -22,4 +24,5 @@ export const emptyPaneStatus: PaneStatus = {
 	hiddenCount: 0,
 	selected: [],
 	isListActive: false,
+	branch: "",
 };

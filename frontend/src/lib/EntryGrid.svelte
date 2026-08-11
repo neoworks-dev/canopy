@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { columnSummary } from "./columns";
 	import EntryIcon from "./EntryIcon.svelte";
+	import { gitMarkFor } from "./gitStatus";
 	import RenameField from "./RenameField.svelte";
 	import { entryElementId, type EntryViewProps } from "./entryList";
 
@@ -12,6 +13,7 @@
 		columns,
 		selectedPaths,
 		cutPaths,
+		gitStatuses,
 		focusIndex,
 		renamingPath,
 		onSelect,
@@ -40,6 +42,41 @@
 		entries.length;
 		reportMetrics();
 	});
+
+
+	function markTone(name: string): string {
+		const mark = gitMarkFor(gitStatuses[name]);
+		if (!mark) {
+			return "";
+		}
+		return mark.toneClass;
+	}
+
+	function markLetter(name: string): string {
+		const mark = gitMarkFor(gitStatuses[name]);
+		if (!mark) {
+			return "";
+		}
+		return mark.letter;
+	}
+
+	function markLabel(name: string): string {
+		const mark = gitMarkFor(gitStatuses[name]);
+		if (!mark) {
+			return "";
+		}
+		return mark.label;
+	}
+
+	// An ignored entry is drawn back rather than marked, the way an editor greys
+	// out what the working tree does not follow.
+	function isMuted(name: string): boolean {
+		const mark = gitMarkFor(gitStatuses[name]);
+		if (!mark) {
+			return false;
+		}
+		return mark.isMuted;
+	}
 
 	function reportMetrics() {
 		const tile = grid?.querySelector('[role="option"]');
@@ -91,8 +128,19 @@
 				class:ring-inset={index === focusIndex}
 				class:ring-line-strong={index === focusIndex}
 				class:opacity-50={cutPaths.has(entry.path)}
+				class:opacity-60={isMuted(entry.name)}
 			>
-				<EntryIcon {entry} size="xl" />
+				<span class="relative flex">
+					<EntryIcon {entry} size="xl" />
+					{#if markLetter(entry.name)}
+						<span
+							class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-raised text-2xs font-medium {markTone(entry.name)}"
+							title={markLabel(entry.name)}
+						>
+							{markLetter(entry.name)}
+						</span>
+					{/if}
+				</span>
 				{#if entry.path === renamingPath}
 					<RenameField
 						initialName={entry.name}
