@@ -166,8 +166,8 @@ export function ValidateEntryName(arg1) {
   return window['go']['main']['FileService']['ValidateEntryName'](arg1);
 }
 
-export function WatchDirectory(arg1) {
-  return window['go']['main']['FileService']['WatchDirectory'](arg1);
+export function WatchDirectories(arg1) {
+  return window['go']['main']['FileService']['WatchDirectories'](arg1);
 }
 
 export function ZoxideAvailable() {

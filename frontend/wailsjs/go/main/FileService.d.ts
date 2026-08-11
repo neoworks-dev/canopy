@@ -91,7 +91,7 @@ export function UndoLabel():Promise<string>;
 
 export function ValidateEntryName(arg1:string):Promise<void>;
 
-export function WatchDirectory(arg1:string):Promise<void>;
+export function WatchDirectories(arg1:Array<string>):Promise<void>;
 
 export function ZoxideAvailable():Promise<boolean>;
 

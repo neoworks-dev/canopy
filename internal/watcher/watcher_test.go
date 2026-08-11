@@ -26,9 +26,7 @@ func TestWatchReportsACreatedFile(t *testing.T) {
 	watcher := New(func(path string) { notifications <- path })
 	defer watcher.Stop()
 
-	if err := watcher.Watch(directory); err != nil {
-		t.Fatalf("watch: %v", err)
-	}
+	watcher.Watch([]string{directory})
 	writeFile(t, directory, "created.txt")
 
 	notified := waitForNotification(t, notifications, time.Second)
@@ -43,9 +41,7 @@ func TestBurstOfWritesCollapsesIntoOneNotification(t *testing.T) {
 	watcher := New(func(path string) { notifications <- path })
 	defer watcher.Stop()
 
-	if err := watcher.Watch(directory); err != nil {
-		t.Fatalf("watch: %v", err)
-	}
+	watcher.Watch([]string{directory})
 	for index := range 20 {
 		writeFile(t, directory, fmt.Sprintf("burst-%d.txt", index))
 	}
@@ -64,12 +60,8 @@ func TestWatchingAnotherDirectoryDropsThePreviousOne(t *testing.T) {
 	watcher := New(func(path string) { notifications <- path })
 	defer watcher.Stop()
 
-	if err := watcher.Watch(previous); err != nil {
-		t.Fatalf("watch previous: %v", err)
-	}
-	if err := watcher.Watch(current); err != nil {
-		t.Fatalf("watch current: %v", err)
-	}
+	watcher.Watch([]string{previous})
+	watcher.Watch([]string{current})
 	writeFile(t, previous, "ignored.txt")
 	time.Sleep(4 * coalesceWindow)
 	if len(notifications) != 0 {
@@ -83,13 +75,34 @@ func TestWatchingAnotherDirectoryDropsThePreviousOne(t *testing.T) {
 	}
 }
 
-func TestWatchingAMissingDirectoryFails(t *testing.T) {
-	watcher := New(func(string) {})
+// One pane showing a directory that has since been deleted must not stop the
+// others from being watched.
+func TestAMissingDirectoryIsSkippedAndTheRestAreWatched(t *testing.T) {
+	directory := t.TempDir()
+	notifications := make(chan string, 8)
+	watcher := New(func(path string) { notifications <- path })
 	defer watcher.Stop()
 
-	err := watcher.Watch(filepath.Join(t.TempDir(), "absent"))
-	if err == nil {
-		t.Fatal("expected watching a missing directory to fail")
+	watcher.Watch([]string{filepath.Join(t.TempDir(), "absent"), directory})
+	writeFile(t, directory, "seen.txt")
+
+	if notified := waitForNotification(t, notifications, time.Second); notified != directory {
+		t.Fatalf("notified about %q, want %q", notified, directory)
+	}
+}
+
+func TestSeveralDirectoriesAreWatchedAtOnce(t *testing.T) {
+	first := t.TempDir()
+	second := t.TempDir()
+	notifications := make(chan string, 8)
+	watcher := New(func(path string) { notifications <- path })
+	defer watcher.Stop()
+
+	watcher.Watch([]string{first, second})
+	writeFile(t, second, "seen.txt")
+
+	if notified := waitForNotification(t, notifications, time.Second); notified != second {
+		t.Fatalf("notified about %q, want %q", notified, second)
 	}
 }
 

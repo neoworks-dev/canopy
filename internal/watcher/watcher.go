@@ -14,46 +14,67 @@ import (
 // instead of a reload per file.
 const coalesceWindow = 150 * time.Millisecond
 
-// Watcher follows one directory at a time. Watching another one replaces the
-// previous watch, which is all a single listing pane needs.
+// Watcher follows the directories on screen. Split panes and tabs mean there
+// can be several at once, so the set is replaced as a whole and the watches
+// that carry over are left running.
 type Watcher struct {
 	notify func(path string)
 
-	mutex   sync.Mutex
-	session *session
+	mutex    sync.Mutex
+	sessions map[string]*session
 }
 
 func New(notify func(path string)) *Watcher {
-	return &Watcher{notify: notify}
+	return &Watcher{notify: notify, sessions: map[string]*session{}}
 }
 
-// Watch replaces the current watch with one on path.
-func (watcher *Watcher) Watch(path string) error {
+// Watch follows exactly the given directories, dropping any others. A directory
+// that cannot be watched is skipped: the pane showing it stays a snapshot,
+// which is better than the rest going unwatched with it.
+func (watcher *Watcher) Watch(paths []string) {
 	watcher.mutex.Lock()
 	defer watcher.mutex.Unlock()
-	watcher.stopSession()
-	started, err := startSession(path, watcher.notify)
-	if err != nil {
-		return err
+	watcher.stopSessionsOutside(paths)
+	for _, path := range paths {
+		watcher.startSessionFor(path)
 	}
-	watcher.session = started
-	return nil
 }
 
-// Stop drops the current watch. Watching nothing is a valid state: the trash
-// and search panes show no directory.
+// Stop drops every watch. Watching nothing is a valid state: the trash, tag and
+// search panes show no directory.
 func (watcher *Watcher) Stop() {
 	watcher.mutex.Lock()
 	defer watcher.mutex.Unlock()
-	watcher.stopSession()
+	watcher.stopSessionsOutside(nil)
 }
 
-func (watcher *Watcher) stopSession() {
-	if watcher.session == nil {
+func (watcher *Watcher) startSessionFor(path string) {
+	if watcher.sessions[path] != nil {
 		return
 	}
-	watcher.session.stop()
-	watcher.session = nil
+	started, err := startSession(path, watcher.notify)
+	if err != nil {
+		return
+	}
+	watcher.sessions[path] = started
+}
+
+func (watcher *Watcher) stopSessionsOutside(paths []string) {
+	wanted := map[string]bool{}
+	for _, path := range paths {
+		wanted[path] = true
+	}
+	for path, current := range watcher.sessions {
+		watcher.stopSessionUnless(path, current, wanted[path])
+	}
+}
+
+func (watcher *Watcher) stopSessionUnless(path string, current *session, keep bool) {
+	if keep {
+		return
+	}
+	current.stop()
+	delete(watcher.sessions, path)
 }
 
 // session owns one fsnotify watch and the goroutine draining it.

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { onMount, tick, untrack } from "svelte";
-	import { Button, Card, LoadingSpinner } from "@neoworks-dev/ui";
+	import { onMount, tick } from "svelte";
+	import { Button } from "@neoworks-dev/ui";
 	import type { IconComponent } from "@neoworks-dev/ui";
 	import CaretLeftIcon from "phosphor-svelte/lib/CaretLeftIcon";
 	import CaretRightIcon from "phosphor-svelte/lib/CaretRightIcon";
@@ -13,10 +13,9 @@
 		AddTag,
 		Bookmarks,
 		CopyPathsToClipboard,
-		CreateFile,
-		CreateFolder,
 		Devices,
 		ForgetTag,
+		HomeDirectory,
 		KnownTags,
 		ListDirectory,
 		LoadSettings,
@@ -27,24 +26,18 @@
 		RecentEntries,
 		RemoveBookmark,
 		RemoveTag,
-		RenameEntry,
 		SaveSettings,
 		SetDefaultApplication,
-		StopWatching,
-		SuggestName,
 		TagsOf,
-		WatchDirectory,
+		WatchDirectories,
 	} from "../wailsjs/go/main/FileService";
 	import { IndexStatus, Search } from "../wailsjs/go/main/IndexService";
-	import { EventsOn } from "../wailsjs/runtime/runtime";
 	import { settings as storedSettings } from "../wailsjs/go/models";
 	import type { bookmarks, filesystem, proto, recents } from "../wailsjs/go/models";
 	import ConfirmDialog from "./lib/ConfirmDialog.svelte";
 	import ConflictDialog from "./lib/ConflictDialog.svelte";
 	import ContextMenu from "./lib/ContextMenu.svelte";
-	import EntryGrid from "./lib/EntryGrid.svelte";
-	import EntryRows from "./lib/EntryRows.svelte";
-	import FindField from "./lib/FindField.svelte";
+	import FilePane from "./lib/FilePane.svelte";
 	import JumpField from "./lib/JumpField.svelte";
 	import OpenWithDialog from "./lib/OpenWithDialog.svelte";
 	import OperationProgress from "./lib/OperationProgress.svelte";
@@ -53,9 +46,8 @@
 	import PlacesSidebar from "./lib/PlacesSidebar.svelte";
 	import PreviewPane from "./lib/PreviewPane.svelte";
 	import SearchField from "./lib/SearchField.svelte";
+	import TabStrip from "./lib/TabStrip.svelte";
 	import TagDialog from "./lib/TagDialog.svelte";
-	import TagPane from "./lib/TagPane.svelte";
-	import TrashPane from "./lib/TrashPane.svelte";
 	import ViewMenu from "./lib/ViewMenu.svelte";
 	import {
 		backgroundMenuIds,
@@ -75,41 +67,23 @@
 		type Keybinding,
 	} from "./lib/keymap";
 	import type { WhenContext } from "./lib/whenClause";
-	import { columnsFor, defaultColumnIds, type ColumnId } from "./lib/columns";
-	import { entryElementId, indexOfOption } from "./lib/entryList";
+	import { defaultColumnIds, type ColumnId } from "./lib/columns";
 	import { describeError } from "./lib/errors";
 	import { parentDirectoryOf } from "./lib/format";
 	import {
 		canGoBack,
 		canGoForward,
 		currentLocation,
-		emptyHistory,
 		historyAfterBack,
 		historyAfterForward,
-		historyAfterVisit,
+		type History,
 	} from "./lib/history";
-	import {
-		clampToBounds,
-		exceedsThreshold,
-		indexesWithin,
-		rectangleBetween,
-		toContentPoint,
-		toViewportPoint,
-		type Point,
-		type Rectangle,
-	} from "./lib/marquee";
-	import { targetIndexFor, type Movement } from "./lib/movement";
+	import type { Movement } from "./lib/movement";
+	import { emptyPaneStatus, type PaneStatus } from "./lib/paneStatus";
 	import { defaultPaneWidths, paneGutterWidth } from "./lib/panes";
-	import {
-		sectionsAfterToggle,
-		type SidebarSectionId,
-	} from "./lib/sidebar";
+	import { sectionsAfterToggle, type SidebarSectionId } from "./lib/sidebar";
 	import { itemCount, summarize, type StatusInput } from "./lib/statusStrip";
-	import {
-		defaultViewSettings,
-		viewSettingsFrom,
-		type ViewMode,
-	} from "./lib/settings";
+	import { defaultViewSettings, viewSettingsFrom, type ViewMode } from "./lib/settings";
 	import {
 		defaultSortOrder,
 		sortOrderAfterHeaderClick,
@@ -120,25 +94,26 @@
 	} from "./lib/sorting";
 	import { OperationQueue } from "./lib/operations.svelte";
 	import {
-		emptySelection,
-		pruneSelection,
-		selectAll,
-		selectionAfterClick,
-		selectionAfterJump,
-		selectionAfterRelisting,
-		selectionFromIndexes,
-		type Selection,
-	} from "./lib/selection";
-	import {
-		listWindow,
-		pageSize,
-		sameMetrics,
-		scrollTopRevealing,
-		unmeasuredMetrics,
-		type ListMetrics,
-		type Viewport,
-	} from "./lib/virtualList";
-	import { directoryChangedEvent } from "./lib/watch";
+		activateNeighbouringTab,
+		activateTab,
+		activeGroup,
+		activeTab,
+		closeGroup,
+		closeTab,
+		directoryLocation,
+		focusOtherGroup,
+		initialLayout,
+		locationFromKey,
+		maximumGroups,
+		openTab,
+		splitGroup,
+		watchedPaths,
+		withActiveGroup,
+		withHistory,
+		withLocation,
+		type Layout,
+		type TabLocation,
+	} from "./lib/tabs";
 
 	// Long enough that typing a word does not fire a query per keystroke, short
 	// enough that results feel immediate.
@@ -154,28 +129,34 @@
 		errorMessage: string;
 	};
 
+	// The menu holds only where it was opened and which set it shows: what each
+	// row does depends on the selection, which the pane reports a moment after
+	// the click that opened it.
 	type MenuState = {
 		x: number;
 		y: number;
-		groups: MenuItem[][];
+		kind: "selection" | "background";
 	};
 
-	let listing = $state<filesystem.Listing | null>(null);
+	let latestPaneId = 0;
+	let homePath = $state("");
+	let layout = $state<Layout>(initialLayout("", nextId));
+	let statuses = $state<Record<string, PaneStatus>>({});
+
+	// Panes are driven imperatively for the actions that belong to whatever they
+	// have selected, so the command that runs reaches the pane in focus.
+	const panes: Record<string, FilePane> = {};
+
 	let places = $state<filesystem.Place[]>([]);
 	let devices = $state<filesystem.Device[]>([]);
 	let pinned = $state<bookmarks.Bookmark[]>([]);
 	let recent = $state<recents.Entry[]>([]);
 	let tagNames = $state<string[]>([]);
-	// The tag whose pane has replaced the listing, or "" when none has.
-	let openTag = $state("");
 	let collapsedSections = $state<SidebarSectionId[]>([]);
 	// The tags on the selection, read when the dialog opens so it can show them.
 	let selectionTags = $state<string[]>([]);
 	let isTagDialogOpen = $state(false);
-	let errorMessage = $state("");
-	// Failures of one action, reported above the listing instead of replacing it.
-	let actionError = $state("");
-	let isLoading = $state(false);
+
 	let showHidden = $state(false);
 	let viewMode = $state<ViewMode>("rows");
 	let visibleColumnIds = $state<ColumnId[]>(defaultColumnIds);
@@ -183,13 +164,7 @@
 	// Nothing is written back until the stored settings have been applied, or the
 	// first save would overwrite them with defaults.
 	let areSettingsLoaded = $state(false);
-	let selection = $state<Selection>(emptySelection);
-	let history = $state(emptyHistory);
 	let isEditingPath = $state(false);
-	let isTrashOpen = $state(false);
-	let listMetrics = $state<ListMetrics>(unmeasuredMetrics);
-	let viewport = $state<Viewport>({ scrollTop: 0, height: 0 });
-	let listContainer = $state<HTMLDivElement>();
 	let searchInput = $state<HTMLInputElement>();
 	let sidebarWidth = $state(defaultPaneWidths.sidebar);
 	let detailsWidth = $state(defaultPaneWidths.details);
@@ -199,24 +174,14 @@
 	let isClipboardCut = $state(false);
 
 	let menu = $state<MenuState | null>(null);
-	let renamingPath = $state("");
 	let isConfirmingDelete = $state(false);
 	let openWithPath = $state("");
-	let isFindOpen = $state(false);
 	let isJumpOpen = $state(false);
-	// What the selection was before the find prompt started moving it, so
-	// cancelling puts it back.
-	let findOrigin: Selection = emptySelection;
+	// A failure that belongs to no pane: launching a file, tagging a selection.
+	let actionError = $state("");
 	// Chords typed so far in a sequence such as "g g", waiting for the rest.
 	let pendingChords = $state<string[]>([]);
 	let userKeybindings = $state<Keybinding[]>([]);
-
-	let band = $state<Rectangle | null>(null);
-	// The drag start in content coordinates, so it stays on the entry it began on
-	// while the listing scrolls; the pointer stays in viewport coordinates.
-	let bandAnchor: Point = { x: 0, y: 0 };
-	let bandPointer: Point = { x: 0, y: 0 };
-	let bandKeep: string[] = [];
 
 	let searchQuery = $state("");
 	// Whether the location field is showing search rather than the path.
@@ -233,17 +198,15 @@
 	// overwriting the results of a later, faster one.
 	let latestSearchSequence = 0;
 
-	const operations = new OperationQueue(() => reloadListing());
+	const operations = new OperationQueue(() => reloadPanes());
 	const registry = new CommandRegistry();
 	registry.registerAll(builtinCommandList());
 
-	const currentPath = $derived(pathOf(listing));
-	const canGoUp = $derived(Boolean(listing?.parentPath));
-	const visibleEntries = $derived.by(collectVisibleEntries);
-	const visiblePaths = $derived(visibleEntries.map((entry) => entry.path));
-	const selectedPaths = $derived(new Set(selection.paths));
-	const selectedEntries = $derived(visibleEntries.filter((entry) => selectedPaths.has(entry.path)));
-	const activeColumns = $derived(columnsFor(visibleColumnIds));
+	const group = $derived(activeGroup(layout));
+	const tab = $derived(activeTab(group));
+	const status = $derived(statusOf(group.id));
+	const currentPath = $derived(status.path);
+	const selectedEntries = $derived(status.selected);
 	const isSearchActive = $derived(searchQuery.trim().length > 0);
 	const isIndexing = $derived(indexStatus?.state === "scanning");
 	const commandContext = $derived(currentCommandContext());
@@ -252,35 +215,28 @@
 	const conflict = $derived(operations.conflict);
 	// Only a cut marks entries as pending; a copy leaves them as they are.
 	const cutPaths = $derived(new Set(pathsHeldByCut()));
-	// The trash, tag and search panes replace the listing, so nothing is watched
-	// then.
-	const watchedPath = $derived(directoryOnScreen());
 	const isFolderPinned = $derived(pinned.some((bookmark) => bookmark.path === currentPath));
 	// The pane describes one entry, so it earns its width when there is one to
 	// describe — or when the user has asked for it to stay.
 	const isDetailsOpen = $derived(detailsPaneBelongsOnScreen());
 	const isSidebarOpen = $derived(places.length > 0);
-	const status = $derived(summarize(statusInput()));
-	// Only the entries around the viewport are mounted, so a directory of a
-	// hundred thousand builds a screenful of DOM rather than all of it.
-	const mountedWindow = $derived(listWindow(listMetrics, visibleEntries.length, viewport));
-	const mountedEntries = $derived(
-		visibleEntries.slice(mountedWindow.firstIndex, mountedWindow.endIndex),
-	);
+	const strip = $derived(summarize(statusInput()));
 
 	onMount(() => {
 		start();
 		loadSidebar();
-		const stopOperations = operations.listen();
-		const stopWatching = EventsOn(directoryChangedEvent, applyExternalChange);
-		return () => {
-			stopOperations();
-			stopWatching();
-		};
+		return operations.listen();
 	});
 
+	// Every pane on screen is followed, so a split keeps both halves current.
 	$effect(() => {
-		followDirectory(watchedPath);
+		WatchDirectories(watchedPaths(layout));
+	});
+
+	// A tab that moves is a folder that was opened, which the sidebar lists.
+	$effect(() => {
+		tab.location;
+		refreshRecents();
 	});
 
 	$effect(() => {
@@ -299,41 +255,8 @@
 			clearSearch();
 			return;
 		}
-		selection = emptySelection;
 		const timer = setTimeout(() => runSearch(query, scope), searchDebounceMilliseconds);
 		return () => clearTimeout(timer);
-	});
-
-	// Hiding dotfiles must not leave invisible entries selected.
-	$effect(() => {
-		selection = pruneSelection(selection, visiblePaths);
-	});
-
-	// Keyboard movement is useless if the entry it lands on is off screen. Only
-	// the focus is a reason to scroll: reacting to the viewport as well would drag
-	// the focused entry back every time the user scrolled away from it.
-	$effect(() => {
-		const index = selection.focusIndex;
-		untrack(() => revealEntry(index));
-	});
-
-	// The listing is the default keyboard target, so arrows work without a click
-	// first — but only while nothing else has claimed focus.
-	$effect(() => {
-		claimInitialFocus(listContainer);
-	});
-
-	// The window depends on how much of the listing fits, which changes with the
-	// window and with the panes beside it.
-	$effect(() => {
-		if (!listContainer) {
-			return;
-		}
-		const container = listContainer;
-		const observer = new ResizeObserver(() => measureViewport(container));
-		observer.observe(container);
-		measureViewport(container);
-		return () => observer.disconnect();
 	});
 
 	// The index is built in the background, so a query typed during the first crawl
@@ -347,21 +270,64 @@
 		return () => clearInterval(timer);
 	});
 
-	// The stored settings decide how the first listing is shown, so they are
-	// applied before it is read.
+	// The stored settings decide where the window opens, so they are applied
+	// before the first pane is built.
 	async function start() {
 		const restored = await restoreSettings();
-		await navigateTo(restored.lastDirectory);
-		fallBackHome();
+		homePath = await resolveHome();
+		layout = initialLayout(await openableDirectory(restored.lastDirectory), nextId);
+	}
+
+	async function resolveHome(): Promise<string> {
+		try {
+			return await HomeDirectory();
+		} catch {
+			return "/";
+		}
 	}
 
 	// A stored directory that has since been deleted must not leave the window
 	// sitting on an error card at launch.
-	function fallBackHome() {
-		if (!errorMessage) {
-			return;
+	async function openableDirectory(stored: string): Promise<string> {
+		if (!stored) {
+			return homePath;
 		}
-		navigateTo("");
+		try {
+			await ListDirectory(stored, sortOrder);
+			return stored;
+		} catch {
+			return homePath;
+		}
+	}
+
+	function nextId(): string {
+		latestPaneId += 1;
+		return `pane-${latestPaneId}`;
+	}
+
+	function statusOf(groupId: string): PaneStatus {
+		const reported = statuses[groupId];
+		if (!reported) {
+			return emptyPaneStatus;
+		}
+		return reported;
+	}
+
+	function reportStatus(groupId: string, reported: PaneStatus) {
+		statuses = { ...statuses, [groupId]: reported };
+	}
+
+	function paneFor(groupId: string): FilePane | undefined {
+		return panes[groupId];
+	}
+
+	function activePane(): FilePane | undefined {
+		return paneFor(group.id);
+	}
+
+	/** Re-reads every pane, since an operation can touch any of them. */
+	function reloadPanes() {
+		layout.groups.forEach((paneGroup) => paneFor(paneGroup.id)?.reload());
 	}
 
 	async function restoreSettings() {
@@ -403,65 +369,6 @@
 		});
 	}
 
-	async function navigateTo(path: string) {
-		isTrashOpen = false;
-		openTag = "";
-		isEditingPath = false;
-		isLoading = true;
-		errorMessage = "";
-		selection = emptySelection;
-		try {
-			listing = await ListDirectory(path, sortOrder);
-			history = historyAfterVisit(history, listing.path);
-		} catch (error) {
-			errorMessage = describeError(error);
-		}
-		isLoading = false;
-		refreshRecents();
-	}
-
-	/** Re-reads the current directory in place, keeping history and selection. */
-	async function reloadListing() {
-		if (!currentPath) {
-			return;
-		}
-		const previousPaths = visiblePaths;
-		try {
-			listing = await ListDirectory(currentPath, sortOrder);
-		} catch (error) {
-			errorMessage = describeError(error);
-			return;
-		}
-		selection = selectionAfterRelisting(selection, previousPaths, visiblePaths);
-	}
-
-	function directoryOnScreen(): string {
-		if (isTrashOpen || openTag) {
-			return "";
-		}
-		return currentPath;
-	}
-
-	async function followDirectory(path: string) {
-		if (!path) {
-			await StopWatching();
-			return;
-		}
-		try {
-			await WatchDirectory(path);
-		} catch {
-			// A directory that cannot be watched still lists, it just stays a snapshot.
-		}
-	}
-
-	// A change reported for a directory the user has already left is stale.
-	function applyExternalChange(path: string) {
-		if (path !== currentPath) {
-			return;
-		}
-		reloadListing();
-	}
-
 	// The sidebar is a convenience, so a lookup that fails leaves its group empty
 	// rather than blocking the listing behind an error.
 	async function loadSidebar() {
@@ -490,6 +397,137 @@
 		} catch {
 			return [];
 		}
+	}
+
+	function navigateTo(path: string) {
+		showLocation(directoryLocation(path));
+	}
+
+	function showLocation(location: TabLocation) {
+		isEditingPath = false;
+		layout = withLocation(layout, location);
+	}
+
+	function openPlace(path: string) {
+		closeSearch();
+		navigateTo(path);
+	}
+
+	function openTrash() {
+		closeSearch();
+		showLocation({ kind: "trash" });
+	}
+
+	function openTagPane(name: string) {
+		closeSearch();
+		showLocation({ kind: "tag", name });
+	}
+
+	function goUp() {
+		if (!status.parentPath) {
+			return;
+		}
+		navigateTo(status.parentPath);
+	}
+
+	function goHome() {
+		closeSearch();
+		navigateTo(homePath);
+	}
+
+	function goBack() {
+		stepThroughHistory(historyAfterBack(tab.history));
+	}
+
+	function goForward() {
+		stepThroughHistory(historyAfterForward(tab.history));
+	}
+
+	// Loads what the history now points at without recording another visit.
+	function stepThroughHistory(moved: History) {
+		if (moved === tab.history) {
+			return;
+		}
+		layout = withHistory(layout, locationFromKey(currentLocation(moved)), moved);
+	}
+
+	function openNewTab() {
+		layout = openTab(layout, tab.location, nextId);
+	}
+
+	function closeActiveTab() {
+		layout = closeTab(layout, group.id, tab.id);
+	}
+
+	function splitPane() {
+		layout = splitGroup(layout, nextId);
+	}
+
+	function closeActivePane() {
+		layout = closeGroup(layout, group.id);
+	}
+
+	function focusPaneBeside() {
+		layout = focusOtherGroup(layout);
+		focusActivePane();
+	}
+
+	async function focusActivePane() {
+		await tick();
+		activePane()?.focusList();
+	}
+
+	function activateGroup(groupId: string) {
+		layout = withActiveGroup(layout, groupId);
+	}
+
+	// A recently opened folder is browsed; a recently opened file is handed back
+	// to the application that opens it.
+	function openRecent(entry: recents.Entry) {
+		if (entry.isDir) {
+			openPlace(entry.path);
+			return;
+		}
+		launch(entry.path);
+	}
+
+	function toggleSection(section: SidebarSectionId) {
+		collapsedSections = sectionsAfterToggle(collapsedSections, section);
+	}
+
+	async function pinCurrentFolder() {
+		await AddBookmark(currentPath);
+		await refreshPins();
+	}
+
+	async function unpinFolder(path: string) {
+		await RemoveBookmark(path);
+		await refreshPins();
+	}
+
+	async function forgetTag(name: string) {
+		await ForgetTag(name);
+		await refreshTagNames();
+		closeTagPane(name);
+	}
+
+	// The pane of a tag that is no longer offered has nothing left to show.
+	function closeTagPane(name: string) {
+		if (tab.location.kind !== "tag" || tab.location.name !== name) {
+			return;
+		}
+		navigateTo(currentPath || homePath);
+	}
+
+	async function launch(path: string) {
+		actionError = "";
+		try {
+			await OpenPath(path);
+		} catch (error) {
+			actionError = describeError(error);
+			return;
+		}
+		await refreshRecents();
 	}
 
 	async function runSearch(query: string, scope: string) {
@@ -540,103 +578,13 @@
 	// itself is focused, so the next keystroke acts on it.
 	async function openHit(hit: proto.Hit) {
 		closeSearch();
-		await navigateTo(parentDirectoryOf(hit.path));
-		focusEntry(hit.path);
-	}
-
-	function focusEntry(path: string) {
-		const index = visiblePaths.indexOf(path);
-		if (index < 0) {
-			return;
-		}
-		selection = selectionAfterJump(emptySelection, visiblePaths, index, false);
-		listContainer?.focus();
-	}
-
-	function collectVisibleEntries(): filesystem.Entry[] {
-		if (!listing) {
-			return [];
-		}
-		if (showHidden) {
-			return listing.entries;
-		}
-		return listing.entries.filter((entry) => !entry.name.startsWith("."));
-	}
-
-	function selectEntry(index: number, event: MouseEvent) {
-		selection = selectionAfterClick(selection, visiblePaths, index, {
-			toggle: event.ctrlKey || event.metaKey,
-			range: event.shiftKey,
-		});
-	}
-
-	function openEntry(entry: filesystem.Entry) {
-		if (entry.isDir) {
-			navigateTo(entry.path);
-			return;
-		}
-		launch(entry.path);
-	}
-
-	async function launch(path: string) {
-		try {
-			await OpenPath(path);
-		} catch (error) {
-			actionError = describeError(error);
-		}
-	}
-
-	// Computed rather than scrolled into view, because the entry the keyboard just
-	// moved to may not be mounted yet.
-	function revealEntry(index: number) {
-		if (!listContainer) {
-			return;
-		}
-		const target = scrollTopRevealing(listMetrics, index, viewport);
-		if (target === viewport.scrollTop) {
-			return;
-		}
-		listContainer.scrollTo({ top: target, behavior: "smooth" });
-	}
-
-	function applyMetrics(reported: ListMetrics) {
-		if (sameMetrics(listMetrics, reported)) {
-			return;
-		}
-		listMetrics = reported;
-	}
-
-	function trackScroll(event: Event & { currentTarget: HTMLDivElement }) {
-		viewport = { scrollTop: event.currentTarget.scrollTop, height: event.currentTarget.clientHeight };
-		if (!band) {
-			return;
-		}
-		redrawBand();
-	}
-
-	function measureViewport(container: HTMLDivElement) {
-		viewport = { scrollTop: container.scrollTop, height: container.clientHeight };
-	}
-
-	function claimInitialFocus(container: HTMLDivElement | undefined) {
-		if (!container || document.activeElement !== document.body) {
-			return;
-		}
-		container.focus();
+		navigateTo(parentDirectoryOf(hit.path));
+		await tick();
+		activePane()?.revealPath(hit.path);
 	}
 
 	// The scope is set before the field takes focus, so the first keystroke
 	// already queries the right thing.
-	function searchThisFolder() {
-		openSearch(currentPath);
-	}
-
-	function searchEverywhere() {
-		openSearch("");
-	}
-
-	// The field replaces the path, so it opens empty rather than on whatever the
-	// last search was, and only exists once the swap has rendered.
 	async function openSearch(scope: string) {
 		searchScope = scope;
 		searchQuery = "";
@@ -645,11 +593,19 @@
 		searchInput?.focus();
 	}
 
-	function activeDescendant(): string | undefined {
-		if (selection.focusIndex < 0) {
-			return undefined;
-		}
-		return entryElementId(selection.focusIndex);
+	function searchThisFolder() {
+		openSearch(currentPath);
+	}
+
+	function searchEverywhere() {
+		openSearch("");
+	}
+
+	function closeSearch() {
+		searchQuery = "";
+		searchScope = "";
+		isSearchOpen = false;
+		activePane()?.focusList();
 	}
 
 	function pathsHeldByCut(): string[] {
@@ -661,26 +617,57 @@
 
 	function currentCommandContext(): WhenContext {
 		return {
-			listActive: isListActive(),
+			listActive: status.isListActive,
 			searchOpen: isSearchOpen,
-			trashOpen: isTrashOpen,
-			findOpen: isFindOpen,
+			trashOpen: tab.location.kind === "trash",
 			jumpOpen: isJumpOpen,
 			selectionCount: selectedEntries.length,
 			clipboardCount: clipboardPaths.length,
-			entryCount: visibleEntries.length,
+			entryCount: status.entryCount,
 			canUndo: operations.undoLabel !== "",
-			canGoBack: canGoBack(history),
-			canGoForward: canGoForward(history),
-			canGoUp,
+			canGoBack: canGoBack(tab.history),
+			canGoForward: canGoForward(tab.history),
+			canGoUp: status.parentPath !== "",
 			viewMode,
 			folderPinned: isFolderPinned,
+			tabCount: group.tabs.length,
+			paneCount: layout.groups.length,
+			canSplit: layout.groups.length < maximumGroups,
 		};
 	}
 
-	/** The listing is the pane on screen, rather than trash, tags or an error. */
-	function isListActive(): boolean {
-		return !isTrashOpen && openTag === "" && errorMessage === "" && !isLoading;
+	function detailsPaneBelongsOnScreen(): boolean {
+		if (alwaysShowDetails) {
+			return true;
+		}
+		return selectedEntries.length === 1;
+	}
+
+	// The strip carries what the details pane would have said, so it only has
+	// something to report while a listing is the pane in focus.
+	function statusInput(): StatusInput {
+		if (!status.isListActive) {
+			return { entryCount: 0, hiddenCount: 0, selected: [] };
+		}
+		return {
+			entryCount: status.entryCount,
+			hiddenCount: status.hiddenCount,
+			selected: selectedEntries,
+		};
+	}
+
+	// The strip lines up with the listing rather than the window, so the space a
+	// flanking pane takes is left empty beside it.
+	function stripInset(): string {
+		return `margin-left: ${insetFor(isSidebarOpen, sidebarWidth)}px; margin-right: ${insetFor(isDetailsOpen, detailsWidth)}px`;
+	}
+
+	// The gutter between the panes is as wide as the resizer that sits in it.
+	function insetFor(isOpen: boolean, width: number): number {
+		if (!isOpen) {
+			return 0;
+		}
+		return width + paneGutterWidth;
 	}
 
 	function selectionMenuGroups(): MenuItem[][] {
@@ -691,8 +678,8 @@
 		return menuGroups(backgroundMenuIds);
 	}
 
-	function menuGroups(layout: string[][]): MenuItem[][] {
-		return layout.map((group) => group.flatMap(menuItemFor));
+	function menuGroups(menuLayout: string[][]): MenuItem[][] {
+		return menuLayout.map((ids) => ids.flatMap(menuItemFor));
 	}
 
 	// A command that is no longer registered drops out of the menu rather than
@@ -714,172 +701,19 @@
 		];
 	}
 
-	function goUp() {
-		if (!listing?.parentPath) {
-			return;
-		}
-		navigateTo(listing.parentPath);
-	}
-
-	function goHome() {
-		closeSearch();
-		navigateTo("");
-	}
-
-	function goBack() {
-		const moved = historyAfterBack(history);
-		if (moved === history) {
-			return;
-		}
-		history = moved;
-		openHistoryLocation();
-	}
-
-	function goForward() {
-		const moved = historyAfterForward(history);
-		if (moved === history) {
-			return;
-		}
-		history = moved;
-		openHistoryLocation();
-	}
-
-	// Loads what the history now points at without recording another visit.
-	async function openHistoryLocation() {
-		isTrashOpen = false;
-		openTag = "";
-		selection = emptySelection;
-		errorMessage = "";
-		try {
-			listing = await ListDirectory(currentLocation(history), sortOrder);
-		} catch (error) {
-			errorMessage = describeError(error);
-		}
-	}
-
-	function openPlace(path: string) {
-		closeSearch();
-		navigateTo(path);
-	}
-
-	function openTrash() {
-		closeSearch();
-		isTrashOpen = true;
-		openTag = "";
-		selection = emptySelection;
-	}
-
-	function openTagPane(name: string) {
-		closeSearch();
-		openTag = name;
-		isTrashOpen = false;
-		selection = emptySelection;
-	}
-
-	// A recently opened folder is browsed; a recently opened file is handed back
-	// to the application that opens it.
-	function openRecent(entry: recents.Entry) {
-		if (entry.isDir) {
-			openPlace(entry.path);
-			return;
-		}
-		launch(entry.path);
-	}
-
-	// A tagged file is shown where it lives, the same way a search hit is.
-	async function revealEntryAt(path: string) {
-		await navigateTo(parentDirectoryOf(path));
-		focusEntry(path);
-	}
-
-	function toggleSection(section: SidebarSectionId) {
-		collapsedSections = sectionsAfterToggle(collapsedSections, section);
-	}
-
-	async function pinCurrentFolder() {
-		await AddBookmark(currentPath);
-		await refreshPins();
-	}
-
-	async function unpinFolder(path: string) {
-		await RemoveBookmark(path);
-		await refreshPins();
-	}
-
-	async function forgetTag(name: string) {
-		await ForgetTag(name);
-		await refreshTagNames();
-		closeTagPane(name);
-	}
-
-	// The pane of a tag that is no longer offered has nothing left to show.
-	function closeTagPane(name: string) {
-		if (openTag !== name) {
-			return;
-		}
-		openTag = "";
-		navigateTo(currentPath);
-	}
-
-	function toggleHidden() {
-		showHidden = !showHidden;
-	}
-
-	function setColumns(ids: ColumnId[]) {
-		visibleColumnIds = ids;
-	}
-
-	// The Go side sorts, so a new order means re-reading the directory rather than
-	// reordering what is on screen.
-	function sortByColumn(key: SortKey) {
-		sortOrder = sortOrderAfterHeaderClick(sortOrder, key);
-		reloadListing();
-	}
-
-	function setDirectoriesFirst(directoriesFirst: boolean) {
-		sortOrder = sortOrderWithDirectoriesFirst(sortOrder, directoriesFirst);
-		reloadListing();
-	}
-
-	// The two views have different geometry, so the old measurements are dropped
-	// and the incoming view reports its own.
-	function showRows() {
-		viewMode = "rows";
-		listMetrics = unmeasuredMetrics;
-	}
-
-	function showGrid() {
-		viewMode = "grid";
-		listMetrics = unmeasuredMetrics;
-	}
-
-	function setViewMode(mode: ViewMode) {
-		if (mode === "grid") {
-			showGrid();
-			return;
-		}
-		showRows();
-	}
-
-	function openContextMenu(index: number, event: MouseEvent) {
-		event.preventDefault();
-		event.stopPropagation();
-		selectForMenu(index);
-		menu = { x: event.clientX, y: event.clientY, groups: selectionMenuGroups() };
-	}
-
-	// Right-clicking outside the selection moves it, the way every file manager
-	// behaves; right-clicking inside keeps the multi-selection intact.
-	function selectForMenu(index: number) {
-		if (selectedPaths.has(visiblePaths[index])) {
-			return;
-		}
-		selection = selectionAfterJump(selection, visiblePaths, index, false);
+	function openSelectionMenu(event: MouseEvent) {
+		menu = { x: event.clientX, y: event.clientY, kind: "selection" };
 	}
 
 	function openBackgroundMenu(event: MouseEvent) {
-		event.preventDefault();
-		menu = { x: event.clientX, y: event.clientY, groups: backgroundMenuGroups() };
+		menu = { x: event.clientX, y: event.clientY, kind: "background" };
+	}
+
+	function menuGroupsFor(kind: MenuState["kind"]): MenuItem[][] {
+		if (kind === "selection") {
+			return selectionMenuGroups();
+		}
+		return backgroundMenuGroups();
 	}
 
 	function closeMenu() {
@@ -891,9 +725,35 @@
 		registry.run(id, commandContext);
 	}
 
+	function toggleHidden() {
+		showHidden = !showHidden;
+	}
+
+	function setColumns(ids: ColumnId[]) {
+		visibleColumnIds = ids;
+	}
+
+	// The Go side sorts, so a new order means re-reading the directories rather
+	// than reordering what is on screen.
+	function sortByColumn(key: SortKey) {
+		sortOrder = sortOrderAfterHeaderClick(sortOrder, key);
+	}
+
+	function setDirectoriesFirst(directoriesFirst: boolean) {
+		sortOrder = sortOrderWithDirectoriesFirst(sortOrder, directoriesFirst);
+	}
+
+	function reverseSort() {
+		sortOrder = sortOrderReversed(sortOrder);
+	}
+
+	function setViewMode(mode: ViewMode) {
+		viewMode = mode;
+	}
+
 	function commandHandlers(): Record<string, () => void> {
 		return {
-			"navigate.open": openSelection,
+			"navigate.open": () => activePane()?.openSelection(),
 			"navigate.openWith": startOpenWith,
 			"navigate.parent": goUp,
 			"navigate.back": goBack,
@@ -902,14 +762,22 @@
 			"navigate.trash": openTrash,
 			"navigate.editPath": () => (isEditingPath = true),
 
-			"list.selectAll": () => (selection = selectAll(visiblePaths)),
-			"list.clearSelection": () => (selection = emptySelection),
-			"list.toggleSelection": toggleFocusedEntry,
-			"list.find": openFind,
+			"list.selectAll": () => activePane()?.selectEverything(),
+			"list.clearSelection": () => activePane()?.clearSelection(),
+			"list.toggleSelection": () => activePane()?.toggleFocusedEntry(),
+			"list.find": () => activePane()?.openFind(),
 			"zoxide.jump": () => (isJumpOpen = true),
 
-			"view.rows": showRows,
-			"view.grid": showGrid,
+			"tab.new": openNewTab,
+			"tab.close": closeActiveTab,
+			"tab.next": () => (layout = activateNeighbouringTab(layout, 1)),
+			"tab.previous": () => (layout = activateNeighbouringTab(layout, -1)),
+			"pane.split": splitPane,
+			"pane.close": closeActivePane,
+			"pane.focusOther": focusPaneBeside,
+
+			"view.rows": () => setViewMode("rows"),
+			"view.grid": () => setViewMode("grid"),
 			"view.toggleHidden": toggleHidden,
 			"view.sortByName": () => sortByColumn("name"),
 			"view.sortBySize": () => sortByColumn("size"),
@@ -921,11 +789,11 @@
 			"file.cut": cutSelection,
 			"file.copy": copySelection,
 			"file.paste": pasteClipboard,
-			"file.rename": startRename,
+			"file.rename": () => activePane()?.startRename(),
 			"file.trash": trashSelection,
 			"file.deletePermanently": () => (isConfirmingDelete = true),
-			"file.newFolder": () => createEntry("folder"),
-			"file.newFile": () => createEntry("file"),
+			"file.newFolder": () => activePane()?.createEntry("folder"),
+			"file.newFile": () => activePane()?.createEntry("file"),
 			"file.undo": () => operations.undo(),
 
 			"tags.edit": startTagging,
@@ -958,6 +826,10 @@
 		}));
 	}
 
+	function moveSelection(movement: Movement, extend: boolean) {
+		activePane()?.moveSelection(movement, extend);
+	}
+
 	// A built-in without a handler is a wiring mistake, and one that would show up
 	// as a shortcut that quietly does nothing.
 	function handlerFor(handlers: Record<string, () => void>, id: string): () => void {
@@ -966,10 +838,6 @@
 			throw new Error(`command ${id} has no handler`);
 		}
 		return handler;
-	}
-
-	function openSelection() {
-		selectedEntries.forEach(openEntry);
 	}
 
 	function startOpenWith() {
@@ -998,13 +866,13 @@
 	}
 
 	function copySelection() {
-		clipboardPaths = selectedEntries.map((entry) => entry.path);
+		clipboardPaths = selectedPathList();
 		isClipboardCut = false;
 		publishClipboard();
 	}
 
 	function cutSelection() {
-		clipboardPaths = selectedEntries.map((entry) => entry.path);
+		clipboardPaths = selectedPathList();
 		isClipboardCut = true;
 		publishClipboard();
 	}
@@ -1110,172 +978,10 @@
 		await refreshTagNames();
 	}
 
-	function startRename() {
-		if (selectedEntries.length !== 1) {
-			return;
-		}
-		renamingPath = selectedEntries[0].path;
-	}
-
-	async function commitRename(name: string) {
-		const path = renamingPath;
-		renamingPath = "";
-		actionError = "";
-		try {
-			await RenameEntry(path, name);
-		} catch (error) {
-			actionError = describeError(error);
-		}
-		await reloadListing();
-		await operations.refreshUndoLabel();
-	}
-
-	function cancelRename() {
-		renamingPath = "";
-	}
-
-	// A new entry is created under a free name and then immediately handed to the
-	// inline editor, so naming it is one uninterrupted gesture.
-	async function createEntry(kind: "folder" | "file") {
-		actionError = "";
-		try {
-			const created = await createAndReveal(kind);
-			selection = selectionAfterJump(emptySelection, [created], 0, false);
-			renamingPath = created;
-		} catch (error) {
-			actionError = describeError(error);
-		}
-		await operations.refreshUndoLabel();
-	}
-
-	async function createAndReveal(kind: "folder" | "file"): Promise<string> {
-		const name = await SuggestName(currentPath, defaultNameFor(kind));
-		const created = await createOfKind(kind, name);
-		await reloadListing();
-		return created;
-	}
-
-	function createOfKind(kind: "folder" | "file", name: string): Promise<string> {
-		if (kind === "folder") {
-			return CreateFolder(currentPath, name);
-		}
-		return CreateFile(currentPath, name);
-	}
-
-	function defaultNameFor(kind: "folder" | "file"): string {
-		if (kind === "folder") {
-			return "New folder";
-		}
-		return "New file";
-	}
-
-	// A drag that starts on an entry is a click on that entry, and one that starts
-	// on a control belongs to that control; only the space around them opens a
-	// rubber band. Capturing the pointer here would otherwise redirect the
-	// pointerup, and the control would never see a click at all.
-	function startBand(event: PointerEvent) {
-		if (event.button !== 0 || startsOnInteractive(event)) {
-			return;
-		}
-		bandPointer = pointerWithinList(event);
-		bandAnchor = contentPointOf(bandPointer);
-		bandKeep = keptDuringBand(event);
-		selection = bandSelection([]);
-		band = rectangleBetween(bandPointer, bandPointer);
-		listContainer?.setPointerCapture(event.pointerId);
-	}
-
-	function startsOnInteractive(event: PointerEvent): boolean {
-		if (!(event.target instanceof HTMLElement)) {
-			return false;
-		}
-		return Boolean(event.target.closest('[role="option"], button, input'));
-	}
-
-	function keptDuringBand(event: PointerEvent): string[] {
-		if (event.ctrlKey || event.metaKey) {
-			return [...selection.paths];
-		}
-		return [];
-	}
-
-	function updateBand(event: PointerEvent) {
-		if (!band) {
-			return;
-		}
-		bandPointer = pointerWithinList(event);
-		redrawBand();
-	}
-
-	function redrawBand() {
-		const current = rectangleBetween(anchorOnScreen(), bandPointer);
-		band = current;
-		selection = bandSelection(indexesCoveredBy(current));
-	}
-
-	function anchorOnScreen(): Point {
-		if (!listContainer) {
-			return bandAnchor;
-		}
-		const bounds = listContainer.getBoundingClientRect();
-		const onScreen = toViewportPoint(bandAnchor, bounds, listContainer.scrollTop);
-		return clampToBounds(onScreen, bounds);
-	}
-
-	function contentPointOf(point: Point): Point {
-		if (!listContainer) {
-			return point;
-		}
-		const bounds = listContainer.getBoundingClientRect();
-		return toContentPoint(point, bounds, listContainer.scrollTop);
-	}
-
-	// The pointer is captured, so a drag keeps reporting positions far outside the
-	// listing; clamping them keeps the band inside the pane it selects in.
-	function pointerWithinList(event: PointerEvent): Point {
-		const point = { x: event.clientX, y: event.clientY };
-		if (!listContainer) {
-			return point;
-		}
-		const bounds = listContainer.getBoundingClientRect();
-		return clampToBounds(point, bounds);
-	}
-
-	// A band can only cover what is on screen, so hit testing runs over the
-	// mounted entries and reads back the index each one carries.
-	function indexesCoveredBy(current: Rectangle): number[] {
-		const options = mountedOptions();
-		const covered = indexesWithin(current, options.map((option) => option.getBoundingClientRect()));
-		return covered.map((position) => indexOfOption(options[position]));
-	}
-
-	function endBand(event: PointerEvent) {
-		if (!band) {
-			return;
-		}
-		listContainer?.releasePointerCapture(event.pointerId);
-		clearSelectionAfterClick();
-		band = null;
-	}
-
-	// A pointer that never really moved was a click on the background, which
-	// clears the selection rather than selecting nothing in particular.
-	function clearSelectionAfterClick() {
-		if (band && exceedsThreshold(band)) {
-			return;
-		}
-		selection = emptySelection;
-	}
-
-	function bandSelection(indexes: number[]): Selection {
-		return selectionFromIndexes(visiblePaths, indexes, bandKeep);
-	}
-
-	function mountedOptions(): Element[] {
-		if (!listContainer) {
-			return [];
-		}
-		return [...listContainer.querySelectorAll('[role="option"]')];
+	function jumpToFolder(path: string) {
+		isJumpOpen = false;
+		closeSearch();
+		navigateTo(path);
 	}
 
 	/**
@@ -1345,62 +1051,6 @@
 		}
 	}
 
-	function moveSelection(movement: Movement, extend: boolean) {
-		const target = targetIndexFor(movement, selection.focusIndex, movementContext());
-		if (target < 0) {
-			return;
-		}
-		selection = selectionAfterJump(selection, visiblePaths, target, extend);
-	}
-
-	function movementContext() {
-		return {
-			total: visiblePaths.length,
-			columns: listMetrics.columns,
-			pageSize: pageSize(listMetrics, viewport),
-		};
-	}
-
-	function toggleFocusedEntry() {
-		if (selection.focusIndex < 0) {
-			return;
-		}
-		selection = selectionAfterClick(selection, visiblePaths, selection.focusIndex, {
-			toggle: true,
-			range: false,
-		});
-	}
-
-	function openFind() {
-		findOrigin = selection;
-		isFindOpen = true;
-	}
-
-	function closeFind(accepted: boolean) {
-		isFindOpen = false;
-		if (!accepted) {
-			selection = findOrigin;
-		}
-		listContainer?.focus();
-	}
-
-	function jumpToFound(index: number) {
-		selection = selectionAfterJump(selection, visiblePaths, index, false);
-	}
-
-	function jumpToFolder(path: string) {
-		isJumpOpen = false;
-		closeSearch();
-		navigateTo(path);
-	}
-
-	function closeSearch() {
-		searchQuery = "";
-		searchScope = "";
-		isSearchOpen = false;
-		listContainer?.focus();
-	}
-
 	function searchPlaceholder(): string {
 		if (!searchScope) {
 			return "Search everywhere";
@@ -1423,11 +1073,6 @@
 		return name;
 	}
 
-	function reverseSort() {
-		sortOrder = sortOrderReversed(sortOrder);
-		reloadListing();
-	}
-
 	function hiddenToggleIcon(): IconComponent {
 		if (showHidden) {
 			return EyeIcon;
@@ -1435,56 +1080,8 @@
 		return EyeSlashIcon;
 	}
 
-	function pathOf(current: filesystem.Listing | null): string {
-		if (!current) {
-			return "";
-		}
-		return current.path;
-	}
-
-	function detailsPaneBelongsOnScreen(): boolean {
-		if (alwaysShowDetails) {
-			return true;
-		}
-		return selectedEntries.length === 1;
-	}
-
-	// The strip carries what the details pane would have said, so it only has
-	// something to report while a listing is the pane on screen.
-	function statusInput(): StatusInput {
-		if (!isListActive()) {
-			return { entryCount: 0, hiddenCount: 0, selected: [] };
-		}
-		return {
-			entryCount: visibleEntries.length,
-			hiddenCount: hiddenEntryCount(),
-			selected: selectedEntries,
-		};
-	}
-
-	function hiddenEntryCount(): number {
-		if (!listing) {
-			return 0;
-		}
-		return listing.entries.length - visibleEntries.length;
-	}
-
-	// The strip lines up with the listing rather than the window, so the space a
-	// flanking pane takes is left empty beside it.
-	function stripInset(): string {
-		return `margin-left: ${insetFor(isSidebarOpen, sidebarWidth)}px; margin-right: ${insetFor(isDetailsOpen, detailsWidth)}px`;
-	}
-
-	// The gutter between the panes is as wide as the resizer that sits in it.
-	function insetFor(isOpen: boolean, width: number): number {
-		if (!isOpen) {
-			return 0;
-		}
-		return width + paneGutterWidth;
-	}
-
-	function indexingLabel(status: proto.StatusResult): string {
-		return `Indexing ${status.filesIndexed.toLocaleString()} entries so far`;
+	function indexingLabel(reported: proto.StatusResult): string {
+		return `Indexing ${reported.filesIndexed.toLocaleString()} entries so far`;
 	}
 
 	// The result set is still growing while the first crawl runs, which is worth
@@ -1525,14 +1122,14 @@
 			size="sm"
 			variant="ghost"
 			icon={CaretLeftIcon}
-			disabled={!canGoBack(history)}
+			disabled={!canGoBack(tab.history)}
 			onclick={goBack}
 		/>
 		<Button
 			size="sm"
 			variant="ghost"
 			icon={CaretRightIcon}
-			disabled={!canGoForward(history)}
+			disabled={!canGoForward(tab.history)}
 			onclick={goForward}
 		/>
 		<Button size="sm" variant="ghost" icon={HouseIcon} onclick={goHome} />
@@ -1584,8 +1181,8 @@
 				{recent}
 				{tagNames}
 				{currentPath}
-				{isTrashOpen}
-				{openTag}
+				isTrashOpen={tab.location.kind === "trash"}
+				openTag={tab.location.kind === "tag" ? tab.location.name : ""}
 				{collapsedSections}
 				width={sidebarWidth}
 				onToggleSection={toggleSection}
@@ -1604,110 +1201,49 @@
 			/>
 		{/if}
 
-		<Card
-			surface="elevated"
-			padding="none"
-			class="flex min-w-0 flex-1 flex-col gap-2 overflow-hidden p-2 shadow-lg"
-		>
-			{#if isTrashOpen}
-				<div class="flex min-h-0 flex-col gap-2 overflow-y-auto">
-					<TrashPane onRestored={() => reloadListing()} />
-				</div>
-			{:else if openTag}
-				<div class="flex min-h-0 flex-col gap-2 overflow-y-auto">
-					<TagPane
-						name={openTag}
-						onOpen={openEntry}
-						onReveal={(entry) => revealEntryAt(entry.path)}
-					/>
-				</div>
-			{:else if errorMessage}
-				<Card surface="raised" padding="none" class="flex items-center gap-2 p-2">
-					<WarningIcon size={20} class="shrink-0 text-red" />
-					<div class="min-w-0">
-						<p class="text-sm font-medium text-default">Could not open this folder</p>
-						<p class="truncate text-xs text-dim">{errorMessage}</p>
-					</div>
-				</Card>
-			{:else if isLoading}
-				<div class="flex justify-center p-2">
-					<LoadingSpinner />
-				</div>
-			{:else}
-				{#if actionError}
-					<button
-						type="button"
-						onclick={() => (actionError = "")}
-						class="flex items-center gap-2 rounded-lg bg-raised p-2 text-left"
-					>
-						<WarningIcon size={16} class="shrink-0 text-red" />
-						<span class="min-w-0 flex-1 truncate text-xs text-dim">{actionError}</span>
-					</button>
-				{/if}
-				{#if isFindOpen}
-					<FindField
-						names={visibleEntries.map((entry) => entry.name)}
-						focusIndex={selection.focusIndex}
-						onMatch={jumpToFound}
-						onClose={closeFind}
-					/>
-				{/if}
-				<div
-					bind:this={listContainer}
-					role="listbox"
-					tabindex="0"
-					aria-label="Directory contents"
-					aria-multiselectable="true"
-					aria-activedescendant={activeDescendant()}
-					oncontextmenu={openBackgroundMenu}
-					onpointerdown={startBand}
-					onpointermove={updateBand}
-					onpointerup={endBand}
-					onscroll={trackScroll}
-					class="min-h-0 flex-1 overflow-y-auto rounded-lg focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-line-faint focus-visible:outline-none"
-				>
-					{#if viewMode === "grid"}
-						<EntryGrid
-							entries={mountedEntries}
-							firstIndex={mountedWindow.firstIndex}
-							topPadding={mountedWindow.topPadding}
-							bottomPadding={mountedWindow.bottomPadding}
-							columns={activeColumns}
-							{selectedPaths}
-							{cutPaths}
-							focusIndex={selection.focusIndex}
-							{renamingPath}
-							onSelect={selectEntry}
-							onOpen={openEntry}
-							onContextMenu={openContextMenu}
-							onRenameCommit={commitRename}
-							onRenameCancel={cancelRename}
-							onMetrics={applyMetrics}
-						/>
-					{:else}
-						<EntryRows
-							entries={mountedEntries}
-							firstIndex={mountedWindow.firstIndex}
-							topPadding={mountedWindow.topPadding}
-							bottomPadding={mountedWindow.bottomPadding}
-							columns={activeColumns}
-							{selectedPaths}
-							{cutPaths}
-							focusIndex={selection.focusIndex}
-							{renamingPath}
-							onSelect={selectEntry}
-							onOpen={openEntry}
-							onContextMenu={openContextMenu}
-							onRenameCommit={commitRename}
-							onRenameCancel={cancelRename}
-							onMetrics={applyMetrics}
-							order={sortOrder}
-							onSort={sortByColumn}
-						/>
-					{/if}
-				</div>
+		{#each layout.groups as paneGroup, index (paneGroup.id)}
+			{#if index > 0}
+				<div class="w-2 shrink-0"></div>
 			{/if}
-		</Card>
+			<div
+				class="flex min-w-0 flex-1 flex-col gap-1 rounded-xl"
+				class:ring-1={layout.groups.length > 1 && paneGroup.id === layout.activeGroupId}
+				class:ring-line-faint={layout.groups.length > 1 && paneGroup.id === layout.activeGroupId}
+			>
+				<TabStrip
+					group={paneGroup}
+					isActive={paneGroup.id === layout.activeGroupId}
+					canSplit={layout.groups.length < maximumGroups}
+					onSelect={(tabId) => (layout = activateTab(layout, paneGroup.id, tabId))}
+					onClose={(tabId) => (layout = closeTab(layout, paneGroup.id, tabId))}
+					onOpen={() => {
+						activateGroup(paneGroup.id);
+						openNewTab();
+					}}
+					onSplit={splitPane}
+				/>
+				<FilePane
+					bind:this={panes[paneGroup.id]}
+					location={activeTab(paneGroup).location}
+					{viewMode}
+					{visibleColumnIds}
+					{sortOrder}
+					{showHidden}
+					{cutPaths}
+					onStatus={(reported) => reportStatus(paneGroup.id, reported)}
+					onNavigate={(location) => {
+						activateGroup(paneGroup.id);
+						showLocation(location);
+					}}
+					onActivate={() => activateGroup(paneGroup.id)}
+					onLaunch={launch}
+					onSelectionMenu={openSelectionMenu}
+					onBackgroundMenu={openBackgroundMenu}
+					onSort={sortByColumn}
+					onChanged={() => operations.refreshUndoLabel()}
+				/>
+			</div>
+		{/each}
 
 		{#if isDetailsOpen}
 			<PaneResizer
@@ -1724,35 +1260,35 @@
 	<!-- Status strip: floats on the canvas like the top bar, and lines up with
 	     the listing rather than the window. -->
 	<div class="flex h-8 shrink-0 items-center gap-2 px-1" style={stripInset()}>
-		{#if status.primary}
-			<span class="min-w-0 truncate text-xs text-muted">{status.primary}</span>
-		{/if}
-		{#if status.secondary}
-			<span class="shrink-0 text-xs text-faint">{status.secondary}</span>
+		{#if actionError}
+			<button
+				type="button"
+				onclick={() => (actionError = "")}
+				class="flex min-w-0 items-center gap-2 rounded-md px-1 text-left"
+			>
+				<WarningIcon size={14} class="shrink-0 text-red" />
+				<span class="min-w-0 truncate text-xs text-dim">{actionError}</span>
+			</button>
+		{:else}
+			{#if strip.primary}
+				<span class="min-w-0 truncate text-xs text-muted">{strip.primary}</span>
+			{/if}
+			{#if strip.secondary}
+				<span class="shrink-0 text-xs text-faint">{strip.secondary}</span>
+			{/if}
 		{/if}
 	</div>
 </div>
 
-{#if band}
-	<div
-		class="pointer-events-none fixed z-30 rounded-sm border border-line-strong bg-hover/40"
-		style="left: {band.left}px; top: {band.top}px; width: {band.width}px; height: {band.height}px"
-	></div>
-{/if}
-
 {#if isJumpOpen}
-	<JumpField
-		{currentPath}
-		onJump={jumpToFolder}
-		onClose={() => (isJumpOpen = false)}
-	/>
+	<JumpField {currentPath} onJump={jumpToFolder} onClose={() => (isJumpOpen = false)} />
 {/if}
 
 {#if menu}
 	<ContextMenu
 		x={menu.x}
 		y={menu.y}
-		groups={menu.groups}
+		groups={menuGroupsFor(menu.kind)}
 		onSelect={runCommand}
 		onClose={closeMenu}
 	/>

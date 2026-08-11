@@ -4,13 +4,14 @@
  * the same binding list, so nothing here is privileged beyond coming first.
  *
  * Clause vocabulary, supplied by App.svelte on every key press:
- *   listActive     the directory listing is the pane on screen
+ *   listActive     the directory listing is the pane in focus
  *   searchOpen     the location field is showing search rather than the path
  *   trashOpen      the trash pane has replaced the listing
- *   findOpen       the find-by-name prompt is showing
  *   selectionCount clipboardCount entryCount
  *   canUndo canGoBack canGoForward canGoUp
  *   viewMode       "rows" or "grid"
+ *   folderPinned   the folder in focus is pinned to the sidebar
+ *   tabCount paneCount canSplit
  */
 import type { CommandDescriptor } from "./commands";
 import type { Keybinding } from "./keymap";
@@ -78,6 +79,24 @@ export const staticCommandDescriptors: CommandDescriptor[] = [
 		title: "Find by name",
 		category: "Listing",
 		when: "listActive && entryCount > 0",
+	},
+
+	{ id: "tab.new", title: "New tab", category: "Tabs" },
+	{
+		id: "tab.close",
+		title: "Close tab",
+		category: "Tabs",
+		when: "tabCount > 1 || paneCount > 1",
+	},
+	{ id: "tab.next", title: "Next tab", category: "Tabs", when: "tabCount > 1" },
+	{ id: "tab.previous", title: "Previous tab", category: "Tabs", when: "tabCount > 1" },
+	{ id: "pane.split", title: "Split the view", category: "Tabs", when: "canSplit" },
+	{ id: "pane.close", title: "Close this pane", category: "Tabs", when: "paneCount > 1" },
+	{
+		id: "pane.focusOther",
+		title: "Focus the other pane",
+		category: "Tabs",
+		when: "paneCount > 1",
 	},
 
 	{ id: "view.rows", title: "Show as list", category: "View" },
@@ -189,6 +208,14 @@ export const defaultKeymap: Keybinding[] = [
 	{ key: "b", command: "bookmark.pin", when: "listActive" },
 	{ key: "u", command: "file.undo", when: "listActive" },
 	{ key: "ctrl+z", command: "file.undo" },
+
+	{ key: "ctrl+t", command: "tab.new" },
+	{ key: "ctrl+w", command: "tab.close" },
+	{ key: "ctrl+tab", command: "tab.next" },
+	{ key: "ctrl+shift+tab", command: "tab.previous" },
+	{ key: "ctrl+\\", command: "pane.split" },
+	{ key: "ctrl+shift+w", command: "pane.close" },
+	{ key: "f6", command: "pane.focusOther" },
 
 	{ key: "ctrl+1", command: "view.rows" },
 	{ key: "ctrl+2", command: "view.grid" },

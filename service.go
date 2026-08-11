@@ -139,14 +139,29 @@ func (service *FileService) captureWindow(applicationContext context.Context) {
 	service.settings.Flush()
 }
 
-// WatchDirectory follows one directory and emits EventDirectoryChanged when its
-// contents change. It replaces any previous watch.
-func (service *FileService) WatchDirectory(path string) error {
+// WatchDirectories follows the directories the panes are showing and emits
+// EventDirectoryChanged for whichever of them changes. It replaces the previous
+// set, so a pane that moved on stops being watched.
+func (service *FileService) WatchDirectories(paths []string) {
+	service.watcher.Watch(resolveAll(paths))
+}
+
+// A path that cannot be resolved is dropped rather than failing the call: the
+// pane showing it has already reported why it could not be listed.
+func resolveAll(paths []string) []string {
+	resolved := make([]string, 0, len(paths))
+	for _, path := range paths {
+		resolved = appendResolved(resolved, path)
+	}
+	return resolved
+}
+
+func appendResolved(resolved []string, path string) []string {
 	absolutePath, err := filesystem.ResolvePath(path)
 	if err != nil {
-		return err
+		return resolved
 	}
-	return service.watcher.Watch(absolutePath)
+	return append(resolved, absolutePath)
 }
 
 // StopWatching drops the current watch, for the panes that show no directory.
