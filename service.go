@@ -11,6 +11,7 @@ import (
 	"file-explorer-neoworks/internal/fileops"
 	"file-explorer-neoworks/internal/filesystem"
 	"file-explorer-neoworks/internal/launcher"
+	"file-explorer-neoworks/internal/settings"
 	"file-explorer-neoworks/internal/watcher"
 )
 
@@ -21,8 +22,14 @@ const EventDirectoryChanged = "watch:changed"
 // FileService is the Wails-bound bridge between the frontend and the filesystem,
 // operation engine and launcher packages.
 type FileService struct {
-	engine  *fileops.Engine
-	watcher *watcher.Watcher
+	engine   *fileops.Engine
+	watcher  *watcher.Watcher
+	settings *settings.Store
+
+	// The last state the frontend saved, so the window geometry captured at
+	// shutdown can be written alongside it.
+	settingsMutex sync.Mutex
+	current       settings.Settings
 
 	contextMutex sync.RWMutex
 	context      context.Context
@@ -32,6 +39,8 @@ func NewFileService() *FileService {
 	service := &FileService{}
 	service.engine = fileops.New(service.emit)
 	service.watcher = watcher.New(service.emitDirectoryChanged)
+	service.settings = settings.Open()
+	service.current = service.settings.Load()
 	return service
 }
 
@@ -61,6 +70,38 @@ func (service *FileService) emit(name string, data any) {
 // means the home directory.
 func (service *FileService) ListDirectory(path string, order filesystem.Order) (filesystem.Listing, error) {
 	return filesystem.ReadDirectory(path, order)
+}
+
+// LoadSettings reports the preferences this launch started from.
+func (service *FileService) LoadSettings() settings.Settings {
+	service.settingsMutex.Lock()
+	defer service.settingsMutex.Unlock()
+	return service.current
+}
+
+// SaveSettings records the frontend's state. The write itself is debounced, so
+// saving on every change costs nothing.
+func (service *FileService) SaveSettings(next settings.Settings) {
+	service.settingsMutex.Lock()
+	// The frontend has no business knowing where the window sits, so it keeps
+	// whatever geometry the last shutdown recorded.
+	next.Window = service.current.Window
+	service.current = next
+	service.settingsMutex.Unlock()
+	service.settings.Save(next)
+}
+
+// captureWindow records the window's geometry and writes everything out, which
+// is the last thing that happens before the window closes.
+func (service *FileService) captureWindow(applicationContext context.Context) {
+	width, height := runtime.WindowGetSize(applicationContext)
+	x, y := runtime.WindowGetPosition(applicationContext)
+	service.settingsMutex.Lock()
+	service.current.Window = settings.Window{Width: width, Height: height, X: x, Y: y}
+	saved := service.current
+	service.settingsMutex.Unlock()
+	service.settings.Save(saved)
+	service.settings.Flush()
 }
 
 // WatchDirectory follows one directory and emits EventDirectoryChanged when its

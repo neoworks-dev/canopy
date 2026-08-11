@@ -242,3 +242,68 @@ export namespace proto {
 
 }
 
+export namespace settings {
+	
+	export class Window {
+	    width: number;
+	    height: number;
+	    x: number;
+	    y: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Window(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.width = source["width"];
+	        this.height = source["height"];
+	        this.x = source["x"];
+	        this.y = source["y"];
+	    }
+	}
+	export class Settings {
+	    version: number;
+	    viewMode: string;
+	    columns: string[];
+	    showHidden: boolean;
+	    sort: filesystem.Order;
+	    lastDirectory: string;
+	    window: Window;
+	
+	    static createFrom(source: any = {}) {
+	        return new Settings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.version = source["version"];
+	        this.viewMode = source["viewMode"];
+	        this.columns = source["columns"];
+	        this.showHidden = source["showHidden"];
+	        this.sort = this.convertValues(source["sort"], filesystem.Order);
+	        this.lastDirectory = source["lastDirectory"];
+	        this.window = this.convertValues(source["window"], Window);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+

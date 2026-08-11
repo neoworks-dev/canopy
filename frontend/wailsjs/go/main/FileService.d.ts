@@ -3,6 +3,7 @@
 import {launcher} from '../models';
 import {filesystem} from '../models';
 import {fileops} from '../models';
+import {settings} from '../models';
 
 export function ApplicationsFor(arg1:string):Promise<Array<launcher.Application>>;
 
@@ -21,6 +22,8 @@ export function HomeDirectory():Promise<string>;
 export function ListDirectory(arg1:string,arg2:filesystem.Order):Promise<filesystem.Listing>;
 
 export function ListTrash():Promise<Array<fileops.TrashedItem>>;
+
+export function LoadSettings():Promise<settings.Settings>;
 
 export function OpenPath(arg1:string):Promise<void>;
 
@@ -41,6 +44,8 @@ export function ResolveConflict(arg1:string,arg2:string,arg3:boolean):Promise<vo
 export function RestoreFromTrash(arg1:string):Promise<string>;
 
 export function ResumeOperation(arg1:string):Promise<void>;
+
+export function SaveSettings(arg1:settings.Settings):Promise<void>;
 
 export function SetDefaultApplication(arg1:string,arg2:string):Promise<void>;
 

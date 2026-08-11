@@ -38,6 +38,10 @@ export function ListTrash() {
   return window['go']['main']['FileService']['ListTrash']();
 }
 
+export function LoadSettings() {
+  return window['go']['main']['FileService']['LoadSettings']();
+}
+
 export function OpenPath(arg1) {
   return window['go']['main']['FileService']['OpenPath'](arg1);
 }
@@ -76,6 +80,10 @@ export function RestoreFromTrash(arg1) {
 
 export function ResumeOperation(arg1) {
   return window['go']['main']['FileService']['ResumeOperation'](arg1);
+}
+
+export function SaveSettings(arg1) {
+  return window['go']['main']['FileService']['SaveSettings'](arg1);
 }
 
 export function SetDefaultApplication(arg1, arg2) {

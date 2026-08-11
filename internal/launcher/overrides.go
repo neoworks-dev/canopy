@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"file-explorer-neoworks/internal/config"
 )
 
 const overridesFileName = "open-with.json"
@@ -74,13 +76,5 @@ func writeOverrides(overrides map[string]string) error {
 }
 
 func overridesPath() (string, error) {
-	configHome := os.Getenv("XDG_CONFIG_HOME")
-	if configHome != "" {
-		return filepath.Join(configHome, "neoworks-files", overridesFileName), nil
-	}
-	homeDirectory, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(homeDirectory, ".config", "neoworks-files", overridesFileName), nil
+	return config.Path(overridesFileName)
 }

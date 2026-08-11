@@ -7,6 +7,9 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
+
+	"file-explorer-neoworks/internal/settings"
 )
 
 //go:embed all:frontend/dist
@@ -15,11 +18,12 @@ var assets embed.FS
 func main() {
 	fileService := NewFileService()
 	indexService := NewIndexService()
+	window := fileService.LoadSettings().Window
 
 	err := wails.Run(&options.App{
 		Title:  "Neoworks Files",
-		Width:  1100,
-		Height: 720,
+		Width:  window.Width,
+		Height: window.Height,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
@@ -30,8 +34,10 @@ func main() {
 		},
 		OnStartup: func(applicationContext context.Context) {
 			fileService.startup(applicationContext)
+			restoreWindowPosition(applicationContext, window)
 		},
-		OnShutdown: func(_ context.Context) {
+		OnShutdown: func(applicationContext context.Context) {
+			fileService.captureWindow(applicationContext)
 			fileService.StopWatching()
 			indexService.shutdown()
 		},
@@ -40,4 +46,13 @@ func main() {
 	if err != nil {
 		println("Error:", err.Error())
 	}
+}
+
+// restoreWindowPosition puts the window back where it was closed. A first launch
+// has no position recorded and is left to the window manager.
+func restoreWindowPosition(applicationContext context.Context, window settings.Window) {
+	if window.X == 0 && window.Y == 0 {
+		return
+	}
+	runtime.WindowSetPosition(applicationContext, window.X, window.Y)
 }

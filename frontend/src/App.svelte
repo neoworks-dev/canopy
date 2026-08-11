@@ -16,11 +16,13 @@
 		CreateFile,
 		CreateFolder,
 		ListDirectory,
+		LoadSettings,
 		OpenPath,
 		OpenWith,
 		Places,
 		ReadClipboardPaths,
 		RenameEntry,
+		SaveSettings,
 		SetDefaultApplication,
 		StopWatching,
 		SuggestName,
@@ -28,6 +30,7 @@
 	} from "../wailsjs/go/main/FileService";
 	import { IndexStatus, Search } from "../wailsjs/go/main/IndexService";
 	import { EventsOn } from "../wailsjs/runtime/runtime";
+	import { settings as storedSettings } from "../wailsjs/go/models";
 	import type { filesystem, proto } from "../wailsjs/go/models";
 	import ColumnMenu from "./lib/ColumnMenu.svelte";
 	import ConfirmDialog from "./lib/ConfirmDialog.svelte";
@@ -72,6 +75,11 @@
 	} from "./lib/marquee";
 	import { targetIndexFor } from "./lib/movement";
 	import {
+		defaultViewSettings,
+		viewSettingsFrom,
+		type ViewMode,
+	} from "./lib/settings";
+	import {
 		defaultSortOrder,
 		sortOrderAfterHeaderClick,
 		sortOrderWithDirectoriesFirst,
@@ -111,8 +119,6 @@
 	const searchDebounceMilliseconds = 150;
 	const statusPollMilliseconds = 3000;
 
-	type ViewMode = "rows" | "grid";
-
 	type SearchOutcome = {
 		hits: proto.Hit[];
 		truncated: boolean;
@@ -135,6 +141,9 @@
 	let viewMode = $state<ViewMode>("rows");
 	let visibleColumnIds = $state<ColumnId[]>(defaultColumnIds);
 	let sortOrder = $state<SortOrder>(defaultSortOrder);
+	// Nothing is written back until the stored settings have been applied, or the
+	// first save would overwrite them with defaults.
+	let areSettingsLoaded = $state(false);
 	let selection = $state<Selection>(emptySelection);
 	let history = $state(emptyHistory);
 	let isEditingPath = $state(false);
@@ -193,7 +202,7 @@
 	);
 
 	onMount(() => {
-		navigateTo("");
+		start();
 		loadPlaces();
 		const stopOperations = operations.listen();
 		const stopWatching = EventsOn(directoryChangedEvent, applyExternalChange);
@@ -205,6 +214,14 @@
 
 	$effect(() => {
 		followDirectory(watchedPath);
+	});
+
+	$effect(() => {
+		const next = currentViewSettings();
+		if (!areSettingsLoaded) {
+			return;
+		}
+		SaveSettings(next);
 	});
 
 	$effect(() => {
@@ -260,6 +277,52 @@
 		const timer = setInterval(refreshIndexStatus, statusPollMilliseconds);
 		return () => clearInterval(timer);
 	});
+
+	// The stored settings decide how the first listing is shown, so they are
+	// applied before it is read.
+	async function start() {
+		const restored = await restoreSettings();
+		await navigateTo(restored.lastDirectory);
+		fallBackHome();
+	}
+
+	// A stored directory that has since been deleted must not leave the window
+	// sitting on an error card at launch.
+	function fallBackHome() {
+		if (!errorMessage) {
+			return;
+		}
+		navigateTo("");
+	}
+
+	async function restoreSettings() {
+		const stored = await loadStoredSettings();
+		viewMode = stored.viewMode;
+		visibleColumnIds = stored.columns;
+		showHidden = stored.showHidden;
+		sortOrder = stored.sort;
+		areSettingsLoaded = true;
+		return stored;
+	}
+
+	async function loadStoredSettings() {
+		try {
+			return viewSettingsFrom(await LoadSettings());
+		} catch {
+			// Unreadable settings are not worth refusing to start over.
+			return defaultViewSettings;
+		}
+	}
+
+	function currentViewSettings(): storedSettings.Settings {
+		return storedSettings.Settings.createFrom({
+			viewMode,
+			columns: visibleColumnIds,
+			showHidden,
+			sort: sortOrder,
+			lastDirectory: currentPath,
+		});
+	}
 
 	async function navigateTo(path: string) {
 		isTrashOpen = false;
