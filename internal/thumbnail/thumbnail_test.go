@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"image/png"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -69,6 +70,38 @@ func TestRenderRefusesFilesWithNoPreview(t *testing.T) {
 	}
 	if Supports(source) {
 		t.Fatalf("expected Supports to rule the file out before a render is asked for")
+	}
+}
+
+func TestRenderDrawsTheFirstPageOfAPDF(t *testing.T) {
+	requirePDFRenderer(t)
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	source := writePDF(t)
+
+	rendered := Render(source)
+
+	if !strings.HasPrefix(rendered.DataURL, "data:image/png;base64,") {
+		t.Fatalf("expected a PNG data URL, got %q", truncate(rendered.DataURL))
+	}
+}
+
+// pdftoppm numbers its pages onto an output root rather than writing to stdout
+// unless it is asked to, so a render that leaves a file behind is a render the
+// caller never received.
+func TestRenderingAPDFLeavesNoFileBehind(t *testing.T) {
+	requirePDFRenderer(t)
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	working := t.TempDir()
+	t.Chdir(working)
+
+	Render(writePDF(t))
+
+	entries, err := os.ReadDir(working)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("expected no files in the working directory, got %v", entries[0].Name())
 	}
 }
 
@@ -145,6 +178,31 @@ func writeOver(t *testing.T, path string, width int, height int) {
 	t.Helper()
 	if err := os.WriteFile(path, encodeSample(t, width, height), 0o600); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// One blank page, which is all a renderer needs to be handed something it can
+// draw.
+const samplePDF = `%PDF-1.4
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
+3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 100]>>endobj
+trailer<</Root 1 0 R/Size 4>>
+`
+
+func writePDF(t *testing.T) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "paper.pdf")
+	if err := os.WriteFile(path, []byte(samplePDF), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func requirePDFRenderer(t *testing.T) {
+	t.Helper()
+	if _, err := exec.LookPath("pdftoppm"); err != nil {
+		t.Skip("pdftoppm is not installed")
 	}
 }
 

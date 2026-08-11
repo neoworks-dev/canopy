@@ -127,9 +127,11 @@ func ffmpegArguments(absolutePath string, size int) []string {
 	}
 }
 
+// pdftoppm writes to stdout only when no output root is given, and -singlefile
+// keeps it from numbering the page onto the end of one.
 func renderFirstPDFPage(ctx context.Context, absolutePath string, size int) ([]byte, error) {
 	return runRenderer(ctx, "pdftoppm",
-		"-png", "-f", "1", "-l", "1", "-scale-to", strconv.Itoa(size), absolutePath, "-")
+		"-png", "-f", "1", "-singlefile", "-scale-to", strconv.Itoa(size), absolutePath)
 }
 
 // A helper that is not installed is a missing feature rather than a failure, so
