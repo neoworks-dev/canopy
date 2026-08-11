@@ -39,6 +39,14 @@ describe("viewSettingsFrom", () => {
 		expect(viewSettingsFrom({}).collapsedSections).toEqual([]);
 	});
 
+	test("a file that says nothing about the details pane gets it", () => {
+		expect(viewSettingsFrom({}).showDetails).toBe(true);
+	});
+
+	test("a file that turned the details pane off keeps it off", () => {
+		expect(viewSettingsFrom({ showDetails: false }).showDetails).toBe(false);
+	});
+
 	test("an unknown view mode falls back to rows", () => {
 		expect(viewSettingsFrom({ viewMode: "coverflow" }).viewMode).toBe("rows");
 	});

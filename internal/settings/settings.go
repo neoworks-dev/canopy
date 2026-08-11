@@ -50,7 +50,9 @@ type Settings struct {
 	Panes         Panes            `json:"panes"`
 	// The sidebar groups the user has folded shut, by the frontend's own names.
 	CollapsedSections []string `json:"collapsedSections,omitempty"`
-	AlwaysShowDetails bool     `json:"alwaysShowDetails"`
+	// Whether the details pane is on screen at all, which does not depend on
+	// there being anything selected to describe.
+	ShowDetails bool `json:"showDetails"`
 	// Written by hand only. The store restores whatever was on disk before every
 	// write, so the application cannot overwrite them.
 	Keybindings []Keybinding `json:"keybindings,omitempty"`

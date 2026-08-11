@@ -15,8 +15,6 @@ export type PaneStatus = {
 	isListActive: boolean;
 	/** The branch the folder is on, empty outside a working tree. */
 	branch: string;
-	/** A rubber band or a drag is under way, which the chrome keeps clear of. */
-	isPointerDragging: boolean;
 };
 
 export const emptyPaneStatus: PaneStatus = {
@@ -27,5 +25,4 @@ export const emptyPaneStatus: PaneStatus = {
 	selected: [],
 	isListActive: false,
 	branch: "",
-	isPointerDragging: false,
 };

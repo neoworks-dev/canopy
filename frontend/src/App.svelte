@@ -197,7 +197,7 @@
 	let searchInput = $state<HTMLInputElement>();
 	let sidebarWidth = $state(defaultPaneWidths.sidebar);
 	let detailsWidth = $state(defaultPaneWidths.details);
-	let alwaysShowDetails = $state(false);
+	let showDetails = $state(defaultViewSettings.showDetails);
 
 	let clipboardPaths = $state<string[]>([]);
 	let isClipboardCut = $state(false);
@@ -251,7 +251,7 @@
 	const isFolderPinned = $derived(pinned.some((bookmark) => bookmark.path === currentPath));
 	// The pane describes one entry, so it earns its width when there is one to
 	// describe — or when the user has asked for it to stay.
-	const isDetailsOpen = $derived(detailsPaneBelongsOnScreen());
+	const isDetailsOpen = $derived(showDetails);
 	const isSidebarOpen = $derived(places.length > 0);
 	const strip = $derived(summarize(statusInput()));
 
@@ -372,7 +372,7 @@
 		sidebarWidth = stored.panes.sidebar;
 		detailsWidth = stored.panes.details;
 		collapsedSections = stored.collapsedSections;
-		alwaysShowDetails = stored.alwaysShowDetails;
+		showDetails = stored.showDetails;
 		userKeybindings = stored.keybindings;
 		areSettingsLoaded = true;
 		return stored;
@@ -398,7 +398,7 @@
 			lastDirectory: currentPath,
 			panes: { sidebar: sidebarWidth, details: detailsWidth },
 			collapsedSections,
-			alwaysShowDetails,
+			showDetails,
 		});
 	}
 
@@ -780,16 +780,6 @@
 		};
 	}
 
-	function detailsPaneBelongsOnScreen(): boolean {
-		if (isPointerDragging()) {
-			return false;
-		}
-		if (alwaysShowDetails) {
-			return true;
-		}
-		return selectedEntries.length === 1;
-	}
-
 	// An operation the engine refused outright has no progress card to report it,
 	// so the strip carries it alongside the failures of the chrome's own actions.
 	function reportedError(): string {
@@ -802,12 +792,6 @@
 	function dismissReportedError() {
 		actionError = "";
 		operations.errorMessage = "";
-	}
-
-	// A rubber band or a drag under way in any pane would otherwise open and close
-	// the details pane under the pointer as the selection changes beneath it.
-	function isPointerDragging(): boolean {
-		return Object.values(statuses).some((reported) => reported.isPointerDragging);
 	}
 
 	// The strip carries what the details pane would have said, so it only has
@@ -1415,8 +1399,8 @@
 			onChange={setColumns}
 			directoriesFirst={sortOrder.directoriesFirst}
 			onDirectoriesFirstChange={setDirectoriesFirst}
-			{alwaysShowDetails}
-			onAlwaysShowDetailsChange={(always) => (alwaysShowDetails = always)}
+			{showDetails}
+			onShowDetailsChange={(shown) => (showDetails = shown)}
 		/>
 
 		<Button size="sm" variant="ghost" icon={hiddenToggleIcon()} onclick={toggleHidden} />

@@ -313,7 +313,6 @@
 			selected: selectedEntries,
 			isListActive: isListActive(),
 			branch: reportedBranch(),
-			isPointerDragging: band !== null || isDraggingEntries,
 		};
 	}
 
@@ -709,7 +708,7 @@
 	}
 
 	// Dragged entries are no longer what the user is working on, so the selection
-	// goes with them and the details pane stays shut. The transfer's dropEffect
+	// goes with them. The transfer's dropEffect
 	// would say whether the drag was cancelled, but the webview does not report it
 	// reliably, so a cancelled drag clears the selection too.
 	export function endDrag() {

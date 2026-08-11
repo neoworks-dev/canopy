@@ -24,8 +24,12 @@ export type ViewSettings = {
 	panes: PaneWidths;
 	/** The sidebar groups that are folded shut. */
 	collapsedSections: SidebarSectionId[];
-	/** Keeps the details pane open even when it has nothing to describe. */
-	alwaysShowDetails: boolean;
+	/**
+	 * Whether the details pane is on screen. It stays where it is either way:
+	 * a pane that came and went with the selection moved the listing under the
+	 * pointer every time the selection changed.
+	 */
+	showDetails: boolean;
 	/** Appended after the built-in keymap, so these override it. */
 	keybindings: Keybinding[];
 };
@@ -42,7 +46,7 @@ export type StoredSettings = {
 	lastDirectory?: string;
 	panes?: { sidebar?: number; details?: number };
 	collapsedSections?: string[];
-	alwaysShowDetails?: boolean;
+	showDetails?: boolean;
 	keybindings?: Array<{ key?: string; command?: string; when?: string }>;
 };
 
@@ -58,7 +62,7 @@ export const defaultViewSettings: ViewSettings = {
 	lastDirectory: "",
 	panes: defaultPaneWidths,
 	collapsedSections: [],
-	alwaysShowDetails: false,
+	showDetails: true,
 	keybindings: [],
 };
 
@@ -72,9 +76,18 @@ export function viewSettingsFrom(stored: StoredSettings): ViewSettings {
 		lastDirectory: pathFrom(stored.lastDirectory),
 		panes: paneWidthsFrom(stored.panes),
 		collapsedSections: sidebarSectionsFrom(stored.collapsedSections),
-		alwaysShowDetails: stored.alwaysShowDetails === true,
+		showDetails: showDetailsFrom(stored.showDetails),
 		keybindings: keybindingsFrom(stored.keybindings),
 	};
+}
+
+// A file that says nothing about the details pane gets it, since a pane nobody
+// asked to hide is the more useful of the two.
+function showDetailsFrom(stored: boolean | undefined): boolean {
+	if (typeof stored !== "boolean") {
+		return defaultViewSettings.showDetails;
+	}
+	return stored;
 }
 
 function paneWidthsFrom(stored: StoredSettings["panes"]): PaneWidths {

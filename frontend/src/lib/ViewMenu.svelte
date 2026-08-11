@@ -17,8 +17,8 @@
 		onChange,
 		directoriesFirst,
 		onDirectoriesFirstChange,
-		alwaysShowDetails,
-		onAlwaysShowDetailsChange,
+		showDetails,
+		onShowDetailsChange,
 	}: {
 		viewMode: ViewMode;
 		onViewModeChange: (mode: ViewMode) => void;
@@ -26,8 +26,8 @@
 		onChange: (ids: ColumnId[]) => void;
 		directoriesFirst: boolean;
 		onDirectoriesFirstChange: (directoriesFirst: boolean) => void;
-		alwaysShowDetails: boolean;
-		onAlwaysShowDetailsChange: (alwaysShowDetails: boolean) => void;
+		showDetails: boolean;
+		onShowDetailsChange: (showDetails: boolean) => void;
 	} = $props();
 
 	const viewModes: { id: ViewMode; label: string; icon: IconComponent }[] = [
@@ -105,10 +105,10 @@
 				<label class="flex cursor-pointer items-center gap-2 rounded-md p-2 hover:bg-hover">
 					<Checkbox
 						size="sm"
-						checked={alwaysShowDetails}
-						onchange={() => onAlwaysShowDetailsChange(!alwaysShowDetails)}
+						checked={showDetails}
+						onchange={() => onShowDetailsChange(!showDetails)}
 					/>
-					<span class="text-sm text-default">Always show the pane</span>
+					<span class="text-sm text-default">Show the pane</span>
 				</label>
 
 				<p class="px-1 text-2xs tracking-caps text-faint uppercase">Sorting</p>
