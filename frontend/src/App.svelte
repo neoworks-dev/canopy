@@ -158,6 +158,8 @@
 	const isIndexing = $derived(indexStatus?.state === "scanning");
 	const actionContext = $derived(currentActionContext());
 	const conflict = $derived(operations.conflict);
+	// Only a cut marks entries as pending; a copy leaves them as they are.
+	const cutPaths = $derived(new Set(pathsHeldByCut()));
 
 	onMount(() => {
 		navigateTo("");
@@ -350,6 +352,13 @@
 			return undefined;
 		}
 		return entryElementId(selection.focusIndex);
+	}
+
+	function pathsHeldByCut(): string[] {
+		if (!isClipboardCut) {
+			return [];
+		}
+		return clipboardPaths;
 	}
 
 	function currentActionContext(): ActionContext {
@@ -1040,6 +1049,7 @@
 							entries={visibleEntries}
 							columns={activeColumns}
 							{selectedPaths}
+							{cutPaths}
 							focusIndex={selection.focusIndex}
 							{renamingPath}
 							onSelect={selectEntry}
@@ -1054,6 +1064,7 @@
 							entries={visibleEntries}
 							columns={activeColumns}
 							{selectedPaths}
+							{cutPaths}
 							focusIndex={selection.focusIndex}
 							{renamingPath}
 							onSelect={selectEntry}

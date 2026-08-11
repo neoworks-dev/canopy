@@ -57,7 +57,9 @@ type Failure struct {
 	Message string `json:"message"`
 }
 
-// Progress is the snapshot the frontend renders for one operation.
+// Progress is the snapshot the frontend renders for one operation. The byte
+// totals are zero for kinds that move no data, where the item counter is the
+// only honest measure.
 type Progress struct {
 	ID          string    `json:"id"`
 	Kind        Kind      `json:"kind"`
@@ -65,6 +67,8 @@ type Progress struct {
 	Destination string    `json:"destination"`
 	TotalItems  int       `json:"totalItems"`
 	DoneItems   int       `json:"doneItems"`
+	TotalBytes  int64     `json:"totalBytes"`
+	DoneBytes   int64     `json:"doneBytes"`
 	CurrentPath string    `json:"currentPath"`
 	Failures    []Failure `json:"failures"`
 }
@@ -87,4 +91,5 @@ type control struct {
 	waitWhilePaused func() error
 	setCurrent      func(path string)
 	resolveTarget   func(source, target string) (string, error)
+	addBytes        func(count int64)
 }

@@ -154,13 +154,6 @@
 		return (index + total) % total;
 	}
 
-	function suggestionClasses(index: number): string {
-		if (index === activeSuggestion) {
-			return "bg-hover text-default";
-		}
-		return "text-muted hover:bg-hover hover:text-default";
-	}
-
 	function chooseSuggestion(suggestion: string) {
 		onEditingChange(false);
 		onNavigate(suggestion);
@@ -189,9 +182,12 @@
 						<button
 							type="button"
 							onmousedown={() => chooseSuggestion(suggestion)}
-							class="truncate rounded-md p-2 text-left text-sm transition duration-fast {suggestionClasses(
-								index,
-							)}"
+							class="truncate rounded-md p-2 text-left text-sm transition duration-fast"
+							class:bg-hover={index === activeSuggestion}
+							class:text-default={index === activeSuggestion}
+							class:text-muted={index !== activeSuggestion}
+							class:hover:bg-hover={index !== activeSuggestion}
+							class:hover:text-default={index !== activeSuggestion}
 						>
 							{suggestion}
 						</button>

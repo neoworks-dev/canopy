@@ -36,6 +36,10 @@ Prioritize readability and maintainability over cleverness.
   self-contained and meaningfully named — do not split a function into
   arbitrary fragments just to satisfy the indent limit.
 - Keep functions short, with one clear responsibility each.
+- Never build a CSS class string in a function or a variable. Conditional
+  classes go in `class:name={condition}` directives, one per class. Static
+  classes stay in the `class` attribute, and a class that comes from data
+  (a column's width class, say) is interpolated in the attribute directly.
 - Comments: only where the code is not readable when skimming. Comments must
   be technical and concise. Never write comments that restate the code, and
   never write historical comments — do not document old decisions, previous

@@ -8,6 +8,9 @@ import (
 	"sync"
 )
 
+// How much must be copied before another progress event is worth emitting.
+const publishByteInterval = 4 * 1024 * 1024
+
 type conflictAnswer struct {
 	resolution Resolution
 	applyToAll bool
@@ -31,13 +34,18 @@ type operation struct {
 	cancelled chan struct{}
 	answers   chan conflictAnswer
 
-	mutex    sync.Mutex
-	status   Status
-	current  string
-	done     int
-	failures []Failure
-	blanket  Resolution
-	resumed  chan struct{}
+	mutex       sync.Mutex
+	status      Status
+	current     string
+	done        int
+	failures    []Failure
+	blanket     Resolution
+	resumed     chan struct{}
+	sourceSizes []int64
+	totalBytes  int64
+	doneBytes   int64
+	// Byte count at the last emitted event, so events stay coarse.
+	publishedBytes int64
 
 	created []string
 	moved   []movedItem
@@ -62,13 +70,39 @@ func newOperation(engine *Engine, id string, kind Kind, sources []string, destin
 }
 
 func (op *operation) runAll() {
-	for _, source := range op.sources {
+	op.measure()
+	for index, source := range op.sources {
 		err := op.runOne(source)
 		if errors.Is(err, ErrCancelled) {
 			return
 		}
-		op.recordOutcome(source, err)
+		op.recordOutcome(index, source, err)
 	}
+}
+
+// measure sizes the sources up front so progress can be reported in bytes.
+// Trashing and deleting move no data, so they keep the item counter alone.
+func (op *operation) measure() {
+	if op.kind != KindCopy && op.kind != KindMove {
+		return
+	}
+	handle := op.control()
+	sizes := make([]int64, 0, len(op.sources))
+	for _, source := range op.sources {
+		size, err := treeSize(source, handle)
+		if err != nil {
+			return
+		}
+		sizes = append(sizes, size)
+	}
+	op.setSizes(sizes)
+}
+
+func (op *operation) setSizes(sizes []int64) {
+	op.mutex.Lock()
+	defer op.mutex.Unlock()
+	op.sourceSizes = sizes
+	op.totalBytes = prefixSum(sizes, len(sizes))
 }
 
 func (op *operation) runOne(source string) error {
@@ -212,6 +246,7 @@ func (op *operation) control() *control {
 		waitWhilePaused: op.waitWhilePaused,
 		setCurrent:      op.setCurrent,
 		resolveTarget:   op.resolveTarget,
+		addBytes:        op.addBytes,
 	}
 }
 
@@ -274,18 +309,42 @@ func (op *operation) isCancelled() bool {
 	}
 }
 
-func (op *operation) recordOutcome(source string, err error) {
-	op.advance()
+func (op *operation) recordOutcome(index int, source string, err error) {
+	op.advance(index)
 	if err != nil && !errors.Is(err, ErrSkipped) {
 		op.addFailure(Failure{Path: source, Message: err.Error()})
 	}
 	op.engine.publish(op)
 }
 
-func (op *operation) advance() {
+// advance snaps the byte counter to the exact total of the sources finished so
+// far, which both corrects drift and covers a move that renamed rather than
+// copied and therefore streamed no bytes at all.
+func (op *operation) advance(index int) {
 	op.mutex.Lock()
 	defer op.mutex.Unlock()
 	op.done++
+	op.doneBytes = prefixSum(op.sourceSizes, index+1)
+}
+
+func (op *operation) addBytes(count int64) {
+	if !op.accumulate(count) {
+		return
+	}
+	op.engine.publish(op)
+}
+
+// accumulate reports whether enough has moved to be worth another event. One
+// event per copied chunk would be thousands per gigabyte.
+func (op *operation) accumulate(count int64) bool {
+	op.mutex.Lock()
+	defer op.mutex.Unlock()
+	op.doneBytes += count
+	if op.doneBytes-op.publishedBytes < publishByteInterval {
+		return false
+	}
+	op.publishedBytes = op.doneBytes
+	return true
 }
 
 func (op *operation) addFailure(failure Failure) {
@@ -330,6 +389,8 @@ func (op *operation) snapshot() Progress {
 		Destination: op.destination,
 		TotalItems:  len(op.sources),
 		DoneItems:   op.done,
+		TotalBytes:  op.totalBytes,
+		DoneBytes:   op.doneBytes,
 		CurrentPath: op.current,
 		Failures:    append([]Failure{}, op.failures...),
 	}

@@ -2,12 +2,13 @@
 	import { columnSummary } from "./columns";
 	import EntryIcon from "./EntryIcon.svelte";
 	import RenameField from "./RenameField.svelte";
-	import { entryElementId, entryStateClasses, type EntryViewProps } from "./entryList";
+	import { entryElementId, type EntryViewProps } from "./entryList";
 
 	let {
 		entries,
 		columns,
 		selectedPaths,
+		cutPaths,
 		focusIndex,
 		renamingPath,
 		onSelect,
@@ -47,6 +48,7 @@
 	style="grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr))"
 >
 	{#each entries as entry, index (entry.path)}
+		{@const isSelected = selectedPaths.has(entry.path)}
 		<!--
 			Keyboard interaction belongs to the listbox container, which owns focus
 			and drives these options through aria-activedescendant.
@@ -56,16 +58,17 @@
 			id={entryElementId(index)}
 			role="option"
 			tabindex="-1"
-			aria-selected={selectedPaths.has(entry.path)}
+			aria-selected={isSelected}
 			onclick={(event) => onSelect(index, event)}
 			ondblclick={() => onOpen(entry)}
 			oncontextmenu={(event) => onContextMenu(index, event)}
-			class="flex min-w-0 flex-col items-center gap-2 rounded-lg p-2 transition duration-fast {entryStateClasses(
-				entry,
-				index,
-				selectedPaths,
-				focusIndex,
-			)}"
+			class="flex min-w-0 flex-col items-center gap-2 rounded-lg p-2 transition duration-fast"
+			class:bg-raised={isSelected}
+			class:hover:bg-hover={!isSelected}
+			class:ring-2={index === focusIndex}
+			class:ring-inset={index === focusIndex}
+			class:ring-line-strong={index === focusIndex}
+			class:opacity-50={cutPaths.has(entry.path)}
 		>
 			<EntryIcon {entry} size="lg" />
 			{#if entry.path === renamingPath}

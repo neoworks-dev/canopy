@@ -285,6 +285,54 @@ func TestOneFailureDoesNotAbandonTheBatch(t *testing.T) {
 	}
 }
 
+func TestCopyReportsTheBytesItMoved(t *testing.T) {
+	source, destination := t.TempDir(), t.TempDir()
+	tree := filepath.Join(source, "project")
+	mkdir(t, filepath.Join(tree, "nested"))
+	writeFile(t, filepath.Join(tree, "top.txt"), "0123456789")
+	writeFile(t, filepath.Join(tree, "nested", "deep.txt"), "abcde")
+	loose := filepath.Join(source, "loose.txt")
+	writeFile(t, loose, "xyz")
+
+	testHarness := newHarness(refuseConflicts(t))
+	progress := testHarness.run(t, KindCopy, []string{tree, loose}, destination)
+
+	if progress.TotalBytes != 18 {
+		t.Fatalf("TotalBytes = %d, want the whole tree plus the loose file", progress.TotalBytes)
+	}
+	if progress.DoneBytes != progress.TotalBytes {
+		t.Fatalf("DoneBytes = %d, want %d once everything is copied", progress.DoneBytes, progress.TotalBytes)
+	}
+}
+
+func TestMoveReportsBytesEvenWhenItOnlyRenames(t *testing.T) {
+	directory := t.TempDir()
+	destination := filepath.Join(directory, "target")
+	mkdir(t, destination)
+	source := filepath.Join(directory, "note.txt")
+	writeFile(t, source, "0123456789")
+
+	testHarness := newHarness(refuseConflicts(t))
+	progress := testHarness.run(t, KindMove, []string{source}, destination)
+
+	if progress.TotalBytes != 10 || progress.DoneBytes != 10 {
+		t.Fatalf("bytes = %d of %d, want 10 of 10 after a rename", progress.DoneBytes, progress.TotalBytes)
+	}
+}
+
+func TestTrashingReportsNoByteTotal(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	directory := t.TempDir()
+	writeFile(t, filepath.Join(directory, "note.txt"), "body")
+
+	testHarness := newHarness(refuseConflicts(t))
+	progress := testHarness.run(t, KindTrash, []string{filepath.Join(directory, "note.txt")}, "")
+
+	if progress.TotalBytes != 0 {
+		t.Fatalf("TotalBytes = %d, want 0 for an operation that moves no data", progress.TotalBytes)
+	}
+}
+
 func TestCopyingADirectoryIntoItselfIsRefused(t *testing.T) {
 	directory := t.TempDir()
 	nested := filepath.Join(directory, "inner")

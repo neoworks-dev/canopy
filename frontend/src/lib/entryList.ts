@@ -14,6 +14,8 @@ export type EntryViewProps = {
 	entries: filesystem.Entry[];
 	columns: ColumnDefinition[];
 	selectedPaths: Set<string>;
+	/** Entries a cut is holding: dimmed until the paste lands. */
+	cutPaths: Set<string>;
 	focusIndex: number;
 	renamingPath: string;
 	onSelect: (index: number, event: MouseEvent) => void;
@@ -23,25 +25,3 @@ export type EntryViewProps = {
 	onRenameCancel: () => void;
 };
 
-/**
- * Selection paints a background, keyboard focus paints a ring, so the two states
- * stay distinguishable when they land on different entries.
- */
-export function entryStateClasses(
-	entry: filesystem.Entry,
-	index: number,
-	selectedPaths: Set<string>,
-	focusIndex: number,
-): string {
-	const classes: string[] = [];
-	if (selectedPaths.has(entry.path)) {
-		classes.push("bg-raised");
-	}
-	if (!selectedPaths.has(entry.path)) {
-		classes.push("hover:bg-hover");
-	}
-	if (index === focusIndex) {
-		classes.push("ring-2 ring-inset ring-line-strong");
-	}
-	return classes.join(" ");
-}

@@ -53,13 +53,6 @@
 		return !isTrashOpen && place.path === currentPath;
 	}
 
-	function rowClasses(active: boolean): string {
-		if (active) {
-			return "bg-raised font-medium text-default";
-		}
-		return "text-muted hover:bg-hover hover:text-default";
-	}
-
 	function iconWeight(active: boolean): "fill" | "regular" {
 		if (active) {
 			return "fill";
@@ -91,9 +84,13 @@
 				use:ripple
 				onclick={() => onNavigate(place.path)}
 				aria-current={currentMarker(active)}
-				class="flex items-center gap-2 rounded-lg p-2 text-left text-sm transition duration-fast {rowClasses(
-					active,
-				)}"
+				class="flex items-center gap-2 rounded-lg p-2 text-left text-sm transition duration-fast"
+				class:bg-raised={active}
+				class:font-medium={active}
+				class:text-default={active}
+				class:text-muted={!active}
+				class:hover:bg-hover={!active}
+				class:hover:text-default={!active}
 			>
 				<PlaceIcon size={16} weight={iconWeight(active)} class="shrink-0" />
 				<span class="truncate">{place.name}</span>
@@ -105,9 +102,13 @@
 			use:ripple
 			onclick={onOpenTrash}
 			aria-current={currentMarker(isTrashOpen)}
-			class="flex items-center gap-2 rounded-lg p-2 text-left text-sm transition duration-fast {rowClasses(
-				isTrashOpen,
-			)}"
+			class="flex items-center gap-2 rounded-lg p-2 text-left text-sm transition duration-fast"
+			class:bg-raised={isTrashOpen}
+			class:font-medium={isTrashOpen}
+			class:text-default={isTrashOpen}
+			class:text-muted={!isTrashOpen}
+			class:hover:bg-hover={!isTrashOpen}
+			class:hover:text-default={!isTrashOpen}
 		>
 			<TrashIcon size={16} weight={iconWeight(isTrashOpen)} class="shrink-0" />
 			<span class="truncate">Trash</span>

@@ -3,7 +3,15 @@
 	import PauseIcon from "phosphor-svelte/lib/PauseIcon";
 	import PlayIcon from "phosphor-svelte/lib/PlayIcon";
 	import XIcon from "phosphor-svelte/lib/XIcon";
-	import { completionPercent, isFinished, operationLabel, type OperationProgress } from "./fileops";
+	import {
+		completionPercent,
+		isFinished,
+		isMeasuring,
+		movesData,
+		operationLabel,
+		type OperationProgress,
+	} from "./fileops";
+	import { formatFileSize } from "./format";
 
 	// @neoworks-dev/ui has no toast or progress bar: LoadingSpinner is
 	// indeterminate and StatusBadge is a static label, so the queue is rendered
@@ -29,7 +37,21 @@
 		if (isFinished(operation)) {
 			return finishedLine(operation);
 		}
+		if (isMeasuring(operation)) {
+			return "Sizing up…";
+		}
+		return `${itemLine(operation)}${byteLine(operation)}`;
+	}
+
+	function itemLine(operation: OperationProgress): string {
 		return `${operation.doneItems} of ${operation.totalItems}`;
+	}
+
+	function byteLine(operation: OperationProgress): string {
+		if (!movesData(operation)) {
+			return "";
+		}
+		return ` · ${formatFileSize(operation.doneBytes)} of ${formatFileSize(operation.totalBytes)}`;
 	}
 
 	function finishedLine(operation: OperationProgress): string {

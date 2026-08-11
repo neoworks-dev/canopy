@@ -117,15 +117,6 @@
 		return 0;
 	}
 
-	function itemClasses(item: ActionDefinition, index: number): string {
-		if (!item.isEnabled(context)) {
-			return "text-faint";
-		}
-		if (index === activeIndex) {
-			return "bg-hover text-default";
-		}
-		return "text-muted hover:bg-hover hover:text-default";
-	}
 </script>
 
 <svelte:window onpointerdown={closeOnOutsidePointer} onresize={onClose} />
@@ -148,16 +139,20 @@
 			{#each group as item (item.id)}
 				{@const index = items.indexOf(item)}
 				{@const ItemIcon = item.icon}
+				{@const isEnabled = item.isEnabled(context)}
 				<button
 					type="button"
 					role="menuitem"
-					disabled={!item.isEnabled(context)}
+					disabled={!isEnabled}
 					onclick={() => choose(item)}
 					onmouseenter={() => (activeIndex = index)}
-					class="flex items-center gap-2 rounded-md p-2 text-left text-sm transition duration-fast {itemClasses(
-						item,
-						index,
-					)}"
+					class="flex items-center gap-2 rounded-md p-2 text-left text-sm transition duration-fast"
+					class:text-faint={!isEnabled}
+					class:bg-hover={isEnabled && index === activeIndex}
+					class:text-default={isEnabled && index === activeIndex}
+					class:text-muted={isEnabled && index !== activeIndex}
+					class:hover:bg-hover={isEnabled}
+					class:hover:text-default={isEnabled}
 				>
 					<ItemIcon size={16} class="shrink-0" />
 					<span class="min-w-0 flex-1 truncate">{item.label}</span>

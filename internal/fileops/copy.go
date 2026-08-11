@@ -108,7 +108,8 @@ func abandonTarget(targetFile *os.File, target string, cause error) error {
 }
 
 // writeContents copies in chunks so pause and cancel take effect during a large
-// file rather than only between files.
+// file rather than only between files, and so the byte counter advances inside
+// one file instead of jumping when it completes.
 func writeContents(target io.Writer, source io.Reader, control *control) error {
 	buffer := make([]byte, copyBufferSize)
 	for {
@@ -121,6 +122,7 @@ func writeContents(target io.Writer, source io.Reader, control *control) error {
 		if err != nil {
 			return err
 		}
+		control.addBytes(int64(readCount))
 		if readErr != nil {
 			return endOfContents(readErr)
 		}
