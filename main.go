@@ -28,6 +28,9 @@ func main() {
 			fileService,
 			indexService,
 		},
+		OnStartup: func(applicationContext context.Context) {
+			fileService.startup(applicationContext)
+		},
 		OnShutdown: func(_ context.Context) {
 			indexService.shutdown()
 		},

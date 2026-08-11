@@ -1,3 +1,30 @@
+export namespace fileops {
+	
+	export class TrashedItem {
+	    name: string;
+	    trashPath: string;
+	    originalPath: string;
+	    deletedAt: string;
+	    size: number;
+	    isDir: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new TrashedItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.trashPath = source["trashPath"];
+	        this.originalPath = source["originalPath"];
+	        this.deletedAt = source["deletedAt"];
+	        this.size = source["size"];
+	        this.isDir = source["isDir"];
+	    }
+	}
+
+}
+
 export namespace filesystem {
 	
 	export class Entry {
@@ -92,6 +119,29 @@ export namespace filesystem {
 	        this.dataUrl = source["dataUrl"];
 	        this.truncated = source["truncated"];
 	        this.size = source["size"];
+	    }
+	}
+
+}
+
+export namespace launcher {
+	
+	export class Application {
+	    id: string;
+	    name: string;
+	    icon: string;
+	    exec: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Application(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.icon = source["icon"];
+	        this.exec = source["exec"];
 	    }
 	}
 
