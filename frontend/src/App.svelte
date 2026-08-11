@@ -1215,22 +1215,10 @@
 				<div class="w-2 shrink-0"></div>
 			{/if}
 			<div
-				class="flex min-w-0 flex-1 flex-col gap-1 rounded-xl"
+				class="flex min-w-0 flex-1 flex-col rounded-xl"
 				class:ring-1={layout.groups.length > 1 && paneGroup.id === layout.activeGroupId}
 				class:ring-line-faint={layout.groups.length > 1 && paneGroup.id === layout.activeGroupId}
 			>
-				<TabStrip
-					group={paneGroup}
-					isActive={paneGroup.id === layout.activeGroupId}
-					canSplit={layout.groups.length < maximumGroups}
-					onSelect={(tabId) => (layout = activateTab(layout, paneGroup.id, tabId))}
-					onClose={(tabId) => (layout = closeTab(layout, paneGroup.id, tabId))}
-					onOpen={() => {
-						activateGroup(paneGroup.id);
-						openNewTab();
-					}}
-					onSplit={splitPane}
-				/>
 				<FilePane
 					bind:this={panes[paneGroup.id]}
 					location={activeTab(paneGroup).location}
@@ -1250,7 +1238,22 @@
 					onBackgroundMenu={openBackgroundMenu}
 					onSort={sortByColumn}
 					onChanged={() => operations.refreshUndoLabel()}
-				/>
+				>
+					{#snippet header()}
+						<TabStrip
+							group={paneGroup}
+							isActive={paneGroup.id === layout.activeGroupId}
+							canSplit={layout.groups.length < maximumGroups}
+							onSelect={(tabId) => (layout = activateTab(layout, paneGroup.id, tabId))}
+							onClose={(tabId) => (layout = closeTab(layout, paneGroup.id, tabId))}
+							onOpen={() => {
+								activateGroup(paneGroup.id);
+								openNewTab();
+							}}
+							onSplit={splitPane}
+						/>
+					{/snippet}
+				</FilePane>
 			</div>
 		{/each}
 

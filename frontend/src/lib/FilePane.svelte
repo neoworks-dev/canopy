@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { untrack } from "svelte";
+	import { untrack, type Snippet } from "svelte";
 	import { Card, LoadingSpinner } from "@neoworks-dev/ui";
 	import WarningIcon from "phosphor-svelte/lib/WarningIcon";
 	import {
@@ -72,6 +72,7 @@
 		onBackgroundMenu,
 		onSort,
 		onChanged,
+		header,
 	}: {
 		location: TabLocation;
 		viewMode: ViewMode;
@@ -88,6 +89,8 @@
 		onSort: (key: SortKey) => void;
 		/** Something in this pane wrote to disk, which the undo label follows. */
 		onChanged: () => void;
+		/** Rendered flush against the top edge of the pane, above the listing. */
+		header?: Snippet;
 	} = $props();
 
 	let listing = $state<filesystem.Listing | null>(null);
@@ -645,105 +648,109 @@
 <Card
 	surface="elevated"
 	padding="none"
-	class="flex min-w-0 flex-1 flex-col gap-2 overflow-hidden p-2 shadow-lg"
+	class="flex min-w-0 flex-1 flex-col overflow-hidden shadow-lg"
 >
-	{#if location.kind === "trash"}
-		<div class="flex min-h-0 flex-col gap-2 overflow-y-auto">
-			<TrashPane onRestored={() => onChanged()} />
-		</div>
-	{:else if location.kind === "tag"}
-		<div class="flex min-h-0 flex-col gap-2 overflow-y-auto">
-			<TagPane name={location.name} onOpen={openEntry} onReveal={revealTaggedEntry} />
-		</div>
-	{:else if errorMessage}
-		<Card surface="raised" padding="none" class="flex items-center gap-2 p-2">
-			<WarningIcon size={20} class="shrink-0 text-red" />
-			<div class="min-w-0">
-				<p class="text-sm font-medium text-default">Could not open this folder</p>
-				<p class="truncate text-xs text-dim">{errorMessage}</p>
+	{@render header?.()}
+
+	<div class="flex min-h-0 flex-1 flex-col gap-2 p-2">
+		{#if location.kind === "trash"}
+			<div class="flex min-h-0 flex-col gap-2 overflow-y-auto">
+				<TrashPane onRestored={() => onChanged()} />
 			</div>
-		</Card>
-	{:else if isLoading}
-		<div class="flex justify-center p-2">
-			<LoadingSpinner />
-		</div>
-	{:else}
-		{#if actionError}
-			<button
-				type="button"
-				onclick={dismissActionError}
-				class="flex items-center gap-2 rounded-lg bg-raised p-2 text-left"
-			>
-				<WarningIcon size={16} class="shrink-0 text-red" />
-				<span class="min-w-0 flex-1 truncate text-xs text-dim">{actionError}</span>
-			</button>
-		{/if}
-		{#if isFindOpen}
-			<FindField
-				names={visibleEntries.map((entry) => entry.name)}
-				focusIndex={selection.focusIndex}
-				onMatch={jumpToFound}
-				onClose={closeFind}
-			/>
-		{/if}
-		<div
-			bind:this={listContainer}
-			role="listbox"
-			tabindex="0"
-			aria-label="Directory contents"
-			aria-multiselectable="true"
-			aria-activedescendant={activeDescendant()}
-			oncontextmenu={openEmptyAreaMenu}
-			onpointerdown={startBand}
-			onpointermove={updateBand}
-			onpointerup={endBand}
-			onfocus={onActivate}
-			onscroll={trackScroll}
-			class="min-h-0 flex-1 overflow-y-auto rounded-lg focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-line-faint focus-visible:outline-none"
-		>
-			{#if viewMode === "grid"}
-				<EntryGrid
-					entries={mountedEntries}
-					firstIndex={mountedWindow.firstIndex}
-					topPadding={mountedWindow.topPadding}
-					bottomPadding={mountedWindow.bottomPadding}
-					columns={activeColumns}
-					{selectedPaths}
-					{cutPaths}
-					{gitStatuses}
+		{:else if location.kind === "tag"}
+			<div class="flex min-h-0 flex-col gap-2 overflow-y-auto">
+				<TagPane name={location.name} onOpen={openEntry} onReveal={revealTaggedEntry} />
+			</div>
+		{:else if errorMessage}
+			<Card surface="raised" padding="none" class="flex items-center gap-2 p-2">
+				<WarningIcon size={20} class="shrink-0 text-red" />
+				<div class="min-w-0">
+					<p class="text-sm font-medium text-default">Could not open this folder</p>
+					<p class="truncate text-xs text-dim">{errorMessage}</p>
+				</div>
+			</Card>
+		{:else if isLoading}
+			<div class="flex justify-center p-2">
+				<LoadingSpinner />
+			</div>
+		{:else}
+			{#if actionError}
+				<button
+					type="button"
+					onclick={dismissActionError}
+					class="flex items-center gap-2 rounded-lg bg-raised p-2 text-left"
+				>
+					<WarningIcon size={16} class="shrink-0 text-red" />
+					<span class="min-w-0 flex-1 truncate text-xs text-dim">{actionError}</span>
+				</button>
+			{/if}
+			{#if isFindOpen}
+				<FindField
+					names={visibleEntries.map((entry) => entry.name)}
 					focusIndex={selection.focusIndex}
-					{renamingPath}
-					onSelect={selectEntry}
-					onOpen={openEntry}
-					onContextMenu={openContextMenu}
-					onRenameCommit={commitRename}
-					onRenameCancel={cancelRename}
-					onMetrics={applyMetrics}
-				/>
-			{:else}
-				<EntryRows
-					entries={mountedEntries}
-					firstIndex={mountedWindow.firstIndex}
-					topPadding={mountedWindow.topPadding}
-					bottomPadding={mountedWindow.bottomPadding}
-					columns={activeColumns}
-					{selectedPaths}
-					{cutPaths}
-					{gitStatuses}
-					focusIndex={selection.focusIndex}
-					{renamingPath}
-					onSelect={selectEntry}
-					onOpen={openEntry}
-					onContextMenu={openContextMenu}
-					onRenameCommit={commitRename}
-					onRenameCancel={cancelRename}
-					onMetrics={applyMetrics}
-					order={sortOrder}
-					{onSort}
+					onMatch={jumpToFound}
+					onClose={closeFind}
 				/>
 			{/if}
-		</div>
-	{/if}
+			<div
+				bind:this={listContainer}
+				role="listbox"
+				tabindex="0"
+				aria-label="Directory contents"
+				aria-multiselectable="true"
+				aria-activedescendant={activeDescendant()}
+				oncontextmenu={openEmptyAreaMenu}
+				onpointerdown={startBand}
+				onpointermove={updateBand}
+				onpointerup={endBand}
+				onfocus={onActivate}
+				onscroll={trackScroll}
+				class="min-h-0 flex-1 overflow-y-auto rounded-lg focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-line-faint focus-visible:outline-none"
+			>
+				{#if viewMode === "grid"}
+					<EntryGrid
+						entries={mountedEntries}
+						firstIndex={mountedWindow.firstIndex}
+						topPadding={mountedWindow.topPadding}
+						bottomPadding={mountedWindow.bottomPadding}
+						columns={activeColumns}
+						{selectedPaths}
+						{cutPaths}
+						{gitStatuses}
+						focusIndex={selection.focusIndex}
+						{renamingPath}
+						onSelect={selectEntry}
+						onOpen={openEntry}
+						onContextMenu={openContextMenu}
+						onRenameCommit={commitRename}
+						onRenameCancel={cancelRename}
+						onMetrics={applyMetrics}
+					/>
+				{:else}
+					<EntryRows
+						entries={mountedEntries}
+						firstIndex={mountedWindow.firstIndex}
+						topPadding={mountedWindow.topPadding}
+						bottomPadding={mountedWindow.bottomPadding}
+						columns={activeColumns}
+						{selectedPaths}
+						{cutPaths}
+						{gitStatuses}
+						focusIndex={selection.focusIndex}
+						{renamingPath}
+						onSelect={selectEntry}
+						onOpen={openEntry}
+						onContextMenu={openContextMenu}
+						onRenameCommit={commitRename}
+						onRenameCancel={cancelRename}
+						onMetrics={applyMetrics}
+						order={sortOrder}
+						{onSort}
+					/>
+				{/if}
+			</div>
+		{/if}
+	</div>
 </Card>
 
 {#if band}
