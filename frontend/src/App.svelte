@@ -2,14 +2,11 @@
 	import { onMount, untrack } from "svelte";
 	import { Button, Card, LoadingSpinner, SectionHeader } from "@neoworks-dev/ui";
 	import type { IconComponent } from "@neoworks-dev/ui";
-	import ArrowLeftIcon from "phosphor-svelte/lib/ArrowLeftIcon";
-	import ArrowRightIcon from "phosphor-svelte/lib/ArrowRightIcon";
-	import ArrowUpIcon from "phosphor-svelte/lib/ArrowUpIcon";
+	import CaretLeftIcon from "phosphor-svelte/lib/CaretLeftIcon";
+	import CaretRightIcon from "phosphor-svelte/lib/CaretRightIcon";
 	import HouseIcon from "phosphor-svelte/lib/HouseIcon";
 	import EyeIcon from "phosphor-svelte/lib/EyeIcon";
 	import EyeSlashIcon from "phosphor-svelte/lib/EyeSlashIcon";
-	import ListIcon from "phosphor-svelte/lib/ListIcon";
-	import SquaresFourIcon from "phosphor-svelte/lib/SquaresFourIcon";
 	import WarningIcon from "phosphor-svelte/lib/WarningIcon";
 	import {
 		CopyPathsToClipboard,
@@ -32,7 +29,6 @@
 	import { EventsOn } from "../wailsjs/runtime/runtime";
 	import { settings as storedSettings } from "../wailsjs/go/models";
 	import type { filesystem, proto } from "../wailsjs/go/models";
-	import ColumnMenu from "./lib/ColumnMenu.svelte";
 	import ConfirmDialog from "./lib/ConfirmDialog.svelte";
 	import ConflictDialog from "./lib/ConflictDialog.svelte";
 	import ContextMenu from "./lib/ContextMenu.svelte";
@@ -48,6 +44,7 @@
 	import SearchField from "./lib/SearchField.svelte";
 	import SearchResults from "./lib/SearchResults.svelte";
 	import TrashPane from "./lib/TrashPane.svelte";
+	import ViewMenu from "./lib/ViewMenu.svelte";
 	import {
 		backgroundMenuIds,
 		defaultKeymap,
@@ -80,9 +77,12 @@
 		historyAfterVisit,
 	} from "./lib/history";
 	import {
+		clampToBounds,
 		exceedsThreshold,
 		indexesWithin,
 		rectangleBetween,
+		toContentPoint,
+		toViewportPoint,
 		type Point,
 		type Rectangle,
 	} from "./lib/marquee";
@@ -178,7 +178,10 @@
 	let userKeybindings = $state<Keybinding[]>([]);
 
 	let band = $state<Rectangle | null>(null);
-	let bandOrigin: Point = { x: 0, y: 0 };
+	// The drag start in content coordinates, so it stays on the entry it began on
+	// while the listing scrolls; the pointer stays in viewport coordinates.
+	let bandAnchor: Point = { x: 0, y: 0 };
+	let bandPointer: Point = { x: 0, y: 0 };
 	let bandKeep: string[] = [];
 
 	let searchQuery = $state("");
@@ -524,6 +527,10 @@
 
 	function trackScroll(event: Event & { currentTarget: HTMLDivElement }) {
 		viewport = { scrollTop: event.currentTarget.scrollTop, height: event.currentTarget.clientHeight };
+		if (!band) {
+			return;
+		}
+		redrawBand();
 	}
 
 	function measureViewport(container: HTMLDivElement) {
@@ -705,6 +712,14 @@
 	function showGrid() {
 		viewMode = "grid";
 		listMetrics = unmeasuredMetrics;
+	}
+
+	function setViewMode(mode: ViewMode) {
+		if (mode === "grid") {
+			showGrid();
+			return;
+		}
+		showRows();
 	}
 
 	function openContextMenu(index: number, event: MouseEvent) {
@@ -976,10 +991,11 @@
 		if (event.button !== 0 || startsOnInteractive(event)) {
 			return;
 		}
-		bandOrigin = { x: event.clientX, y: event.clientY };
+		bandPointer = pointerWithinList(event);
+		bandAnchor = contentPointOf(bandPointer);
 		bandKeep = keptDuringBand(event);
 		selection = bandSelection([]);
-		band = rectangleBetween(bandOrigin, bandOrigin);
+		band = rectangleBetween(bandPointer, bandPointer);
 		listContainer?.setPointerCapture(event.pointerId);
 	}
 
@@ -1001,9 +1017,42 @@
 		if (!band) {
 			return;
 		}
-		const current = rectangleBetween(bandOrigin, { x: event.clientX, y: event.clientY });
+		bandPointer = pointerWithinList(event);
+		redrawBand();
+	}
+
+	function redrawBand() {
+		const current = rectangleBetween(anchorOnScreen(), bandPointer);
 		band = current;
 		selection = bandSelection(indexesCoveredBy(current));
+	}
+
+	function anchorOnScreen(): Point {
+		if (!listContainer) {
+			return bandAnchor;
+		}
+		const bounds = listContainer.getBoundingClientRect();
+		const onScreen = toViewportPoint(bandAnchor, bounds, listContainer.scrollTop);
+		return clampToBounds(onScreen, bounds);
+	}
+
+	function contentPointOf(point: Point): Point {
+		if (!listContainer) {
+			return point;
+		}
+		const bounds = listContainer.getBoundingClientRect();
+		return toContentPoint(point, bounds, listContainer.scrollTop);
+	}
+
+	// The pointer is captured, so a drag keeps reporting positions far outside the
+	// listing; clamping them keeps the band inside the pane it selects in.
+	function pointerWithinList(event: PointerEvent): Point {
+		const point = { x: event.clientX, y: event.clientY };
+		if (!listContainer) {
+			return point;
+		}
+		const bounds = listContainer.getBoundingClientRect();
+		return clampToBounds(point, bounds);
 	}
 
 	// A band can only cover what is on screen, so hit testing runs over the
@@ -1188,13 +1237,6 @@
 		reloadListing();
 	}
 
-	function viewVariant(mode: ViewMode): "surface" | "ghost" {
-		if (viewMode === mode) {
-			return "surface";
-		}
-		return "ghost";
-	}
-
 	function hiddenToggleIcon(): IconComponent {
 		if (showHidden) {
 			return EyeIcon;
@@ -1245,22 +1287,21 @@
 <svelte:window onkeydown={handleWindowKeydown} onauxclick={handleAuxClick} />
 
 <div class="flex h-full flex-col gap-2 bg-canvas p-2 select-none">
-	<Card surface="elevated" padding="none" class="flex shrink-0 items-center gap-2 p-2 shadow-lg">
+	<div class="flex shrink-0 items-center gap-2 px-1">
 		<Button
 			size="sm"
 			variant="ghost"
-			icon={ArrowLeftIcon}
+			icon={CaretLeftIcon}
 			disabled={!canGoBack(history)}
 			onclick={goBack}
 		/>
 		<Button
 			size="sm"
 			variant="ghost"
-			icon={ArrowRightIcon}
+			icon={CaretRightIcon}
 			disabled={!canGoForward(history)}
 			onclick={goForward}
 		/>
-		<Button size="sm" variant="ghost" icon={ArrowUpIcon} disabled={!canGoUp} onclick={goUp} />
 		<Button size="sm" variant="ghost" icon={HouseIcon} onclick={goHome} />
 
 		<PathBar
@@ -1276,10 +1317,9 @@
 			placeholder={searchPlaceholder()}
 		/>
 
-		<Button size="sm" variant={viewVariant("rows")} icon={ListIcon} onclick={showRows} />
-		<Button size="sm" variant={viewVariant("grid")} icon={SquaresFourIcon} onclick={showGrid} />
-
-		<ColumnMenu
+		<ViewMenu
+			{viewMode}
+			onViewModeChange={setViewMode}
 			visibleIds={visibleColumnIds}
 			onChange={setColumns}
 			directoriesFirst={sortOrder.directoriesFirst}
@@ -1287,7 +1327,7 @@
 		/>
 
 		<Button size="sm" variant="ghost" icon={hiddenToggleIcon()} onclick={toggleHidden} />
-	</Card>
+	</div>
 
 	<div class="flex min-h-0 flex-1 gap-2">
 		{#if places.length > 0}

@@ -26,6 +26,34 @@ export function rectangleBetween(start: Point, current: Point): Rectangle {
 	};
 }
 
+/**
+ * Where a point on screen sits in the scrolled content, so an anchor survives
+ * the listing scrolling under it.
+ */
+export function toContentPoint(point: Point, bounds: Rectangle, scrollTop: number): Point {
+	return { x: point.x, y: point.y - bounds.top + scrollTop };
+}
+
+/** The inverse of {@link toContentPoint}, at whatever the scroll is now. */
+export function toViewportPoint(point: Point, bounds: Rectangle, scrollTop: number): Point {
+	return { x: point.x, y: point.y + bounds.top - scrollTop };
+}
+
+/**
+ * Keeps a dragged point inside the listing, so a band that follows the pointer
+ * off the list never paints over the panes around it.
+ */
+export function clampToBounds(point: Point, bounds: Rectangle): Point {
+	return {
+		x: clamp(point.x, bounds.left, bounds.left + bounds.width),
+		y: clamp(point.y, bounds.top, bounds.top + bounds.height),
+	};
+}
+
+function clamp(value: number, lowest: number, highest: number): number {
+	return Math.min(Math.max(value, lowest), highest);
+}
+
 export function exceedsThreshold(rectangle: Rectangle): boolean {
 	return rectangle.width > marqueeThreshold || rectangle.height > marqueeThreshold;
 }

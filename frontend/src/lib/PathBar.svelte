@@ -1,10 +1,14 @@
 <script lang="ts">
 	import { Card } from "@neoworks-dev/ui";
+	import CheckIcon from "phosphor-svelte/lib/CheckIcon";
+	import CopyIcon from "phosphor-svelte/lib/CopyIcon";
 	import { ListDirectory, ZoxideQuery } from "../../wailsjs/go/main/FileService";
+	import { ClipboardSetText } from "../../wailsjs/runtime/runtime";
 	import PathBreadcrumb from "./PathBreadcrumb.svelte";
 	import { defaultSortOrder } from "./sorting";
 
 	const maxSuggestions = 8;
+	const copiedFeedbackMilliseconds = 1200;
 
 	let {
 		path,
@@ -22,6 +26,7 @@
 	let suggestions = $state<string[]>([]);
 	let activeSuggestion = $state(-1);
 	let input = $state<HTMLInputElement>();
+	let isCopied = $state(false);
 
 	// Guards against a slow directory read landing after the user has typed on.
 	let latestCompletion = 0;
@@ -196,6 +201,15 @@
 		return (index + total) % total;
 	}
 
+	async function copyPath() {
+		const copied = await ClipboardSetText(path);
+		if (!copied) {
+			return;
+		}
+		isCopied = true;
+		setTimeout(() => (isCopied = false), copiedFeedbackMilliseconds);
+	}
+
 	function chooseSuggestion(suggestion: string) {
 		onEditingChange(false);
 		onNavigate(suggestion);
@@ -214,7 +228,7 @@
 			spellcheck="false"
 			autocomplete="off"
 			aria-label="Location"
-			class="min-w-0 flex-1 rounded-md border border-line-faint bg-surface px-2.5 py-1.5 text-sm text-default focus:outline-none"
+			class="h-8 min-w-0 flex-1 rounded-md border border-line-faint bg-surface px-2.5 text-sm text-default focus:outline-none"
 		/>
 
 		{#if suggestions.length > 0}
@@ -239,5 +253,28 @@
 		{/if}
 	</div>
 {:else}
-	<PathBreadcrumb {path} {onNavigate} />
+	<div
+		class="group flex h-8 min-w-0 flex-1 items-center gap-1 rounded-md border border-line-faint bg-surface pr-1 pl-1.5 transition duration-fast hover:border-line"
+	>
+		<PathBreadcrumb {path} {onNavigate} />
+		<button
+			type="button"
+			onclick={() => onEditingChange(true)}
+			aria-label="Type a path"
+			class="h-full min-w-8 flex-1 cursor-text"
+		></button>
+		<button
+			type="button"
+			onclick={copyPath}
+			aria-label="Copy path"
+			title="Copy path"
+			class="shrink-0 rounded-md p-1 text-faint opacity-0 transition duration-fast group-hover:opacity-100 hover:bg-hover hover:text-default focus-visible:opacity-100"
+		>
+			{#if isCopied}
+				<CheckIcon size={14} />
+			{:else}
+				<CopyIcon size={14} />
+			{/if}
+		</button>
+	</div>
 {/if}

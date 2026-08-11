@@ -13,7 +13,7 @@
 	const crumbs = $derived(toBreadcrumbs(path));
 </script>
 
-<nav class="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto whitespace-nowrap">
+<nav class="flex min-w-0 items-center gap-0.5 overflow-x-auto whitespace-nowrap">
 	{#each crumbs as crumb, index (crumb.path)}
 		{#if index > 0}
 			<CaretRightIcon size={12} class="shrink-0 text-faint" />

@@ -1,9 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import {
+	clampToBounds,
 	exceedsThreshold,
 	indexesWithin,
 	overlaps,
 	rectangleBetween,
+	toContentPoint,
+	toViewportPoint,
 	type Rectangle,
 } from "../frontend/src/lib/marquee";
 
@@ -12,6 +15,39 @@ const tiles: Rectangle[] = [
 	{ left: 0, top: 50, width: 100, height: 40 },
 	{ left: 0, top: 100, width: 100, height: 40 },
 ];
+
+describe("content coordinates", () => {
+	const bounds: Rectangle = { left: 100, top: 50, width: 200, height: 100 };
+
+	test("reads a point on screen as an offset into the scrolled content", () => {
+		expect(toContentPoint({ x: 150, y: 80 }, bounds, 400)).toEqual({ x: 150, y: 430 });
+	});
+
+	test("puts a content point back where it now sits on screen", () => {
+		expect(toViewportPoint({ x: 150, y: 430 }, bounds, 400)).toEqual({ x: 150, y: 80 });
+	});
+
+	test("moves an anchor up the screen as the listing scrolls down under it", () => {
+		const anchor = toContentPoint({ x: 150, y: 80 }, bounds, 400);
+		expect(toViewportPoint(anchor, bounds, 460)).toEqual({ x: 150, y: 20 });
+	});
+});
+
+describe("clampToBounds", () => {
+	const bounds: Rectangle = { left: 100, top: 50, width: 200, height: 100 };
+
+	test("leaves a point inside the bounds alone", () => {
+		expect(clampToBounds({ x: 150, y: 80 }, bounds)).toEqual({ x: 150, y: 80 });
+	});
+
+	test("pulls a point past the far edges back onto them", () => {
+		expect(clampToBounds({ x: 900, y: 900 }, bounds)).toEqual({ x: 300, y: 150 });
+	});
+
+	test("pulls a point before the near edges back onto them", () => {
+		expect(clampToBounds({ x: -40, y: 0 }, bounds)).toEqual({ x: 100, y: 50 });
+	});
+});
 
 describe("rectangleBetween", () => {
 	test("normalises a drag towards the top left", () => {
