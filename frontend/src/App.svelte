@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from "svelte";
+	import { onMount, untrack } from "svelte";
 	import { Button, Card, LoadingSpinner, SectionHeader } from "@neoworks-dev/ui";
 	import type { IconComponent } from "@neoworks-dev/ui";
 	import ArrowLeftIcon from "phosphor-svelte/lib/ArrowLeftIcon";
@@ -51,7 +51,7 @@
 		type ActionId,
 	} from "./lib/actions";
 	import { columnsFor, defaultColumnIds, type ColumnId } from "./lib/columns";
-	import { entryElementId } from "./lib/entryList";
+	import { entryElementId, indexOfOption } from "./lib/entryList";
 	import { describeError } from "./lib/errors";
 	import { parentDirectoryOf } from "./lib/format";
 	import {
@@ -82,13 +82,22 @@
 		selectionFromIndexes,
 		type Selection,
 	} from "./lib/selection";
-	import { directoryChangedEvent } from "./lib/watch";
 	import {
 		emptyTypeAhead,
 		isTypeAheadKey,
 		typeAheadAfterKey,
 		typeAheadMatch,
 	} from "./lib/typeAhead";
+	import {
+		listWindow,
+		pageSize,
+		sameMetrics,
+		scrollTopRevealing,
+		unmeasuredMetrics,
+		type ListMetrics,
+		type Viewport,
+	} from "./lib/virtualList";
+	import { directoryChangedEvent } from "./lib/watch";
 
 	// Long enough that typing a word does not fire a query per keystroke, short
 	// enough that results feel immediate.
@@ -122,7 +131,8 @@
 	let history = $state(emptyHistory);
 	let isEditingPath = $state(false);
 	let isTrashOpen = $state(false);
-	let gridColumnCount = $state(1);
+	let listMetrics = $state<ListMetrics>(unmeasuredMetrics);
+	let viewport = $state<Viewport>({ scrollTop: 0, height: 0 });
 	let listContainer = $state<HTMLDivElement>();
 	let searchInput = $state<HTMLInputElement>();
 
@@ -167,6 +177,12 @@
 	const cutPaths = $derived(new Set(pathsHeldByCut()));
 	// The trash and search panes replace the listing, so nothing is watched then.
 	const watchedPath = $derived(directoryOnScreen());
+	// Only the entries around the viewport are mounted, so a directory of a
+	// hundred thousand builds a screenful of DOM rather than all of it.
+	const mountedWindow = $derived(listWindow(listMetrics, visibleEntries.length, viewport));
+	const mountedEntries = $derived(
+		visibleEntries.slice(mountedWindow.firstIndex, mountedWindow.endIndex),
+	);
 
 	onMount(() => {
 		navigateTo("");
@@ -199,15 +215,31 @@
 		selection = pruneSelection(selection, visiblePaths);
 	});
 
-	// Keyboard movement is useless if the entry it lands on is off screen.
+	// Keyboard movement is useless if the entry it lands on is off screen. Only
+	// the focus is a reason to scroll: reacting to the viewport as well would drag
+	// the focused entry back every time the user scrolled away from it.
 	$effect(() => {
-		revealEntry(selection.focusIndex);
+		const index = selection.focusIndex;
+		untrack(() => revealEntry(index));
 	});
 
 	// The listing is the default keyboard target, so arrows work without a click
 	// first — but only while nothing else has claimed focus.
 	$effect(() => {
 		claimInitialFocus(listContainer);
+	});
+
+	// The window depends on how much of the listing fits, which changes with the
+	// window and with the panes beside it.
+	$effect(() => {
+		if (!listContainer) {
+			return;
+		}
+		const container = listContainer;
+		const observer = new ResizeObserver(() => measureViewport(container));
+		observer.observe(container);
+		measureViewport(container);
+		return () => observer.disconnect();
 	});
 
 	// The index is built in the background, so a query typed during the first crawl
@@ -373,12 +405,32 @@
 		}
 	}
 
+	// Computed rather than scrolled into view, because the entry the keyboard just
+	// moved to may not be mounted yet.
 	function revealEntry(index: number) {
-		if (index < 0 || !listContainer) {
+		if (!listContainer) {
 			return;
 		}
-		const option = listContainer.querySelector(`#${entryElementId(index)}`);
-		option?.scrollIntoView({ block: "nearest" });
+		const target = scrollTopRevealing(listMetrics, index, viewport);
+		if (target === viewport.scrollTop) {
+			return;
+		}
+		listContainer.scrollTo({ top: target, behavior: "smooth" });
+	}
+
+	function applyMetrics(reported: ListMetrics) {
+		if (sameMetrics(listMetrics, reported)) {
+			return;
+		}
+		listMetrics = reported;
+	}
+
+	function trackScroll(event: Event & { currentTarget: HTMLDivElement }) {
+		viewport = { scrollTop: event.currentTarget.scrollTop, height: event.currentTarget.clientHeight };
+	}
+
+	function measureViewport(container: HTMLDivElement) {
+		viewport = { scrollTop: container.scrollTop, height: container.clientHeight };
 	}
 
 	function claimInitialFocus(container: HTMLDivElement | undefined) {
@@ -476,13 +528,16 @@
 		visibleColumnIds = ids;
 	}
 
+	// The two views have different geometry, so the old measurements are dropped
+	// and the incoming view reports its own.
 	function showRows() {
 		viewMode = "rows";
-		gridColumnCount = 1;
+		listMetrics = unmeasuredMetrics;
 	}
 
 	function showGrid() {
 		viewMode = "grid";
+		listMetrics = unmeasuredMetrics;
 	}
 
 	function openContextMenu(index: number, event: MouseEvent) {
@@ -720,7 +775,15 @@
 		}
 		const current = rectangleBetween(bandOrigin, { x: event.clientX, y: event.clientY });
 		band = current;
-		selection = bandSelection(indexesWithin(current, entryRectangles()));
+		selection = bandSelection(indexesCoveredBy(current));
+	}
+
+	// A band can only cover what is on screen, so hit testing runs over the
+	// mounted entries and reads back the index each one carries.
+	function indexesCoveredBy(current: Rectangle): number[] {
+		const options = mountedOptions();
+		const covered = indexesWithin(current, options.map((option) => option.getBoundingClientRect()));
+		return covered.map((position) => indexOfOption(options[position]));
 	}
 
 	function endBand(event: PointerEvent) {
@@ -745,12 +808,11 @@
 		return selectionFromIndexes(visiblePaths, indexes, bandKeep);
 	}
 
-	function entryRectangles(): Rectangle[] {
+	function mountedOptions(): Element[] {
 		if (!listContainer) {
 			return [];
 		}
-		const options = listContainer.querySelectorAll('[role="option"]');
-		return [...options].map((option) => option.getBoundingClientRect());
+		return [...listContainer.querySelectorAll('[role="option"]')];
 	}
 
 	function handleWindowKeydown(event: KeyboardEvent) {
@@ -888,17 +950,11 @@
 	}
 
 	function movementContext() {
-		return { total: visiblePaths.length, columns: gridColumnCount, pageSize: viewportPageSize() };
-	}
-
-	// One page is however many entries currently fit in the scroll area.
-	function viewportPageSize(): number {
-		const option = listContainer?.querySelector('[role="option"]');
-		if (!option || !listContainer) {
-			return 10;
-		}
-		const rows = Math.floor(listContainer.clientHeight / option.clientHeight);
-		return Math.max(1, rows) * gridColumnCount;
+		return {
+			total: visiblePaths.length,
+			columns: listMetrics.columns,
+			pageSize: pageSize(listMetrics, viewport),
+		};
 	}
 
 	function applyTypeAhead(event: KeyboardEvent): boolean {
@@ -1088,11 +1144,15 @@
 					onpointerdown={startBand}
 					onpointermove={updateBand}
 					onpointerup={endBand}
+					onscroll={trackScroll}
 					class="min-h-0 flex-1 overflow-y-auto rounded-lg focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-line-faint focus-visible:outline-none"
 				>
 					{#if viewMode === "grid"}
 						<EntryGrid
-							entries={visibleEntries}
+							entries={mountedEntries}
+							firstIndex={mountedWindow.firstIndex}
+							topPadding={mountedWindow.topPadding}
+							bottomPadding={mountedWindow.bottomPadding}
 							columns={activeColumns}
 							{selectedPaths}
 							{cutPaths}
@@ -1103,11 +1163,14 @@
 							onContextMenu={openContextMenu}
 							onRenameCommit={commitRename}
 							onRenameCancel={cancelRename}
-							onColumnCountChange={(count) => (gridColumnCount = count)}
+							onMetrics={applyMetrics}
 						/>
 					{:else}
 						<EntryRows
-							entries={visibleEntries}
+							entries={mountedEntries}
+							firstIndex={mountedWindow.firstIndex}
+							topPadding={mountedWindow.topPadding}
+							bottomPadding={mountedWindow.bottomPadding}
 							columns={activeColumns}
 							{selectedPaths}
 							{cutPaths}
@@ -1118,6 +1181,7 @@
 							onContextMenu={openContextMenu}
 							onRenameCommit={commitRename}
 							onRenameCancel={cancelRename}
+							onMetrics={applyMetrics}
 						/>
 					{/if}
 				</div>

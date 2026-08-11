@@ -8,6 +8,9 @@
 	// here from the same tokens.
 	let {
 		entries,
+		firstIndex,
+		topPadding,
+		bottomPadding,
 		columns,
 		selectedPaths,
 		cutPaths,
@@ -18,11 +21,43 @@
 		onContextMenu,
 		onRenameCommit,
 		onRenameCancel,
+		onMetrics,
 	}: EntryViewProps = $props();
+
+	let list = $state<HTMLDivElement>();
+	let header = $state<HTMLDivElement>();
+
+	// Row heights come from the type scale, so they are read back from a mounted
+	// row rather than restated as a number here.
+	$effect(() => {
+		if (!list) {
+			return;
+		}
+		const observer = new ResizeObserver(reportMetrics);
+		observer.observe(list);
+		return () => observer.disconnect();
+	});
+
+	// Re-measures once entries exist, which is when there is a row to measure.
+	$effect(() => {
+		entries.length;
+		reportMetrics();
+	});
+
+	function reportMetrics() {
+		const row = list?.querySelector('[role="option"]');
+		if (!(row instanceof HTMLElement) || !header) {
+			return;
+		}
+		onMetrics({ itemHeight: row.offsetHeight, columns: 1, leadingHeight: header.offsetHeight });
+	}
 </script>
 
-<div class="flex min-w-0 flex-col">
-	<div class="flex items-center gap-2 px-2 pb-1 text-2xs tracking-caps text-faint uppercase">
+<div bind:this={list} class="flex min-w-0 flex-col">
+	<div
+		bind:this={header}
+		class="flex items-center gap-2 px-2 pb-1 text-2xs tracking-caps text-faint uppercase"
+	>
 		<span class="w-8 shrink-0"></span>
 		<span class="min-w-0 flex-1">Name</span>
 		{#each columns as column (column.id)}
@@ -30,7 +65,10 @@
 		{/each}
 	</div>
 
-	{#each entries as entry, index (entry.path)}
+	<div style="height: {topPadding}px"></div>
+
+	{#each entries as entry, position (entry.path)}
+		{@const index = firstIndex + position}
 		{@const isSelected = selectedPaths.has(entry.path)}
 		<!--
 			Keyboard interaction belongs to the listbox container, which owns focus
@@ -39,6 +77,7 @@
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
 		<div
 			id={entryElementId(index)}
+			data-index={index}
 			role="option"
 			tabindex="-1"
 			aria-selected={isSelected}
@@ -66,4 +105,6 @@
 			{/each}
 		</div>
 	{/each}
+
+	<div style="height: {bottomPadding}px"></div>
 </div>

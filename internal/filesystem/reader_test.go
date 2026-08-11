@@ -1,6 +1,7 @@
 package filesystem
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -126,5 +127,23 @@ func mustMakeDir(t *testing.T, path string) {
 	t.Helper()
 	if err := os.Mkdir(path, 0o755); err != nil {
 		t.Fatalf("creating %s failed: %v", path, err)
+	}
+}
+
+// BenchmarkReadDirectoryOfManyEntries is the backend half of the cost of a
+// directory the listing has to virtualize.
+func BenchmarkReadDirectoryOfManyEntries(b *testing.B) {
+	root := b.TempDir()
+	for index := range 100_000 {
+		path := filepath.Join(root, fmt.Sprintf("entry-%06d.txt", index))
+		if err := os.WriteFile(path, nil, 0o644); err != nil {
+			b.Fatalf("write %s: %v", path, err)
+		}
+	}
+
+	for b.Loop() {
+		if _, err := ReadDirectory(root); err != nil {
+			b.Fatalf("ReadDirectory returned error: %v", err)
+		}
 	}
 }

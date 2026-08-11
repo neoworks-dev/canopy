@@ -6,6 +6,9 @@
 
 	let {
 		entries,
+		firstIndex,
+		topPadding,
+		bottomPadding,
 		columns,
 		selectedPaths,
 		cutPaths,
@@ -16,71 +19,97 @@
 		onContextMenu,
 		onRenameCommit,
 		onRenameCancel,
-		onColumnCountChange,
-	}: EntryViewProps & { onColumnCountChange: (count: number) => void } = $props();
+		onMetrics,
+	}: EntryViewProps = $props();
 
 	let grid = $state<HTMLDivElement>();
 
-	// Arrow keys step by the number of tiles actually on a row, which auto-fill
-	// decides from the available width, so it is read back from the layout.
+	// Tiles per row come from auto-fill, which decides them from the available
+	// width, so both the count and the tile height are read back from the layout.
 	$effect(() => {
 		if (!grid) {
 			return;
 		}
-		const observer = new ResizeObserver(reportColumnCount);
+		const observer = new ResizeObserver(reportMetrics);
 		observer.observe(grid);
-		reportColumnCount();
 		return () => observer.disconnect();
 	});
 
-	function reportColumnCount() {
-		if (!grid) {
+	// Re-measures once tiles exist, which is when there is one to measure.
+	$effect(() => {
+		entries.length;
+		reportMetrics();
+	});
+
+	function reportMetrics() {
+		const tile = grid?.querySelector('[role="option"]');
+		if (!(tile instanceof HTMLElement) || !grid) {
 			return;
 		}
-		const tracks = getComputedStyle(grid).gridTemplateColumns.split(" ");
-		onColumnCountChange(Math.max(1, tracks.length));
+		const gap = parseFloat(getComputedStyle(grid).rowGap);
+		onMetrics({ itemHeight: tile.offsetHeight + gap, columns: tileColumns(grid), leadingHeight: 0 });
+	}
+
+	function tileColumns(element: HTMLDivElement): number {
+		const tracks = getComputedStyle(element).gridTemplateColumns.split(" ");
+		return Math.max(1, tracks.length);
 	}
 </script>
 
-<div
-	bind:this={grid}
-	class="grid gap-2"
-	style="grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr))"
->
-	{#each entries as entry, index (entry.path)}
-		{@const isSelected = selectedPaths.has(entry.path)}
-		<!--
-			Keyboard interaction belongs to the listbox container, which owns focus
-			and drives these options through aria-activedescendant.
-		-->
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<div
-			id={entryElementId(index)}
-			role="option"
-			tabindex="-1"
-			aria-selected={isSelected}
-			onclick={(event) => onSelect(index, event)}
-			ondblclick={() => onOpen(entry)}
-			oncontextmenu={(event) => onContextMenu(index, event)}
-			class="flex min-w-0 flex-col items-center gap-2 rounded-lg p-2 transition duration-fast"
-			class:bg-raised={isSelected}
-			class:hover:bg-hover={!isSelected}
-			class:ring-2={index === focusIndex}
-			class:ring-inset={index === focusIndex}
-			class:ring-line-strong={index === focusIndex}
-			class:opacity-50={cutPaths.has(entry.path)}
-		>
-			<EntryIcon {entry} size="lg" />
-			{#if entry.path === renamingPath}
-				<RenameField initialName={entry.name} onCommit={onRenameCommit} onCancel={onRenameCancel} />
-			{:else}
-				<span class="w-full truncate text-center text-xs font-medium text-default">{entry.name}</span>
-			{/if}
-			{#if columns.length > 0}
-				<span class="w-full truncate text-center text-2xs text-dim">
-					{columnSummary(entry, columns)}
-				</span>
-			{/if}
-		</div>
-	{/each}
+<!--
+	The space the unmounted tiles stand in for is padding on the wrapper rather
+	than tiles of its own, so it never picks up a grid gap the window maths does
+	not account for.
+-->
+<div style="padding-top: {topPadding}px; padding-bottom: {bottomPadding}px">
+	<div
+		bind:this={grid}
+		class="grid gap-2"
+		style="grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr))"
+	>
+		{#each entries as entry, position (entry.path)}
+			{@const index = firstIndex + position}
+			{@const isSelected = selectedPaths.has(entry.path)}
+			<!--
+				Keyboard interaction belongs to the listbox container, which owns focus
+				and drives these options through aria-activedescendant.
+			-->
+			<!-- svelte-ignore a11y_click_events_have_key_events -->
+			<div
+				id={entryElementId(index)}
+				data-index={index}
+				role="option"
+				tabindex="-1"
+				aria-selected={isSelected}
+				onclick={(event) => onSelect(index, event)}
+				ondblclick={() => onOpen(entry)}
+				oncontextmenu={(event) => onContextMenu(index, event)}
+				class="flex min-w-0 flex-col items-center gap-2 rounded-lg p-2 transition duration-fast"
+				class:bg-raised={isSelected}
+				class:hover:bg-hover={!isSelected}
+				class:ring-2={index === focusIndex}
+				class:ring-inset={index === focusIndex}
+				class:ring-line-strong={index === focusIndex}
+				class:opacity-50={cutPaths.has(entry.path)}
+			>
+				<EntryIcon {entry} size="lg" />
+				{#if entry.path === renamingPath}
+					<RenameField
+						initialName={entry.name}
+						onCommit={onRenameCommit}
+						onCancel={onRenameCancel}
+					/>
+				{:else}
+					<span class="w-full truncate text-center text-xs font-medium text-default">
+						{entry.name}
+					</span>
+				{/if}
+				{#if columns.length > 0}
+					<span class="w-full truncate text-center text-2xs text-dim">
+						{columnSummary(entry, columns)}
+					</span>
+				{/if}
+			</div>
+		{/each}
+	</div>
 </div>
