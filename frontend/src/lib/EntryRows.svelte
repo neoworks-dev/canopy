@@ -48,7 +48,7 @@
 			onclick={(event) => onSelect(index, event)}
 			ondblclick={() => onOpen(entry)}
 			oncontextmenu={(event) => onContextMenu(index, event)}
-			class="flex w-full items-center gap-2 rounded-lg p-2 text-left transition duration-fast select-none {entryStateClasses(
+			class="flex w-full items-center gap-2 rounded-lg p-2 text-left transition duration-fast {entryStateClasses(
 				entry,
 				index,
 				selectedPaths,

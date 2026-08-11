@@ -20,3 +20,12 @@ body {
 	background: var(--bg);
 	color: var(--text);
 }
+
+/* The shell is unselectable so dragging over entries draws a rubber band rather
+   than a text selection; anywhere the text itself is the content stays
+   selectable. */
+input,
+textarea,
+pre {
+	user-select: text;
+}
