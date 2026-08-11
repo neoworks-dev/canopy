@@ -88,10 +88,10 @@
 	<Card
 		surface="elevated"
 		padding="none"
-		class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2 shadow-lg"
+		class="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-2 shadow-lg"
 	>
 		{#if singleEntry}
-			<div class="flex items-center gap-2">
+			<div class="flex shrink-0 items-center gap-2">
 				<EntryIcon entry={singleEntry} size="md" />
 				<div class="min-w-0">
 					<p class="truncate text-sm font-medium text-default">{singleEntry.name}</p>
@@ -99,7 +99,7 @@
 				</div>
 			</div>
 
-			<dl class="flex flex-col gap-2 rounded-lg bg-raised p-2">
+			<dl class="flex shrink-0 flex-col gap-2 rounded-lg bg-raised p-2">
 				{#each metadataRows(singleEntry) as row (row.label)}
 					<div class="flex items-baseline justify-between gap-2">
 						<dt class="text-2xs tracking-caps text-faint uppercase">{row.label}</dt>
@@ -118,13 +118,13 @@
 				<img
 					src={preview.dataUrl}
 					alt={singleEntry.name}
-					class="max-h-80 w-full rounded-lg bg-raised object-contain p-2"
+					class="min-h-0 flex-1 rounded-lg bg-raised object-contain p-2"
 				/>
 			{:else if preview?.kind === "text"}
 				<pre
-					class="max-h-96 overflow-auto rounded-lg bg-raised p-2 font-mono text-2xs whitespace-pre-wrap text-muted">{preview.text}</pre>
+					class="min-h-0 flex-1 overflow-auto rounded-lg bg-raised p-2 font-mono text-2xs whitespace-pre-wrap text-default">{#if preview.markup}{@html preview.markup}{:else}{preview.text}{/if}</pre>
 				{#if preview.truncated}
-					<p class="text-2xs text-faint">Preview shows the start of the file only.</p>
+					<p class="shrink-0 text-2xs text-faint">Preview shows the start of the file only.</p>
 				{/if}
 			{:else if preview?.kind === "unsupported"}
 				<p class="text-xs text-dim">No preview for this file type.</p>

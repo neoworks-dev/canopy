@@ -64,6 +64,57 @@ func TestReadPreviewKeepsTruncatedMultibyteTextReadable(t *testing.T) {
 	}
 }
 
+func TestReadPreviewHighlightsSource(t *testing.T) {
+	path := writeTemporaryFile(t, "main.go", []byte("package main\n"))
+
+	preview, err := ReadPreview(path)
+	if err != nil {
+		t.Fatalf("ReadPreview: %v", err)
+	}
+
+	if preview.Markup == "" {
+		t.Fatal("expected a source file to come back highlighted")
+	}
+	if preview.Text != "package main\n" {
+		t.Errorf("text = %q, want the plain contents alongside the markup", preview.Text)
+	}
+}
+
+// Highlighting a large file would hold the pane up for longer than reading it,
+// and the text on its own is what the pane falls back to.
+func TestReadPreviewSkipsHighlightingLargeFiles(t *testing.T) {
+	source := []byte("package main\n" + strings.Repeat("// a comment\n", highlightLimit/13))
+	path := writeTemporaryFile(t, "big.go", source)
+
+	preview, err := ReadPreview(path)
+	if err != nil {
+		t.Fatalf("ReadPreview: %v", err)
+	}
+
+	if int64(len(source)) <= highlightLimit {
+		t.Fatalf("the sample is %d bytes, which is within the limit", len(source))
+	}
+	if preview.Markup != "" {
+		t.Error("expected a large file to come back without markup")
+	}
+	if preview.Text == "" {
+		t.Error("expected the text of a large file to still be read")
+	}
+}
+
+func TestReadPreviewLeavesPlainTextUnhighlighted(t *testing.T) {
+	path := writeTemporaryFile(t, "notes.unknownext", []byte("just some words\n"))
+
+	preview, err := ReadPreview(path)
+	if err != nil {
+		t.Fatalf("ReadPreview: %v", err)
+	}
+
+	if preview.Markup != "" {
+		t.Errorf("markup = %q, want nothing for a file no lexer covers", preview.Markup)
+	}
+}
+
 func TestReadPreviewRejectsBinaryContent(t *testing.T) {
 	path := writeTemporaryFile(t, "program.bin", []byte{0x7f, 'E', 'L', 'F', 0x00, 0x01})
 

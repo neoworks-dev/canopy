@@ -4,6 +4,7 @@
 @import "@fontsource/geist-sans/500.css";
 @import "@fontsource/geist-sans/600.css";
 @import "@fontsource/geist-mono/400.css";
+@import "./highlight.css";
 
 /* Tailwind v4 only scans the importing project by default; also scan the shared
    UI package so its utility classes survive purging. */

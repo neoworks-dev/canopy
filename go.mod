@@ -4,7 +4,12 @@ go 1.26.5
 
 require github.com/wailsapp/wails/v2 v2.14.0
 
-require github.com/fsnotify/fsnotify v1.10.1
+require (
+	github.com/alecthomas/chroma/v2 v2.26.1
+	github.com/fsnotify/fsnotify v1.10.1
+)
+
+require github.com/dlclark/regexp2/v2 v2.1.1 // indirect
 
 require (
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect

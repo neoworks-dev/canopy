@@ -158,6 +158,7 @@ export namespace filesystem {
 	    path: string;
 	    kind: string;
 	    text: string;
+	    markup: string;
 	    dataUrl: string;
 	    truncated: boolean;
 	    size: number;
@@ -171,6 +172,7 @@ export namespace filesystem {
 	        this.path = source["path"];
 	        this.kind = source["kind"];
 	        this.text = source["text"];
+	        this.markup = source["markup"];
 	        this.dataUrl = source["dataUrl"];
 	        this.truncated = source["truncated"];
 	        this.size = source["size"];
