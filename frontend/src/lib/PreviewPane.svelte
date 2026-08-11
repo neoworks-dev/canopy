@@ -2,6 +2,7 @@
 	import { Card, LoadingSpinner } from "@neoworks-dev/ui";
 	import { PreviewFile } from "../../wailsjs/go/main/FileService";
 	import type { filesystem } from "../../wailsjs/go/models";
+	import CodeCanvas from "./CodeCanvas.svelte";
 	import EntryIcon from "./EntryIcon.svelte";
 	import { describeError } from "./errors";
 	import { classifyEntry, kindLabel } from "./fileKind";
@@ -120,9 +121,14 @@
 					alt={singleEntry.name}
 					class="min-h-0 flex-1 rounded-lg bg-raised object-contain p-2"
 				/>
+			{:else if preview?.kind === "text" && preview.tokens?.length}
+				<CodeCanvas tokens={preview.tokens} />
+				{#if preview.truncated}
+					<p class="shrink-0 text-2xs text-faint">Preview shows the start of the file only.</p>
+				{/if}
 			{:else if preview?.kind === "text"}
 				<pre
-					class="min-h-0 flex-1 overflow-auto rounded-lg bg-raised p-2 font-mono text-2xs whitespace-pre-wrap text-default">{#if preview.markup}{@html preview.markup}{:else}{preview.text}{/if}</pre>
+					class="min-h-0 flex-1 overflow-auto rounded-lg bg-raised p-2 font-mono text-2xs whitespace-pre-wrap text-muted">{preview.text}</pre>
 				{#if preview.truncated}
 					<p class="shrink-0 text-2xs text-faint">Preview shows the start of the file only.</p>
 				{/if}

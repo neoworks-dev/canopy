@@ -5,40 +5,60 @@ import (
 	"testing"
 )
 
-func TestHTMLMarksUpASourceFile(t *testing.T) {
-	marked := HTML("main.go", "package main\n")
+func TestTokensSplitASourceFile(t *testing.T) {
+	tokens := Tokens("main.go", "package main\n")
 
-	if !strings.Contains(marked, `<span class="`+ClassPrefix) {
-		t.Fatalf("expected prefixed spans, got %q", marked)
+	if len(tokens) == 0 {
+		t.Fatal("expected a source file to come back tokenised")
 	}
-	if !strings.Contains(marked, "package") {
-		t.Errorf("expected the source text to survive, got %q", marked)
+	if joined(tokens) != "package main\n" {
+		t.Errorf("tokens spell %q, want the source back", joined(tokens))
+	}
+	if !classPresent(tokens, ClassPrefix+"kn") {
+		t.Errorf("expected the keyword to carry its class, got %v", tokens)
 	}
 }
 
-func TestHTMLPicksTheLanguageFromTheFileName(t *testing.T) {
+func TestTokensPickTheLanguageFromTheFileName(t *testing.T) {
 	for _, fileName := range []string{"script.py", "styles.css", "Makefile", "notes.md"} {
-		if HTML(fileName, "a = 1\n") == "" {
+		if len(Tokens(fileName, "a = 1\n")) == 0 {
 			t.Errorf("expected %q to be highlighted", fileName)
 		}
 	}
 }
 
-func TestHTMLLeavesAnUnknownFileTypeAlone(t *testing.T) {
-	if marked := HTML("archive.qqq", "some words\n"); marked != "" {
-		t.Fatalf("expected no markup for an unknown file type, got %q", marked)
+func TestTokensLeaveAnUnknownFileTypeAlone(t *testing.T) {
+	if tokens := Tokens("archive.qqq", "some words\n"); tokens != nil {
+		t.Fatalf("expected no tokens for an unknown file type, got %v", tokens)
 	}
 }
 
-// The markup is inserted as HTML, so a file that contains markup of its own has
-// to come back as text rather than as tags.
-func TestHTMLEscapesTheSourceText(t *testing.T) {
-	marked := HTML("page.py", `x = "<img src=x onerror=alert(1)>"`)
+// Every class the tokens carry has to be one the generated stylesheet colours,
+// or the run is drawn in a colour nothing chose.
+func TestTokenClassesAreAllPrefixed(t *testing.T) {
+	for _, token := range Tokens("script.py", "def f(x):\n\treturn \"a\" + 1  # note\n") {
+		if token.Class == "" {
+			continue
+		}
+		if !strings.HasPrefix(token.Class, ClassPrefix) {
+			t.Errorf("class %q is missing the prefix", token.Class)
+		}
+	}
+}
 
-	if strings.Contains(marked, "<img") {
-		t.Fatalf("expected the tag to be escaped, got %q", marked)
+func joined(tokens []Token) string {
+	text := strings.Builder{}
+	for _, token := range tokens {
+		text.WriteString(token.Text)
 	}
-	if !strings.Contains(marked, "&lt;img") {
-		t.Errorf("expected the text to survive escaped, got %q", marked)
+	return text.String()
+}
+
+func classPresent(tokens []Token, class string) bool {
+	for _, token := range tokens {
+		if token.Class == class {
+			return true
+		}
 	}
+	return false
 }

@@ -72,7 +72,7 @@ func TestReadPreviewHighlightsSource(t *testing.T) {
 		t.Fatalf("ReadPreview: %v", err)
 	}
 
-	if preview.Markup == "" {
+	if len(preview.Tokens) == 0 {
 		t.Fatal("expected a source file to come back highlighted")
 	}
 	if preview.Text != "package main\n" {
@@ -94,8 +94,8 @@ func TestReadPreviewSkipsHighlightingLargeFiles(t *testing.T) {
 	if int64(len(source)) <= highlightLimit {
 		t.Fatalf("the sample is %d bytes, which is within the limit", len(source))
 	}
-	if preview.Markup != "" {
-		t.Error("expected a large file to come back without markup")
+	if preview.Tokens != nil {
+		t.Error("expected a large file to come back without tokens")
 	}
 	if preview.Text == "" {
 		t.Error("expected the text of a large file to still be read")
@@ -110,8 +110,8 @@ func TestReadPreviewLeavesPlainTextUnhighlighted(t *testing.T) {
 		t.Fatalf("ReadPreview: %v", err)
 	}
 
-	if preview.Markup != "" {
-		t.Errorf("markup = %q, want nothing for a file no lexer covers", preview.Markup)
+	if preview.Tokens != nil {
+		t.Errorf("tokens = %v, want none for a file no lexer covers", preview.Tokens)
 	}
 }
 

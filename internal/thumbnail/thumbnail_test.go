@@ -2,6 +2,7 @@ package thumbnail
 
 import (
 	"bytes"
+	"encoding/base64"
 	"image"
 	"image/color"
 	"image/png"
@@ -14,6 +15,7 @@ import (
 )
 
 func TestRenderProducesADataURLAndCachesIt(t *testing.T) {
+	requireImageRenderer(t)
 	cache := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cache)
 	source := writePNG(t, 400, 200)
@@ -29,6 +31,7 @@ func TestRenderProducesADataURLAndCachesIt(t *testing.T) {
 }
 
 func TestRenderReusesACachedThumbnail(t *testing.T) {
+	requireImageRenderer(t)
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	source := writePNG(t, 400, 200)
 	setModified(t, source, 1700000000)
@@ -44,6 +47,7 @@ func TestRenderReusesACachedThumbnail(t *testing.T) {
 }
 
 func TestRenderIgnoresACachedThumbnailOfAnOlderVersion(t *testing.T) {
+	requireImageRenderer(t)
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	source := writePNG(t, 400, 200)
 	setModified(t, source, 1700000000)
@@ -136,34 +140,17 @@ func TestThumbnailMetadataRejectsSomethingThatIsNotAPNG(t *testing.T) {
 	}
 }
 
-func TestScaleToFitCapsTheLongestSide(t *testing.T) {
-	scaled := scaleToFit(image.NewRGBA(image.Rect(0, 0, 1000, 500)), 256)
+// Nothing bounds the size of a rendered image inside this package any more, so
+// the cap ffmpeg was asked for is what the test checks.
+func TestRenderCapsTheLongestSide(t *testing.T) {
+	requireImageRenderer(t)
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	source := writePNG(t, 1000, 500)
 
-	if scaled.Bounds().Dx() != 256 || scaled.Bounds().Dy() != 128 {
-		t.Fatalf("got %v", scaled.Bounds())
-	}
-}
+	rendered := decodeDataURL(t, Render(source).DataURL)
 
-func TestScaleToFitLeavesSmallImagesAlone(t *testing.T) {
-	source := image.NewRGBA(image.Rect(0, 0, 32, 16))
-
-	if scaleToFit(source, 256) != image.Image(source) {
-		t.Fatalf("expected the same image back")
-	}
-}
-
-func TestScaleToFitAveragesTheSourcePixels(t *testing.T) {
-	source := image.NewRGBA(image.Rect(0, 0, 2, 2))
-	source.Set(0, 0, color.RGBA{R: 255, A: 255})
-	source.Set(1, 0, color.RGBA{R: 255, A: 255})
-	source.Set(0, 1, color.RGBA{A: 255})
-	source.Set(1, 1, color.RGBA{A: 255})
-
-	scaled := downscale(source, 1, 1)
-
-	red, _, _, _ := scaled.At(0, 0).RGBA()
-	if eightBit(uint64(red)) != 127 {
-		t.Fatalf("expected the halves to average, got %d", eightBit(uint64(red)))
+	if rendered.Bounds().Dx() != thumbnailSize || rendered.Bounds().Dy() != thumbnailSize/2 {
+		t.Fatalf("got %v", rendered.Bounds())
 	}
 }
 
@@ -206,6 +193,30 @@ func requirePDFRenderer(t *testing.T) {
 	}
 }
 
+func requireImageRenderer(t *testing.T) {
+	t.Helper()
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("ffmpeg is not installed")
+	}
+}
+
+func decodeDataURL(t *testing.T, dataURL string) image.Image {
+	t.Helper()
+	_, encoded, found := strings.Cut(dataURL, ",")
+	if !found {
+		t.Fatalf("expected a data URL, got %q", truncate(dataURL))
+	}
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered, err := png.Decode(bytes.NewReader(decoded))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return rendered
+}
+
 func setModified(t *testing.T, path string, seconds int64) {
 	t.Helper()
 	stamp := time.Unix(seconds, 0)
@@ -220,11 +231,11 @@ func encodeSample(t *testing.T, width int, height int) []byte {
 	for x := range width {
 		sample.Set(x, 0, color.RGBA{R: uint8(x), G: 128, B: 64, A: 255})
 	}
-	encoded, err := encodePNG(sample)
-	if err != nil {
+	encoded := bytes.Buffer{}
+	if err := png.Encode(&encoded, sample); err != nil {
 		t.Fatal(err)
 	}
-	return encoded
+	return encoded.Bytes()
 }
 
 func countCachedThumbnails(t *testing.T, cache string) int {

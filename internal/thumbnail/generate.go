@@ -4,14 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"image"
-	"image/png"
-	"os"
 	"os/exec"
 	"strconv"
-
-	_ "image/gif"
-	_ "image/jpeg"
 )
 
 // The edge length the shared cache calls "large". Tiles are drawn well below
@@ -23,16 +17,14 @@ var errNoRenderer = errors.New("no renderer for this file type")
 // renderer turns one file into a PNG no larger than size on its longest side.
 type renderer func(ctx context.Context, absolutePath string, size int) ([]byte, error)
 
-// Extensions the standard library decodes on its own. Everything else needs a
-// helper program, which may not be installed.
-var nativeImageExtensions = map[string]bool{
+// Every image goes to ffmpeg, which decodes straight to the size a thumbnail
+// needs. Decoding a large photo in full first and shrinking it afterwards costs
+// several times as long, whoever writes the loop.
+var imageExtensions = map[string]bool{
 	".png":  true,
 	".jpg":  true,
 	".jpeg": true,
 	".gif":  true,
-}
-
-var decodableImageExtensions = map[string]bool{
 	".webp": true,
 	".avif": true,
 	".bmp":  true,
@@ -55,10 +47,7 @@ var videoExtensions = map[string]bool{
 }
 
 func rendererFor(extension string) renderer {
-	if nativeImageExtensions[extension] {
-		return renderNativeImage
-	}
-	if decodableImageExtensions[extension] {
+	if imageExtensions[extension] {
 		return renderImageWithFFmpeg
 	}
 	if videoExtensions[extension] {
@@ -76,29 +65,6 @@ func CanRender(extension string) bool {
 	return rendererFor(extension) != nil
 }
 
-func renderNativeImage(_ context.Context, absolutePath string, size int) ([]byte, error) {
-	file, err := os.Open(absolutePath)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	decoded, _, err := image.Decode(file)
-	if err != nil {
-		return nil, err
-	}
-	return encodePNG(scaleToFit(decoded, size))
-}
-
-func encodePNG(scaled image.Image) ([]byte, error) {
-	buffer := bytes.Buffer{}
-	if err := png.Encode(&buffer, scaled); err != nil {
-		return nil, err
-	}
-	return buffer.Bytes(), nil
-}
-
-// ffmpeg reads the formats the standard library does not, so an image it can
-// decode is scaled and re-encoded in one pass.
 func renderImageWithFFmpeg(ctx context.Context, absolutePath string, size int) ([]byte, error) {
 	return runRenderer(ctx, "ffmpeg", ffmpegArguments(absolutePath, size)...)
 }

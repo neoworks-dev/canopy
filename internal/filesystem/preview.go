@@ -16,16 +16,16 @@ import (
 // Preview is what the explorer can show about a single file without handing it
 // to another application. Kind tells the frontend which field to render:
 // "text", "image", "directory", or "unsupported".
-// Markup is the same text marked up as HTML, empty when the file has no
+// Tokens is the same text split into coloured runs, empty when the file has no
 // highlighting, in which case the pane draws Text as it is.
 type Preview struct {
-	Path      string `json:"path"`
-	Kind      string `json:"kind"`
-	Text      string `json:"text"`
-	Markup    string `json:"markup"`
-	DataURL   string `json:"dataUrl"`
-	Truncated bool   `json:"truncated"`
-	Size      int64  `json:"size"`
+	Path      string            `json:"path"`
+	Kind      string            `json:"kind"`
+	Text      string            `json:"text"`
+	Tokens    []highlight.Token `json:"tokens"`
+	DataURL   string            `json:"dataUrl"`
+	Truncated bool              `json:"truncated"`
+	Size      int64             `json:"size"`
 }
 
 // Enough text to scroll through without pushing a huge file across the Wails
@@ -116,18 +116,18 @@ func textPreview(absolutePath string, size int64) (Preview, error) {
 	preview.Kind = "text"
 	preview.Text = string(readable)
 	preview.Truncated = size > int64(len(contents))
-	preview.Markup = markupFor(absolutePath, size, preview.Text)
+	preview.Tokens = tokensFor(absolutePath, size, preview.Text)
 	return preview, nil
 }
 
 // Highlighting a file costs about as much as reading it, and a pane that has to
 // wait for it is worse than one that shows the text plain, so past the limit the
 // text goes across on its own.
-func markupFor(absolutePath string, size int64, text string) string {
+func tokensFor(absolutePath string, size int64, text string) []highlight.Token {
 	if size > highlightLimit {
-		return ""
+		return nil
 	}
-	return highlight.HTML(filepath.Base(absolutePath), text)
+	return highlight.Tokens(filepath.Base(absolutePath), text)
 }
 
 func readAtMost(absolutePath string, limit int64) ([]byte, error) {
