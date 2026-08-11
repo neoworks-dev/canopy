@@ -16,6 +16,8 @@
 		onChange,
 		directoriesFirst,
 		onDirectoriesFirstChange,
+		alwaysShowDetails,
+		onAlwaysShowDetailsChange,
 	}: {
 		viewMode: ViewMode;
 		onViewModeChange: (mode: ViewMode) => void;
@@ -23,6 +25,8 @@
 		onChange: (ids: ColumnId[]) => void;
 		directoriesFirst: boolean;
 		onDirectoriesFirstChange: (directoriesFirst: boolean) => void;
+		alwaysShowDetails: boolean;
+		onAlwaysShowDetailsChange: (alwaysShowDetails: boolean) => void;
 	} = $props();
 
 	const viewModes: { id: ViewMode; label: string; icon: IconComponent }[] = [
@@ -94,6 +98,16 @@
 						<span class="text-sm text-default">{column.label}</span>
 					</label>
 				{/each}
+
+				<p class="px-1 text-2xs tracking-caps text-faint uppercase">Details</p>
+				<label class="flex cursor-pointer items-center gap-2 rounded-md p-2 hover:bg-hover">
+					<Checkbox
+						size="sm"
+						checked={alwaysShowDetails}
+						onchange={() => onAlwaysShowDetailsChange(!alwaysShowDetails)}
+					/>
+					<span class="text-sm text-default">Always show the pane</span>
+				</label>
 
 				<p class="px-1 text-2xs tracking-caps text-faint uppercase">Sorting</p>
 				<label class="flex cursor-pointer items-center gap-2 rounded-md p-2 hover:bg-hover">

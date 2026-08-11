@@ -24,6 +24,8 @@ export type ViewSettings = {
 	panes: PaneWidths;
 	/** The sidebar groups that are folded shut. */
 	collapsedSections: SidebarSectionId[];
+	/** Keeps the details pane open even when it has nothing to describe. */
+	alwaysShowDetails: boolean;
 	/** Appended after the built-in keymap, so these override it. */
 	keybindings: Keybinding[];
 };
@@ -40,6 +42,7 @@ export type StoredSettings = {
 	lastDirectory?: string;
 	panes?: { sidebar?: number; details?: number };
 	collapsedSections?: string[];
+	alwaysShowDetails?: boolean;
 	keybindings?: Array<{ key?: string; command?: string; when?: string }>;
 };
 
@@ -55,6 +58,7 @@ export const defaultViewSettings: ViewSettings = {
 	lastDirectory: "",
 	panes: defaultPaneWidths,
 	collapsedSections: [],
+	alwaysShowDetails: false,
 	keybindings: [],
 };
 
@@ -68,6 +72,7 @@ export function viewSettingsFrom(stored: StoredSettings): ViewSettings {
 		lastDirectory: pathFrom(stored.lastDirectory),
 		panes: paneWidthsFrom(stored.panes),
 		collapsedSections: sidebarSectionsFrom(stored.collapsedSections),
+		alwaysShowDetails: stored.alwaysShowDetails === true,
 		keybindings: keybindingsFrom(stored.keybindings),
 	};
 }

@@ -99,11 +99,12 @@
 		type Rectangle,
 	} from "./lib/marquee";
 	import { targetIndexFor, type Movement } from "./lib/movement";
-	import { defaultPaneWidths } from "./lib/panes";
+	import { defaultPaneWidths, paneGutterWidth } from "./lib/panes";
 	import {
 		sectionsAfterToggle,
 		type SidebarSectionId,
 	} from "./lib/sidebar";
+	import { itemCount, summarize, type StatusInput } from "./lib/statusStrip";
 	import {
 		defaultViewSettings,
 		viewSettingsFrom,
@@ -192,6 +193,7 @@
 	let searchInput = $state<HTMLInputElement>();
 	let sidebarWidth = $state(defaultPaneWidths.sidebar);
 	let detailsWidth = $state(defaultPaneWidths.details);
+	let alwaysShowDetails = $state(false);
 
 	let clipboardPaths = $state<string[]>([]);
 	let isClipboardCut = $state(false);
@@ -254,6 +256,11 @@
 	// then.
 	const watchedPath = $derived(directoryOnScreen());
 	const isFolderPinned = $derived(pinned.some((bookmark) => bookmark.path === currentPath));
+	// The pane describes one entry, so it earns its width when there is one to
+	// describe — or when the user has asked for it to stay.
+	const isDetailsOpen = $derived(detailsPaneBelongsOnScreen());
+	const isSidebarOpen = $derived(places.length > 0);
+	const status = $derived(summarize(statusInput()));
 	// Only the entries around the viewport are mounted, so a directory of a
 	// hundred thousand builds a screenful of DOM rather than all of it.
 	const mountedWindow = $derived(listWindow(listMetrics, visibleEntries.length, viewport));
@@ -366,6 +373,7 @@
 		sidebarWidth = stored.panes.sidebar;
 		detailsWidth = stored.panes.details;
 		collapsedSections = stored.collapsedSections;
+		alwaysShowDetails = stored.alwaysShowDetails;
 		userKeybindings = stored.keybindings;
 		areSettingsLoaded = true;
 		return stored;
@@ -391,6 +399,7 @@
 			lastDirectory: currentPath,
 			panes: { sidebar: sidebarWidth, details: detailsWidth },
 			collapsedSections,
+			alwaysShowDetails,
 		});
 	}
 
@@ -1433,11 +1442,45 @@
 		return current.path;
 	}
 
-	function itemCountLabel(count: number): string {
-		if (count === 1) {
-			return "1 item";
+	function detailsPaneBelongsOnScreen(): boolean {
+		if (alwaysShowDetails) {
+			return true;
 		}
-		return `${count} items`;
+		return selectedEntries.length === 1;
+	}
+
+	// The strip carries what the details pane would have said, so it only has
+	// something to report while a listing is the pane on screen.
+	function statusInput(): StatusInput {
+		if (!isListActive()) {
+			return { entryCount: 0, hiddenCount: 0, selected: [] };
+		}
+		return {
+			entryCount: visibleEntries.length,
+			hiddenCount: hiddenEntryCount(),
+			selected: selectedEntries,
+		};
+	}
+
+	function hiddenEntryCount(): number {
+		if (!listing) {
+			return 0;
+		}
+		return listing.entries.length - visibleEntries.length;
+	}
+
+	// The strip lines up with the listing rather than the window, so the space a
+	// flanking pane takes is left empty beside it.
+	function stripInset(): string {
+		return `margin-left: ${insetFor(isSidebarOpen, sidebarWidth)}px; margin-right: ${insetFor(isDetailsOpen, detailsWidth)}px`;
+	}
+
+	// The gutter between the panes is as wide as the resizer that sits in it.
+	function insetFor(isOpen: boolean, width: number): number {
+		if (!isOpen) {
+			return 0;
+		}
+		return width + paneGutterWidth;
 	}
 
 	function indexingLabel(status: proto.StatusResult): string {
@@ -1457,11 +1500,11 @@
 		if (selectedEntries.length === 1) {
 			return `Tags for ${selectedEntries[0].name}`;
 		}
-		return `Tags for ${itemCountLabel(selectedEntries.length)}`;
+		return `Tags for ${itemCount(selectedEntries.length)}`;
 	}
 
 	function deleteMessage(): string {
-		return `${itemCountLabel(selectedEntries.length)} will be deleted permanently. This cannot be undone.`;
+		return `${itemCount(selectedEntries.length)} will be deleted permanently. This cannot be undone.`;
 	}
 
 	function handleAuxClick(event: MouseEvent) {
@@ -1525,13 +1568,15 @@
 			onChange={setColumns}
 			directoriesFirst={sortOrder.directoriesFirst}
 			onDirectoriesFirstChange={setDirectoriesFirst}
+			{alwaysShowDetails}
+			onAlwaysShowDetailsChange={(always) => (alwaysShowDetails = always)}
 		/>
 
 		<Button size="sm" variant="ghost" icon={hiddenToggleIcon()} onclick={toggleHidden} />
 	</div>
 
 	<div class="flex min-h-0 flex-1">
-		{#if places.length > 0}
+		{#if isSidebarOpen}
 			<PlacesSidebar
 				{places}
 				{devices}
@@ -1664,19 +1709,28 @@
 			{/if}
 		</Card>
 
-		<PaneResizer
-			side="right"
-			width={detailsWidth}
-			label="Resize the details pane"
-			onWidth={(width) => (detailsWidth = width)}
-		/>
+		{#if isDetailsOpen}
+			<PaneResizer
+				side="right"
+				width={detailsWidth}
+				label="Resize the details pane"
+				onWidth={(width) => (detailsWidth = width)}
+			/>
 
-		<PreviewPane entries={selectedEntries} width={detailsWidth} />
+			<PreviewPane entries={selectedEntries} width={detailsWidth} />
+		{/if}
 	</div>
 
-	<!-- Status strip: floats on the canvas like the top bar, and is empty until it
-	     is given something to carry. -->
-	<div class="flex h-8 shrink-0 items-center gap-2 px-1"></div>
+	<!-- Status strip: floats on the canvas like the top bar, and lines up with
+	     the listing rather than the window. -->
+	<div class="flex h-8 shrink-0 items-center gap-2 px-1" style={stripInset()}>
+		{#if status.primary}
+			<span class="min-w-0 truncate text-xs text-muted">{status.primary}</span>
+		{/if}
+		{#if status.secondary}
+			<span class="shrink-0 text-xs text-faint">{status.secondary}</span>
+		{/if}
+	</div>
 </div>
 
 {#if band}

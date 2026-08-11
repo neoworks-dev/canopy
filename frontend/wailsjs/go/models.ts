@@ -364,6 +364,7 @@ export namespace settings {
 	    window: Window;
 	    panes: Panes;
 	    collapsedSections?: string[];
+	    alwaysShowDetails: boolean;
 	    keybindings?: Keybinding[];
 	
 	    static createFrom(source: any = {}) {
@@ -381,6 +382,7 @@ export namespace settings {
 	        this.window = this.convertValues(source["window"], Window);
 	        this.panes = this.convertValues(source["panes"], Panes);
 	        this.collapsedSections = source["collapsedSections"];
+	        this.alwaysShowDetails = source["alwaysShowDetails"];
 	        this.keybindings = this.convertValues(source["keybindings"], Keybinding);
 	    }
 	

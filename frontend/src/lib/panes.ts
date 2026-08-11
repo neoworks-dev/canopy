@@ -12,6 +12,9 @@ export type PaneWidths = {
 /** How far one arrow key press moves a gutter. */
 export const paneResizeStep = 16;
 
+/** The width of the gutter a resizer sits in, in pixels. */
+export const paneGutterWidth = 8;
+
 export const minimumPaneWidth = 160;
 // The places rail stays compact; the details pane holds previews, so it may grow.
 const maximumPaneWidth: Record<PaneSide, number> = { left: 420, right: 640 };
