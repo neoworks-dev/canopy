@@ -169,3 +169,12 @@ func mustSucceed(t *testing.T, err error) {
 		t.Fatal(err)
 	}
 }
+
+// A nil slice crosses the Wails bridge as null, which the sidebar cannot walk.
+func TestAnEmptyVocabularyIsAListRatherThanNothing(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	if OpenVocabulary().Names() == nil {
+		t.Fatalf("expected an empty list rather than nothing")
+	}
+}

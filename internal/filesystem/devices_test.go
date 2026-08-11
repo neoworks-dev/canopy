@@ -52,3 +52,10 @@ func TestDevicesFromMarksRemovableMedia(t *testing.T) {
 		t.Errorf("media mounted under /run/media is removable")
 	}
 }
+
+// A nil slice crosses the Wails bridge as null, which the sidebar cannot walk.
+func TestDevicesAreAListEvenWhenThereAreNone(t *testing.T) {
+	if devicesFrom(nil) == nil {
+		t.Fatalf("expected an empty list rather than nothing")
+	}
+}

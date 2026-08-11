@@ -85,3 +85,10 @@ func openInTemporaryConfig(t *testing.T) *Store {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	return Open()
 }
+
+// A nil slice crosses the Wails bridge as null, which the sidebar cannot walk.
+func TestAnEmptyListIsAListRatherThanNothing(t *testing.T) {
+	if openInTemporaryConfig(t).List() == nil {
+		t.Fatalf("expected an empty list rather than nothing")
+	}
+}

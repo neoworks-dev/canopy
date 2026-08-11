@@ -172,8 +172,12 @@
 		return () => observer.disconnect();
 	});
 
+	// The report is tracked so a change to the listing or the selection sends a
+	// fresh one; delivering it is not, or reading the callback back would make
+	// the chrome's own re-render the reason to report again.
 	$effect(() => {
-		onStatus(currentStatus());
+		const reported = currentStatus();
+		untrack(() => onStatus(reported));
 	});
 
 	export function reload() {

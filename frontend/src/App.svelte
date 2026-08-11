@@ -145,8 +145,10 @@
 	let statuses = $state<Record<string, PaneStatus>>({});
 
 	// Panes are driven imperatively for the actions that belong to whatever they
-	// have selected, so the command that runs reaches the pane in focus.
-	const panes: Record<string, FilePane> = {};
+	// have selected, so the command that runs reaches the pane in focus. Bound
+	// state rather than a plain object, since the bindings write into it as the
+	// panes mount and are torn down.
+	let panes = $state<Record<string, FilePane>>({});
 
 	let places = $state<filesystem.Place[]>([]);
 	let devices = $state<filesystem.Device[]>([]);
@@ -392,9 +394,15 @@
 		tagNames = await orEmpty(KnownTags());
 	}
 
+	// A Go slice with nothing in it crosses the bridge as null, so an empty group
+	// is turned back into a list rather than left as something to walk.
 	async function orEmpty<Item>(request: Promise<Item[]>): Promise<Item[]> {
 		try {
-			return await request;
+			const loaded = await request;
+			if (!loaded) {
+				return [];
+			}
+			return loaded;
 		} catch {
 			return [];
 		}

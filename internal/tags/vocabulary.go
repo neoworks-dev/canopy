@@ -35,7 +35,7 @@ func OpenVocabulary() *Vocabulary {
 func (vocabulary *Vocabulary) Names() []string {
 	vocabulary.mutex.Lock()
 	defer vocabulary.mutex.Unlock()
-	return append([]string(nil), vocabulary.names...)
+	return copyOf(vocabulary.names)
 }
 
 // Remember adds names that are now in use, which is how tagging a file for the
@@ -43,7 +43,7 @@ func (vocabulary *Vocabulary) Names() []string {
 func (vocabulary *Vocabulary) Remember(names []string) {
 	vocabulary.mutex.Lock()
 	vocabulary.names = normalize(append(vocabulary.names, names...))
-	saving := append([]string(nil), vocabulary.names...)
+	saving := copyOf(vocabulary.names)
 	vocabulary.mutex.Unlock()
 	vocabulary.write(saving)
 }
@@ -51,9 +51,15 @@ func (vocabulary *Vocabulary) Remember(names []string) {
 func (vocabulary *Vocabulary) Forget(name string) {
 	vocabulary.mutex.Lock()
 	vocabulary.names = without(vocabulary.names, name)
-	saving := append([]string(nil), vocabulary.names...)
+	saving := copyOf(vocabulary.names)
 	vocabulary.mutex.Unlock()
 	vocabulary.write(saving)
+}
+
+// An empty vocabulary is a list, not nothing: the sidebar is handed a set it
+// can walk either way.
+func copyOf(names []string) []string {
+	return append(make([]string, 0, len(names)), names...)
 }
 
 func readVocabulary(path string) []string {

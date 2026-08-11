@@ -55,7 +55,7 @@ func (store *Store) Record(path string, isDir bool) {
 		return
 	}
 	store.entries = withEntryInFront(store.entries, entryFor(path, isDir))
-	saving := append([]Entry(nil), store.entries...)
+	saving := copyOf(store.entries)
 	store.mutex.Unlock()
 	store.write(saving)
 }
@@ -63,7 +63,7 @@ func (store *Store) Record(path string, isDir bool) {
 func (store *Store) List() []Entry {
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
-	return append([]Entry(nil), store.entries...)
+	return copyOf(store.entries)
 }
 
 func (store *Store) Clear() {
@@ -80,6 +80,12 @@ func isAlreadyInFront(entries []Entry, path string) bool {
 		return false
 	}
 	return entries[0].Path == path
+}
+
+// An empty list is a list, not nothing: the frontend is handed a set it can
+// walk either way.
+func copyOf(entries []Entry) []Entry {
+	return append(make([]Entry, 0, len(entries)), entries...)
 }
 
 func entryFor(path string, isDir bool) Entry {

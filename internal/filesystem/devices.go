@@ -52,7 +52,7 @@ var removableRoots = []string{"/run/media", "/media", "/mnt"}
 func Devices() []Device {
 	contents, err := os.ReadFile("/proc/self/mounts")
 	if err != nil {
-		return nil
+		return []Device{}
 	}
 	return devicesFrom(parseMounts(string(contents)))
 }
