@@ -369,6 +369,11 @@ func (service *FileService) OpenPath(path string) error {
 	return nil
 }
 
+// OpenTerminal starts the system's terminal in a directory.
+func (service *FileService) OpenTerminal(directory string) error {
+	return launcher.OpenTerminal(directory)
+}
+
 // ApplicationsFor lists the desktop entries registered for a path's type.
 func (service *FileService) ApplicationsFor(path string) []launcher.Application {
 	return launcher.ApplicationsFor(path)

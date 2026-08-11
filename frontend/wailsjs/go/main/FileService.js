@@ -82,6 +82,10 @@ export function OpenPath(arg1) {
   return window['go']['main']['FileService']['OpenPath'](arg1);
 }
 
+export function OpenTerminal(arg1) {
+  return window['go']['main']['FileService']['OpenTerminal'](arg1);
+}
+
 export function OpenWith(arg1, arg2) {
   return window['go']['main']['FileService']['OpenWith'](arg1, arg2);
 }

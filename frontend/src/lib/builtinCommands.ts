@@ -11,6 +11,7 @@
  *   canUndo canGoBack canGoForward canGoUp
  *   viewMode       "rows" or "grid"
  *   folderPinned   the folder in focus is pinned to the sidebar
+ *   directoryOpen  the pane is showing a directory rather than a virtual list
  *   tabCount paneCount canSplit
  */
 import type { CommandDescriptor } from "./commands";
@@ -64,6 +65,12 @@ export const staticCommandDescriptors: CommandDescriptor[] = [
 	{ id: "navigate.forward", title: "Forward", category: "Navigation", when: "canGoForward" },
 	{ id: "navigate.home", title: "Go to home folder", category: "Navigation" },
 	{ id: "navigate.trash", title: "Open trash", category: "Navigation" },
+	{
+		id: "navigate.terminal",
+		title: "Open terminal here",
+		category: "Navigation",
+		when: "directoryOpen",
+	},
 	{ id: "navigate.editPath", title: "Edit location", category: "Navigation" },
 
 	{ id: "list.selectAll", title: "Select all", category: "Listing", when: "listActive" },
@@ -155,6 +162,7 @@ export const selectionMenuIds: string[][] = [
 export const backgroundMenuIds: string[][] = [
 	["file.newFolder", "file.newFile"],
 	["file.paste"],
+	["navigate.terminal"],
 	["bookmark.pin", "bookmark.unpin"],
 	["file.undo"],
 ];
@@ -188,6 +196,8 @@ export const defaultKeymap: Keybinding[] = [
 	{ key: "alt+right", command: "navigate.forward" },
 	{ key: "g h", command: "navigate.home" },
 	{ key: "g t", command: "navigate.trash" },
+	{ key: "g s", command: "navigate.terminal", when: "listActive" },
+	{ key: "ctrl+alt+t", command: "navigate.terminal" },
 	{ key: "ctrl+l", command: "navigate.editPath" },
 
 	{ key: "y y", command: "file.copy", when: "listActive" },

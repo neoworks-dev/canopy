@@ -15,12 +15,14 @@ import FolderPlusIcon from "phosphor-svelte/lib/FolderPlusIcon";
 import PencilSimpleIcon from "phosphor-svelte/lib/PencilSimpleIcon";
 import ScissorsIcon from "phosphor-svelte/lib/ScissorsIcon";
 import TagIcon from "phosphor-svelte/lib/TagIcon";
+import TerminalWindowIcon from "phosphor-svelte/lib/TerminalWindowIcon";
 import TrashIcon from "phosphor-svelte/lib/TrashIcon";
 import XCircleIcon from "phosphor-svelte/lib/XCircleIcon";
 
 const icons = new Map<string, IconComponent>([
 	["navigate.open", ArrowSquareOutIcon],
 	["navigate.openWith", ArrowSquareOutIcon],
+	["navigate.terminal", TerminalWindowIcon],
 	["file.cut", ScissorsIcon],
 	["file.copy", CopyIcon],
 	["file.paste", ClipboardIcon],

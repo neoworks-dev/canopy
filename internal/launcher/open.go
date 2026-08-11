@@ -150,11 +150,18 @@ func (scanner *execScanner) flush() {
 // runDetached starts the process in its own session so it outlives the explorer,
 // and reaps it in the background rather than leaving a zombie.
 func runDetached(name string, arguments ...string) error {
+	return runDetachedIn("", name, arguments...)
+}
+
+// runDetachedIn is runDetached with a working directory, which an empty
+// directory leaves as the explorer's own.
+func runDetachedIn(directory, name string, arguments ...string) error {
 	_, err := exec.LookPath(name)
 	if err != nil {
 		return fmt.Errorf("%s is not installed", name)
 	}
 	command := exec.Command(name, arguments...)
+	command.Dir = directory
 	command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	err = command.Start()
 	if err != nil {

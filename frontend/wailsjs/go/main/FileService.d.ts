@@ -50,6 +50,8 @@ export function LoadSettings():Promise<settings.Settings>;
 
 export function OpenPath(arg1:string):Promise<void>;
 
+export function OpenTerminal(arg1:string):Promise<void>;
+
 export function OpenWith(arg1:string,arg2:string):Promise<void>;
 
 export function PauseOperation(arg1:string):Promise<void>;

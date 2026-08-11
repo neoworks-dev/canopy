@@ -21,6 +21,7 @@
 		ListDirectory,
 		LoadSettings,
 		OpenPath,
+		OpenTerminal,
 		OpenWith,
 		Places,
 		ReadClipboardPaths,
@@ -539,6 +540,24 @@
 		await refreshRecents();
 	}
 
+	async function openTerminalHere() {
+		actionError = "";
+		try {
+			await OpenTerminal(terminalDirectory());
+		} catch (error) {
+			actionError = describeError(error);
+		}
+	}
+
+	// One selected folder is the terminal's directory; anything else means the
+	// folder the pane is showing.
+	function terminalDirectory(): string {
+		if (selectedEntries.length === 1 && selectedEntries[0].isDir) {
+			return selectedEntries[0].path;
+		}
+		return currentPath;
+	}
+
 	async function runSearch(query: string, scope: string) {
 		const sequence = ++latestSearchSequence;
 		isSearching = true;
@@ -642,6 +661,7 @@
 			tabCount: group.tabs.length,
 			paneCount: layout.groups.length,
 			canSplit: layout.groups.length < maximumGroups,
+			directoryOpen: currentPath !== "",
 		};
 	}
 
@@ -769,6 +789,7 @@
 			"navigate.forward": goForward,
 			"navigate.home": goHome,
 			"navigate.trash": openTrash,
+			"navigate.terminal": openTerminalHere,
 			"navigate.editPath": () => (isEditingPath = true),
 
 			"list.selectAll": () => activePane()?.selectEverything(),
