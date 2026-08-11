@@ -825,10 +825,12 @@
 		return "New file";
 	}
 
-	// A drag that starts on an entry is a click on that entry; only the space
-	// around them opens a rubber band.
+	// A drag that starts on an entry is a click on that entry, and one that starts
+	// on a control belongs to that control; only the space around them opens a
+	// rubber band. Capturing the pointer here would otherwise redirect the
+	// pointerup, and the control would never see a click at all.
 	function startBand(event: PointerEvent) {
-		if (event.button !== 0 || startsOnEntry(event)) {
+		if (event.button !== 0 || startsOnInteractive(event)) {
 			return;
 		}
 		bandOrigin = { x: event.clientX, y: event.clientY };
@@ -838,11 +840,11 @@
 		listContainer?.setPointerCapture(event.pointerId);
 	}
 
-	function startsOnEntry(event: PointerEvent): boolean {
+	function startsOnInteractive(event: PointerEvent): boolean {
 		if (!(event.target instanceof HTMLElement)) {
 			return false;
 		}
-		return Boolean(event.target.closest('[role="option"]'));
+		return Boolean(event.target.closest('[role="option"], button, input'));
 	}
 
 	function keptDuringBand(event: PointerEvent): string[] {
