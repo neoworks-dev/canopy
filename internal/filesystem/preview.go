@@ -30,10 +30,11 @@ type Preview struct {
 
 // Enough text to scroll through without pushing a huge file across the Wails
 // bridge. Base64 inflates images by a third, so the image cap is the tighter one.
+// Highlighting takes whatever the text limit leaves, since the canvas draws the
+// lines on screen rather than all of them.
 const (
 	textPreviewLimit  = 128 * 1024
 	imagePreviewLimit = 4 * 1024 * 1024
-	highlightLimit    = 10 * 1024
 )
 
 var imageMediaTypes = map[string]string{
@@ -116,18 +117,8 @@ func textPreview(absolutePath string, size int64) (Preview, error) {
 	preview.Kind = "text"
 	preview.Text = string(readable)
 	preview.Truncated = size > int64(len(contents))
-	preview.Tokens = tokensFor(absolutePath, size, preview.Text)
+	preview.Tokens = highlight.Tokens(filepath.Base(absolutePath), preview.Text)
 	return preview, nil
-}
-
-// Highlighting a file costs about as much as reading it, and a pane that has to
-// wait for it is worse than one that shows the text plain, so past the limit the
-// text goes across on its own.
-func tokensFor(absolutePath string, size int64, text string) []highlight.Token {
-	if size > highlightLimit {
-		return nil
-	}
-	return highlight.Tokens(filepath.Base(absolutePath), text)
 }
 
 func readAtMost(absolutePath string, limit int64) ([]byte, error) {

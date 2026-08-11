@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"file-explorer-neoworks/internal/highlight"
 )
 
 func TestReadPreviewReadsText(t *testing.T) {
@@ -80,10 +82,10 @@ func TestReadPreviewHighlightsSource(t *testing.T) {
 	}
 }
 
-// Highlighting a large file would hold the pane up for longer than reading it,
-// and the text on its own is what the pane falls back to.
-func TestReadPreviewSkipsHighlightingLargeFiles(t *testing.T) {
-	source := []byte("package main\n" + strings.Repeat("// a comment\n", highlightLimit/13))
+// A file past the read limit is highlighted as far as it was read, so the
+// tokens and the text the pane holds describe the same thing.
+func TestReadPreviewHighlightsAsMuchOfALargeFileAsItReads(t *testing.T) {
+	source := []byte("package main\n" + strings.Repeat("// a comment\n", textPreviewLimit/13))
 	path := writeTemporaryFile(t, "big.go", source)
 
 	preview, err := ReadPreview(path)
@@ -91,15 +93,20 @@ func TestReadPreviewSkipsHighlightingLargeFiles(t *testing.T) {
 		t.Fatalf("ReadPreview: %v", err)
 	}
 
-	if int64(len(source)) <= highlightLimit {
-		t.Fatalf("the sample is %d bytes, which is within the limit", len(source))
+	if !preview.Truncated {
+		t.Fatalf("the sample is %d bytes, which is within the read limit", len(source))
 	}
-	if preview.Tokens != nil {
-		t.Error("expected a large file to come back without tokens")
+	if tokenText(preview.Tokens) != preview.Text {
+		t.Error("expected the tokens to spell exactly the text that was read")
 	}
-	if preview.Text == "" {
-		t.Error("expected the text of a large file to still be read")
+}
+
+func tokenText(tokens []highlight.Token) string {
+	text := strings.Builder{}
+	for _, token := range tokens {
+		text.WriteString(token.Text)
 	}
+	return text.String()
 }
 
 func TestReadPreviewLeavesPlainTextUnhighlighted(t *testing.T) {
