@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"sync"
+
+	"file-explorer-neoworks/internal/archive"
 )
 
 const queueCapacity = 64
@@ -299,14 +301,38 @@ func validateRequest(kind Kind, sources []string, destination string) error {
 	if kind == KindTrash || kind == KindDelete {
 		return nil
 	}
+	// An extraction makes the folder it unpacks into, so its destination is the
+	// one that may still be missing.
+	if kind == KindExtract {
+		return validateExtraction(sources, destination)
+	}
 	if !isDirectory(destination) {
 		return fmt.Errorf("destination %s is not a directory", destination)
 	}
 	return checkNotIntoItself(sources, destination)
 }
 
+func validateExtraction(sources []string, destination string) error {
+	if len(sources) != 1 {
+		return ErrUnknownRequest
+	}
+	if destination == "" {
+		return fmt.Errorf("an extraction needs a folder to unpack into")
+	}
+	if !archive.IsArchive(sources[0]) {
+		return archive.ErrUnsupportedFormat
+	}
+	return nil
+}
+
 func knownKind(kind Kind) bool {
-	return kind == KindCopy || kind == KindMove || kind == KindTrash || kind == KindDelete
+	kinds := []Kind{KindCopy, KindMove, KindTrash, KindDelete, KindExtract, KindCompress}
+	for _, known := range kinds {
+		if kind == known {
+			return true
+		}
+	}
+	return false
 }
 
 func checkNotIntoItself(sources []string, destination string) error {

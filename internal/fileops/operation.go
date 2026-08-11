@@ -73,6 +73,12 @@ func newOperation(engine *Engine, id string, kind Kind, sources []string, destin
 
 func (op *operation) runAll() {
 	op.measure()
+	// Packing produces one archive out of every source together, so it is the one
+	// kind that runs over the batch rather than over each source in turn.
+	if op.kind == KindCompress {
+		op.runCompress()
+		return
+	}
 	for index, source := range op.sources {
 		err := op.runOne(source)
 		if errors.Is(err, ErrCancelled) {
@@ -118,6 +124,8 @@ func (op *operation) runOne(source string) error {
 		return op.runTrash(source, handle)
 	case KindDelete:
 		return op.runDelete(source, handle)
+	case KindExtract:
+		return op.runExtract(source, handle)
 	}
 	return ErrUnknownRequest
 }
@@ -421,31 +429,44 @@ func (op *operation) rememberTrashed(item TrashedItem) {
 func (op *operation) historyStep() (historyStep, bool) {
 	op.mutex.Lock()
 	defer op.mutex.Unlock()
-	if op.kind == KindCopy {
-		return copyStep(op.engine, op.sources, op.destination, op.created)
-	}
 	if op.kind == KindMove {
 		return moveStep(op.moved)
 	}
 	if op.kind == KindTrash {
 		return trashStep(op.trashed)
 	}
+	if op.kind == KindCopy || op.kind == KindExtract || op.kind == KindCompress {
+		return creationStepOf(op)
+	}
 	return historyStep{}, false
 }
 
-// copyStep replays through the queue rather than by hand, so a redone copy of a
-// large tree still reports progress and still asks about collisions.
-func copyStep(engine *Engine, sources []string, destination string, created []string) (historyStep, bool) {
-	if len(created) == 0 {
+// creationStepOf covers the kinds that put something new on disk: taking one
+// back removes what it made, and doing it again is the same request run a second
+// time. The replay goes through the queue rather than by hand, so a redone copy
+// of a large tree still reports progress and still asks about collisions.
+func creationStepOf(op *operation) (historyStep, bool) {
+	if len(op.created) == 0 {
 		return historyStep{}, false
 	}
-	targets := append([]string{}, created...)
-	origins := append([]string{}, sources...)
+	engine, kind, destination := op.engine, op.kind, op.destination
+	targets := append([]string{}, op.created...)
+	origins := append([]string{}, op.sources...)
 	return historyStep{
-		label:  fmt.Sprintf("Copy of %s", itemCount(len(targets))),
+		label:  creationLabel(kind, targets),
 		revert: func() error { return removeAll(targets) },
-		replay: func() error { return engine.enqueueReplay(KindCopy, origins, destination) },
+		replay: func() error { return engine.enqueueReplay(kind, origins, destination) },
 	}, true
+}
+
+func creationLabel(kind Kind, targets []string) string {
+	if kind == KindExtract {
+		return fmt.Sprintf("Extraction into %s", nameOf(targets[0]))
+	}
+	if kind == KindCompress {
+		return fmt.Sprintf("Archive %s", nameOf(targets[0]))
+	}
+	return fmt.Sprintf("Copy of %s", itemCount(len(targets)))
 }
 
 func moveStep(moved []movedItem) (historyStep, bool) {

@@ -15,6 +15,7 @@
 		Bookmarks,
 		CopyPathsToClipboard,
 		Devices,
+		ExtractionFolder,
 		ForgetSearch,
 		ForgetTag,
 		HomeDirectory,
@@ -64,6 +65,7 @@
 		selectionMenuIds,
 		staticCommandDescriptors,
 	} from "./lib/builtinCommands";
+	import { isArchiveName } from "./lib/archive";
 	import { iconForCommand } from "./lib/commandIcons";
 	import { CommandRegistry, type Command, type MenuItem } from "./lib/commands";
 	import { chordFromEvent } from "./lib/keys";
@@ -765,6 +767,7 @@
 			entryCount: status.entryCount,
 			canUndo: operations.undoLabel !== "",
 			canRedo: operations.redoLabel !== "",
+			selectionIsArchive: isArchiveSelected(),
 			canGoBack: canGoBack(tab.history),
 			canGoForward: canGoForward(tab.history),
 			canGoUp: status.parentPath !== "",
@@ -981,6 +984,8 @@
 			"file.rename": () => activePane()?.startRename(),
 			"file.trash": trashSelection,
 			"file.deletePermanently": () => (isConfirmingDelete = true),
+			"file.extract": extractSelection,
+			"file.compress": compressSelection,
 			"file.newFolder": () => activePane()?.createEntry("folder"),
 			"file.newFile": () => activePane()?.createEntry("file"),
 			"file.undo": () => operations.undo(),
@@ -1116,6 +1121,37 @@
 
 	function trashSelection() {
 		operations.start("trash", selectedPathList(), "");
+	}
+
+	// Packing lands beside what was packed, which is the folder the pane is on.
+	function compressSelection() {
+		operations.start("compress", selectedPathList(), currentPath);
+	}
+
+	function extractSelection() {
+		if (!isArchiveSelected()) {
+			return;
+		}
+		extractArchive(selectedEntries[0].path);
+	}
+
+	function isArchiveSelected(): boolean {
+		if (selectedEntries.length !== 1) {
+			return false;
+		}
+		return isArchiveName(selectedEntries[0].name);
+	}
+
+	// An archive unpacks into a folder of its own beside it, so an archive of
+	// loose files does not scatter them over the folder it was in.
+	async function extractArchive(archivePath: string) {
+		actionError = "";
+		try {
+			const destination = await ExtractionFolder(archivePath);
+			operations.start("extract", [archivePath], destination);
+		} catch (error) {
+			actionError = describeError(error);
+		}
 	}
 
 	// Every drop lands here, whichever pane or sidebar item took it, so what a
@@ -1452,6 +1488,7 @@
 					onSort={sortByColumn}
 					onChanged={() => operations.refreshHistoryLabels()}
 					onDropPaths={dropOntoFolder}
+					onExtractArchive={extractArchive}
 				>
 					{#snippet header()}
 						<TabStrip

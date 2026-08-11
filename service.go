@@ -8,6 +8,7 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"file-explorer-neoworks/internal/archive"
 	"file-explorer-neoworks/internal/bookmarks"
 	"file-explorer-neoworks/internal/clipboard"
 	"file-explorer-neoworks/internal/diskusage"
@@ -333,8 +334,28 @@ func applyToAll(paths []string, apply func(path string) error) error {
 	return nil
 }
 
-// StartOperation queues a copy, move, trash or delete and reports the id that
-// identifies it in progress events and conflict prompts.
+// ExtractionFolder is where an archive unpacks when nobody chose a folder: one
+// named after the archive, beside it, under a name nothing else has taken.
+func (service *FileService) ExtractionFolder(archivePath string) (string, error) {
+	absolutePath, err := filesystem.ResolvePath(archivePath)
+	if err != nil {
+		return "", err
+	}
+	return fileops.ExtractionFolderFor(absolutePath), nil
+}
+
+// ListArchive reports what an archive holds, so it can be looked through without
+// being unpacked first.
+func (service *FileService) ListArchive(archivePath string) ([]archive.Member, error) {
+	absolutePath, err := filesystem.ResolvePath(archivePath)
+	if err != nil {
+		return nil, err
+	}
+	return archive.List(absolutePath)
+}
+
+// StartOperation queues a copy, move, trash, delete, extraction or packing and
+// reports the id that identifies it in progress events and conflict prompts.
 func (service *FileService) StartOperation(kind string, sources []string, destination string) (string, error) {
 	return service.engine.Enqueue(fileops.Kind(kind), sources, destination)
 }

@@ -16,7 +16,9 @@ export type TabLocation =
 	/** A saved search, shown as a folder of whatever it matches now. */
 	| { kind: "search"; name: string }
 	/** The files under a folder that hold the same bytes as each other. */
-	| { kind: "duplicates"; path: string };
+	| { kind: "duplicates"; path: string }
+	/** An archive, looked through one level at a time without unpacking it. */
+	| { kind: "archive"; path: string; inside: string };
 
 export type Tab = {
 	id: string;
@@ -91,6 +93,9 @@ export function tabTitle(tab: Tab): string {
 	}
 	if (tab.location.kind === "duplicates") {
 		return `Duplicates in ${folderName(tab.location.path)}`;
+	}
+	if (tab.location.kind === "archive") {
+		return folderName(tab.location.path);
 	}
 	return folderName(tab.location.path);
 }
@@ -250,6 +255,11 @@ export function locationKey(location: TabLocation): string {
 	if (location.kind === "duplicates") {
 		return `duplicates:${location.path}`;
 	}
+	// The level inside is part of where the tab is, so stepping back through the
+	// history walks back out of the archive one folder at a time.
+	if (location.kind === "archive") {
+		return `archive:${location.path}!${location.inside}`;
+	}
 	return location.path;
 }
 
@@ -266,7 +276,20 @@ export function locationFromKey(key: string): TabLocation {
 	if (key.startsWith("duplicates:")) {
 		return { kind: "duplicates", path: key.slice("duplicates:".length) };
 	}
+	if (key.startsWith("archive:")) {
+		return archiveLocationFromKey(key.slice("archive:".length));
+	}
 	return directoryLocation(key);
+}
+
+// The archive's own path can hold anything but a newline, so the level inside is
+// split off at the last separator rather than the first.
+function archiveLocationFromKey(rest: string): TabLocation {
+	const separator = rest.lastIndexOf("!");
+	if (separator < 0) {
+		return { kind: "archive", path: rest, inside: "" };
+	}
+	return { kind: "archive", path: rest.slice(0, separator), inside: rest.slice(separator + 1) };
 }
 
 function mapActiveGroup(layout: Layout, change: (group: PaneGroup) => PaneGroup): Layout {

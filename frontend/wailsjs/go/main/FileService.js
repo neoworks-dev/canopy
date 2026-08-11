@@ -54,6 +54,10 @@ export function EmptyTrash() {
   return window['go']['main']['FileService']['EmptyTrash']();
 }
 
+export function ExtractionFolder(arg1) {
+  return window['go']['main']['FileService']['ExtractionFolder'](arg1);
+}
+
 export function FilesWithTag(arg1) {
   return window['go']['main']['FileService']['FilesWithTag'](arg1);
 }
@@ -80,6 +84,10 @@ export function HomeDirectory() {
 
 export function KnownTags() {
   return window['go']['main']['FileService']['KnownTags']();
+}
+
+export function ListArchive(arg1) {
+  return window['go']['main']['FileService']['ListArchive'](arg1);
 }
 
 export function ListDirectory(arg1, arg2) {

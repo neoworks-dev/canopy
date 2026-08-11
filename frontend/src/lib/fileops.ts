@@ -3,7 +3,7 @@
  * Wails events rather than method calls, so they are not part of the generated
  * bindings and are declared here instead.
  */
-export type OperationKind = "copy" | "move" | "trash" | "delete";
+export type OperationKind = "copy" | "move" | "trash" | "delete" | "extract" | "compress";
 
 export type OperationStatus = "queued" | "running" | "paused" | "done" | "cancelled";
 
@@ -46,6 +46,8 @@ const kindLabels: Record<OperationKind, string> = {
 	move: "Moving",
 	trash: "Moving to Trash",
 	delete: "Deleting",
+	extract: "Extracting",
+	compress: "Packing",
 };
 
 export function operationLabel(kind: OperationKind): string {

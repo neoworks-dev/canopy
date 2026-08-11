@@ -6,10 +6,12 @@ import "errors"
 type Kind string
 
 const (
-	KindCopy   Kind = "copy"
-	KindMove   Kind = "move"
-	KindTrash  Kind = "trash"
-	KindDelete Kind = "delete"
+	KindCopy     Kind = "copy"
+	KindMove     Kind = "move"
+	KindTrash    Kind = "trash"
+	KindDelete   Kind = "delete"
+	KindExtract  Kind = "extract"
+	KindCompress Kind = "compress"
 )
 
 // Resolution is the caller's answer to a destination conflict.

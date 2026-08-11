@@ -12,8 +12,10 @@
 	} from "../../wailsjs/go/main/FileService";
 	import { EventsOn } from "../../wailsjs/runtime/runtime";
 	import type { filesystem, git } from "../../wailsjs/go/models";
+	import ArchivePane from "./ArchivePane.svelte";
 	import DuplicatesPane from "./DuplicatesPane.svelte";
 	import EntryGrid from "./EntryGrid.svelte";
+	import { isArchiveName } from "./archive";
 	import EntryRows from "./EntryRows.svelte";
 	import FindField from "./FindField.svelte";
 	import MillerColumns from "./MillerColumns.svelte";
@@ -90,6 +92,7 @@
 		onSort,
 		onChanged,
 		onDropPaths,
+		onExtractArchive,
 		header,
 	}: {
 		location: TabLocation;
@@ -111,6 +114,8 @@
 		onChanged: () => void;
 		/** A drag landed here: hands the transfer to the operation engine. */
 		onDropPaths: (sources: string[], destination: string, operation: DropOperation) => void;
+		/** Unpacks the archive this pane is showing into a folder beside it. */
+		onExtractArchive: (archivePath: string) => void;
 		/** Rendered flush against the top edge of the pane, above the listing. */
 		header?: Snippet;
 	} = $props();
@@ -431,9 +436,15 @@
 		});
 	}
 
+	// An archive opens as a pane of what it holds rather than in whatever
+	// application the desktop would hand it to.
 	function openEntry(entry: filesystem.Entry) {
 		if (entry.isDir) {
 			onNavigate({ kind: "directory", path: entry.path });
+			return;
+		}
+		if (isArchiveName(entry.name)) {
+			onNavigate({ kind: "archive", path: entry.path, inside: "" });
 			return;
 		}
 		onLaunch(entry.path);
@@ -863,6 +874,15 @@
 				{:else}
 					<p class="text-sm text-dim">This search is no longer saved.</p>
 				{/if}
+			</div>
+		{:else if location.kind === "archive"}
+			<div class="flex min-h-0 flex-col gap-2 overflow-y-auto">
+				<ArchivePane
+					path={location.path}
+					inside={location.inside}
+					onDescend={(inside) => onNavigate({ kind: "archive", path: location.path, inside })}
+					onExtract={() => onExtractArchive(location.path)}
+				/>
 			</div>
 		{:else if location.kind === "duplicates"}
 			<div class="flex min-h-0 flex-col gap-2 overflow-y-auto">

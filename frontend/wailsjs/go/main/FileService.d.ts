@@ -4,6 +4,7 @@ import {launcher} from '../models';
 import {bookmarks} from '../models';
 import {filesystem} from '../models';
 import {git} from '../models';
+import {archive} from '../models';
 import {fileops} from '../models';
 import {settings} from '../models';
 import {recents} from '../models';
@@ -37,6 +38,8 @@ export function Devices():Promise<Array<filesystem.Device>>;
 
 export function EmptyTrash():Promise<void>;
 
+export function ExtractionFolder(arg1:string):Promise<string>;
+
 export function FilesWithTag(arg1:string):Promise<Array<filesystem.Entry>>;
 
 export function FindDuplicates(arg1:string):Promise<string>;
@@ -50,6 +53,8 @@ export function GitReport(arg1:string):Promise<git.Report>;
 export function HomeDirectory():Promise<string>;
 
 export function KnownTags():Promise<Array<string>>;
+
+export function ListArchive(arg1:string):Promise<Array<archive.Member>>;
 
 export function ListDirectory(arg1:string,arg2:filesystem.Order):Promise<filesystem.Listing>;
 

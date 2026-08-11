@@ -1,3 +1,28 @@
+export namespace archive {
+	
+	export class Member {
+	    name: string;
+	    size: number;
+	    isDir: boolean;
+	    modTime: string;
+	    mode: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Member(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.size = source["size"];
+	        this.isDir = source["isDir"];
+	        this.modTime = source["modTime"];
+	        this.mode = source["mode"];
+	    }
+	}
+
+}
+
 export namespace audio {
 	
 	export class Details {

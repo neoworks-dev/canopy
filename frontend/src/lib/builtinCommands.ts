@@ -9,6 +9,7 @@
  *   trashOpen      the trash pane has replaced the listing
  *   selectionCount clipboardCount entryCount
  *   canUndo canRedo canGoBack canGoForward canGoUp
+ *   selectionIsArchive the one selected entry is an archive that can be opened
  *   viewMode       "rows", "grid" or "columns"
  *   folderPinned   the folder in focus is pinned to the sidebar
  *   directoryOpen  the pane is showing a directory rather than a virtual list
@@ -129,6 +130,13 @@ export const staticCommandDescriptors: CommandDescriptor[] = [
 		category: "File",
 		when: "selectionCount > 0",
 	},
+	{
+		id: "file.extract",
+		title: "Extract here",
+		category: "File",
+		when: "selectionIsArchive",
+	},
+	{ id: "file.compress", title: "Compress", category: "File", when: "selectionCount > 0" },
 	{ id: "file.newFolder", title: "New folder", category: "File" },
 	{ id: "file.newFile", title: "New file", category: "File" },
 	{ id: "file.undo", title: "Undo", category: "File", when: "canUndo" },
@@ -172,6 +180,7 @@ export const selectionMenuIds: string[][] = [
 	["navigate.open", "navigate.openWith"],
 	["file.cut", "file.copy", "file.paste"],
 	["file.rename", "tags.edit"],
+	["file.extract", "file.compress"],
 	["file.trash", "file.deletePermanently"],
 ];
 

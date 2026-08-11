@@ -266,6 +266,8 @@ describe("recording a location in history", () => {
 			{ kind: "tag", name: "work" } as const,
 			{ kind: "search", name: "Invoices" } as const,
 			{ kind: "duplicates", path: "/home/moritz/Downloads" } as const,
+			{ kind: "archive", path: "/home/moritz/photos.zip", inside: "" } as const,
+			{ kind: "archive", path: "/home/moritz/photos.zip", inside: "album/2026" } as const,
 		];
 
 		for (const location of locations) {
@@ -278,6 +280,14 @@ describe("recording a location in history", () => {
 			kind: "search",
 			name: "/etc",
 		});
+	});
+
+	// An archive can be called anything, including something with the separator
+	// the level inside is split off at.
+	test("an archive whose own name holds the separator is still read back whole", () => {
+		const location = { kind: "archive", path: "/home/moritz/wow!.zip", inside: "deep" } as const;
+
+		expect(locationFromKey(locationKey(location))).toEqual(location);
 	});
 
 	test("a tag whose name looks like a path is still read back as a tag", () => {

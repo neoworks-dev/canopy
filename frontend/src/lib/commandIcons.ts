@@ -11,6 +11,7 @@ import ArrowSquareOutIcon from "phosphor-svelte/lib/ArrowSquareOutIcon";
 import BookmarkSimpleIcon from "phosphor-svelte/lib/BookmarkSimpleIcon";
 import ClipboardIcon from "phosphor-svelte/lib/ClipboardIcon";
 import CopyIcon from "phosphor-svelte/lib/CopyIcon";
+import FileArchiveIcon from "phosphor-svelte/lib/FileArchiveIcon";
 import FileIcon from "phosphor-svelte/lib/FileIcon";
 import FolderPlusIcon from "phosphor-svelte/lib/FolderPlusIcon";
 import PencilSimpleIcon from "phosphor-svelte/lib/PencilSimpleIcon";
@@ -30,6 +31,8 @@ const icons = new Map<string, IconComponent>([
 	["file.rename", PencilSimpleIcon],
 	["file.trash", TrashIcon],
 	["file.deletePermanently", XCircleIcon],
+	["file.extract", FileArchiveIcon],
+	["file.compress", FileArchiveIcon],
 	["file.newFolder", FolderPlusIcon],
 	["file.newFile", FileIcon],
 	["file.undo", ArrowCounterClockwiseIcon],
