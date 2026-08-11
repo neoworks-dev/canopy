@@ -14,16 +14,11 @@ type Engine struct {
 	emit  Emitter
 	queue chan *operation
 
+	past history
+
 	mutex      sync.Mutex
 	operations map[string]*operation
-	undoStack  []undoStep
 	sequence   int
-}
-
-// undoStep is one reversible action. Permanent deletion never produces one.
-type undoStep struct {
-	label  string
-	revert func() error
 }
 
 func New(emit Emitter) *Engine {
@@ -45,11 +40,23 @@ func (engine *Engine) run() {
 // Enqueue validates a request and hands it to the worker, reporting the id the
 // frontend needs to answer conflicts or cancel.
 func (engine *Engine) Enqueue(kind Kind, sources []string, destination string) (string, error) {
+	return engine.queueRequest(kind, sources, destination, false)
+}
+
+// enqueueReplay runs an operation again for a redo. It records no history of its
+// own, because the step being redone goes back on the undo stack already.
+func (engine *Engine) enqueueReplay(kind Kind, sources []string, destination string) error {
+	_, err := engine.queueRequest(kind, sources, destination, true)
+	return err
+}
+
+func (engine *Engine) queueRequest(kind Kind, sources []string, destination string, replaying bool) (string, error) {
 	err := validateRequest(kind, sources, destination)
 	if err != nil {
 		return "", err
 	}
 	pending := engine.newOperation(kind, sources, destination)
+	pending.replaying = replaying
 	engine.publish(pending)
 	engine.queue <- pending
 	return pending.id, nil
@@ -104,9 +111,10 @@ func (engine *Engine) Rename(path, newName string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	engine.pushUndo(undoStep{
+	engine.past.record(historyStep{
 		label:  fmt.Sprintf("Rename to %s", newName),
 		revert: func() error { return os.Rename(target, path) },
+		replay: func() error { return os.Rename(path, target) },
 	})
 	return target, nil
 }
@@ -121,7 +129,7 @@ func (engine *Engine) CreateFolder(directory, name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	engine.pushUndo(removalUndo(fmt.Sprintf("Create folder %s", name), target))
+	engine.past.record(creationStep(fmt.Sprintf("Create folder %s", name), target, makeDirectory))
 	return target, nil
 }
 
@@ -131,15 +139,11 @@ func (engine *Engine) CreateFile(directory, name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	file, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	err = createEmptyFile(target)
 	if err != nil {
 		return "", err
 	}
-	err = file.Close()
-	if err != nil {
-		return "", err
-	}
-	engine.pushUndo(removalUndo(fmt.Sprintf("Create file %s", name), target))
+	engine.past.record(creationStep(fmt.Sprintf("Create file %s", name), target, createEmptyFile))
 	return target, nil
 }
 
@@ -149,16 +153,13 @@ func (engine *Engine) RestoreTrashed(trashPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	engine.pushUndo(undoStep{
-		label:  fmt.Sprintf("Restore %s", nameOf(restored)),
-		revert: func() error { return discardRestored(restored) },
-	})
+	engine.past.record(restoreStep(restored, trashPath))
 	return restored, nil
 }
 
 // Undo reverses the most recent reversible action and reports its label.
 func (engine *Engine) Undo() (string, error) {
-	step, found := engine.popUndo()
+	step, found := engine.past.takeUndoable()
 	if !found {
 		return "", ErrNothingToUndo
 	}
@@ -166,17 +167,32 @@ func (engine *Engine) Undo() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	engine.past.pushRedoable(step)
+	return step.label, nil
+}
+
+// Redo performs the action the last undo took back and reports its label.
+func (engine *Engine) Redo() (string, error) {
+	step, found := engine.past.takeRedoable()
+	if !found {
+		return "", ErrNothingToRedo
+	}
+	err := step.replay()
+	if err != nil {
+		return "", err
+	}
+	engine.past.pushUndoable(step)
 	return step.label, nil
 }
 
 // UndoLabel describes what Undo would reverse, or is empty when the stack is.
 func (engine *Engine) UndoLabel() string {
-	engine.mutex.Lock()
-	defer engine.mutex.Unlock()
-	if len(engine.undoStack) == 0 {
-		return ""
-	}
-	return engine.undoStack[len(engine.undoStack)-1].label
+	return engine.past.undoLabel()
+}
+
+// RedoLabel describes what Redo would perform, or is empty when the stack is.
+func (engine *Engine) RedoLabel() string {
+	return engine.past.redoLabel()
 }
 
 func (engine *Engine) execute(pending *operation) {
@@ -188,7 +204,7 @@ func (engine *Engine) execute(pending *operation) {
 
 func (engine *Engine) finish(pending *operation) {
 	pending.setStatus(pending.finalStatus())
-	engine.pushOperationUndo(pending)
+	engine.recordOperation(pending)
 	engine.emit(EventFinished, pending.snapshot())
 	engine.forget(pending.id)
 }
@@ -219,43 +235,58 @@ func (engine *Engine) forget(operationID string) {
 	delete(engine.operations, operationID)
 }
 
-func (engine *Engine) pushOperationUndo(pending *operation) {
-	step, reversible := pending.undoStep()
+// recordOperation files what a finished batch actually did. A replay is left
+// out: the step it belongs to is already back on the undo stack.
+func (engine *Engine) recordOperation(pending *operation) {
+	if pending.replaying {
+		return
+	}
+	step, reversible := pending.historyStep()
 	if !reversible {
 		return
 	}
-	engine.pushUndo(step)
+	engine.past.record(step)
 }
 
-func (engine *Engine) pushUndo(step undoStep) {
-	engine.mutex.Lock()
-	defer engine.mutex.Unlock()
-	engine.undoStack = append(engine.undoStack, step)
-}
-
-func (engine *Engine) popUndo() (undoStep, bool) {
-	engine.mutex.Lock()
-	defer engine.mutex.Unlock()
-	if len(engine.undoStack) == 0 {
-		return undoStep{}, false
-	}
-	step := engine.undoStack[len(engine.undoStack)-1]
-	engine.undoStack = engine.undoStack[:len(engine.undoStack)-1]
-	return step, true
-}
-
-func removalUndo(label, target string) undoStep {
-	return undoStep{
+// creationStep reverses a new entry by removing it, and puts it back by making
+// it a second time.
+func creationStep(label, target string, create func(path string) error) historyStep {
+	return historyStep{
 		label:  label,
 		revert: func() error { return os.RemoveAll(target) },
+		replay: func() error { return create(target) },
 	}
 }
 
-// discardRestored sends a restored item straight back to the trash, which is the
-// only honest inverse of a restore.
-func discardRestored(path string) error {
-	_, err := Trash(path)
-	return err
+// restoreStep follows the item into the trash and out again: taking a restore
+// back trashes the item afresh, under a trash name only that moment knows.
+func restoreStep(restored, trashPath string) historyStep {
+	current := trashPath
+	revert := func() error {
+		trashed, err := Trash(restored)
+		if err != nil {
+			return err
+		}
+		current = trashed.TrashPath
+		return nil
+	}
+	replay := func() error {
+		_, err := Restore(current)
+		return err
+	}
+	return historyStep{label: fmt.Sprintf("Restore %s", nameOf(restored)), revert: revert, replay: replay}
+}
+
+func makeDirectory(path string) error {
+	return os.Mkdir(path, 0o755)
+}
+
+func createEmptyFile(path string) error {
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return err
+	}
+	return file.Close()
 }
 
 func validateRequest(kind Kind, sources []string, destination string) error {

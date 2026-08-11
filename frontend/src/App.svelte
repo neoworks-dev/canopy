@@ -754,6 +754,7 @@
 			clipboardCount: clipboardPaths.length,
 			entryCount: status.entryCount,
 			canUndo: operations.undoLabel !== "",
+			canRedo: operations.redoLabel !== "",
 			canGoBack: canGoBack(tab.history),
 			canGoForward: canGoForward(tab.history),
 			canGoUp: status.parentPath !== "",
@@ -973,6 +974,7 @@
 			"file.newFolder": () => activePane()?.createEntry("folder"),
 			"file.newFile": () => activePane()?.createEntry("file"),
 			"file.undo": () => operations.undo(),
+			"file.redo": () => operations.redo(),
 
 			"tags.edit": startTagging,
 			"bookmark.pin": pinCurrentFolder,
@@ -1437,7 +1439,7 @@
 					onSelectionMenu={openSelectionMenu}
 					onBackgroundMenu={openBackgroundMenu}
 					onSort={sortByColumn}
-					onChanged={() => operations.refreshUndoLabel()}
+					onChanged={() => operations.refreshHistoryLabels()}
 					onDropPaths={dropOntoFolder}
 				>
 					{#snippet header()}

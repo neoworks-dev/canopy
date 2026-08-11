@@ -8,7 +8,7 @@
  *   searchOpen     the location field is showing search rather than the path
  *   trashOpen      the trash pane has replaced the listing
  *   selectionCount clipboardCount entryCount
- *   canUndo canGoBack canGoForward canGoUp
+ *   canUndo canRedo canGoBack canGoForward canGoUp
  *   viewMode       "rows", "grid" or "columns"
  *   folderPinned   the folder in focus is pinned to the sidebar
  *   directoryOpen  the pane is showing a directory rather than a virtual list
@@ -132,6 +132,7 @@ export const staticCommandDescriptors: CommandDescriptor[] = [
 	{ id: "file.newFolder", title: "New folder", category: "File" },
 	{ id: "file.newFile", title: "New file", category: "File" },
 	{ id: "file.undo", title: "Undo", category: "File", when: "canUndo" },
+	{ id: "file.redo", title: "Redo", category: "File", when: "canRedo" },
 	{ id: "tags.edit", title: "Tags…", category: "File", when: "selectionCount > 0" },
 
 	{
@@ -173,7 +174,7 @@ export const backgroundMenuIds: string[][] = [
 	["file.paste"],
 	["navigate.terminal"],
 	["bookmark.pin", "bookmark.unpin"],
-	["file.undo"],
+	["file.undo", "file.redo"],
 ];
 
 /**
@@ -227,6 +228,9 @@ export const defaultKeymap: Keybinding[] = [
 	{ key: "b", command: "bookmark.pin", when: "listActive" },
 	{ key: "u", command: "file.undo", when: "listActive" },
 	{ key: "ctrl+z", command: "file.undo" },
+	{ key: "U", command: "file.redo", when: "listActive" },
+	{ key: "ctrl+shift+z", command: "file.redo" },
+	{ key: "ctrl+y", command: "file.redo" },
 
 	{ key: "ctrl+t", command: "tab.new" },
 	{ key: "ctrl+w", command: "tab.close" },

@@ -118,6 +118,14 @@ export function RecentEntries() {
   return window['go']['main']['FileService']['RecentEntries']();
 }
 
+export function Redo() {
+  return window['go']['main']['FileService']['Redo']();
+}
+
+export function RedoLabel() {
+  return window['go']['main']['FileService']['RedoLabel']();
+}
+
 export function RemoveBookmark(arg1) {
   return window['go']['main']['FileService']['RemoveBookmark'](arg1);
 }

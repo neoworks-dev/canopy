@@ -47,6 +47,7 @@ var (
 	ErrSkipped        = errors.New("item skipped")
 	ErrUnknownRequest = errors.New("unknown operation")
 	ErrNothingToUndo  = errors.New("nothing to undo")
+	ErrNothingToRedo  = errors.New("nothing to redo")
 	ErrIntoItself     = errors.New("a directory cannot be copied into itself")
 )
 

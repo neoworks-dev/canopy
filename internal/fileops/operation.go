@@ -30,6 +30,8 @@ type operation struct {
 	kind        Kind
 	sources     []string
 	destination string
+	// A replay is a redo running through the queue, which records no history.
+	replaying bool
 
 	cancelled chan struct{}
 	answers   chan conflictAnswer
@@ -414,53 +416,66 @@ func (op *operation) rememberTrashed(item TrashedItem) {
 	op.trashed = append(op.trashed, item)
 }
 
-// undoStep reverses only what actually completed. Permanent deletion and a
+// historyStep reverses only what actually completed. Permanent deletion and a
 // batch that did nothing produce no step at all.
-func (op *operation) undoStep() (undoStep, bool) {
+func (op *operation) historyStep() (historyStep, bool) {
 	op.mutex.Lock()
 	defer op.mutex.Unlock()
 	if op.kind == KindCopy {
-		return copyUndo(op.created)
+		return copyStep(op.engine, op.sources, op.destination, op.created)
 	}
 	if op.kind == KindMove {
-		return moveUndo(op.moved)
+		return moveStep(op.moved)
 	}
 	if op.kind == KindTrash {
-		return trashUndo(op.trashed)
+		return trashStep(op.trashed)
 	}
-	return undoStep{}, false
+	return historyStep{}, false
 }
 
-func copyUndo(created []string) (undoStep, bool) {
+// copyStep replays through the queue rather than by hand, so a redone copy of a
+// large tree still reports progress and still asks about collisions.
+func copyStep(engine *Engine, sources []string, destination string, created []string) (historyStep, bool) {
 	if len(created) == 0 {
-		return undoStep{}, false
+		return historyStep{}, false
 	}
 	targets := append([]string{}, created...)
-	return undoStep{
+	origins := append([]string{}, sources...)
+	return historyStep{
 		label:  fmt.Sprintf("Copy of %s", itemCount(len(targets))),
 		revert: func() error { return removeAll(targets) },
+		replay: func() error { return engine.enqueueReplay(KindCopy, origins, destination) },
 	}, true
 }
 
-func moveUndo(moved []movedItem) (undoStep, bool) {
+func moveStep(moved []movedItem) (historyStep, bool) {
 	if len(moved) == 0 {
-		return undoStep{}, false
+		return historyStep{}, false
 	}
 	items := append([]movedItem{}, moved...)
-	return undoStep{
+	return historyStep{
 		label:  fmt.Sprintf("Move of %s", itemCount(len(items))),
 		revert: func() error { return moveBack(items) },
+		replay: func() error { return moveForward(items) },
 	}, true
 }
 
-func trashUndo(trashed []TrashedItem) (undoStep, bool) {
+// trashStep re-reads where each item landed on every trip: the trash renames
+// what it takes in, so the paths a restore needs are not the ones from before.
+func trashStep(trashed []TrashedItem) (historyStep, bool) {
 	if len(trashed) == 0 {
-		return undoStep{}, false
+		return historyStep{}, false
 	}
 	items := append([]TrashedItem{}, trashed...)
-	return undoStep{
+	replay := func() error {
+		replacements, err := trashAgain(items)
+		items = replacements
+		return err
+	}
+	return historyStep{
 		label:  fmt.Sprintf("Trashing of %s", itemCount(len(items))),
 		revert: func() error { return restoreAll(items) },
+		replay: replay,
 	}, true
 }
 
@@ -482,6 +497,30 @@ func moveBack(items []movedItem) error {
 		}
 	}
 	return nil
+}
+
+func moveForward(items []movedItem) error {
+	for _, item := range items {
+		err := os.Rename(item.from, item.to)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// trashAgain reports where the items sit in the trash the second time around,
+// including the ones it managed before an error stopped it.
+func trashAgain(items []TrashedItem) ([]TrashedItem, error) {
+	replacements := make([]TrashedItem, 0, len(items))
+	for _, item := range items {
+		trashed, err := Trash(item.OriginalPath)
+		if err != nil {
+			return replacements, err
+		}
+		replacements = append(replacements, trashed)
+	}
+	return replacements, nil
 }
 
 func restoreAll(items []TrashedItem) error {

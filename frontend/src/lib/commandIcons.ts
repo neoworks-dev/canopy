@@ -5,6 +5,7 @@
  * else — including the tests that check the command set.
  */
 import type { IconComponent } from "@neoworks-dev/ui";
+import ArrowClockwiseIcon from "phosphor-svelte/lib/ArrowClockwiseIcon";
 import ArrowCounterClockwiseIcon from "phosphor-svelte/lib/ArrowCounterClockwiseIcon";
 import ArrowSquareOutIcon from "phosphor-svelte/lib/ArrowSquareOutIcon";
 import BookmarkSimpleIcon from "phosphor-svelte/lib/BookmarkSimpleIcon";
@@ -32,6 +33,7 @@ const icons = new Map<string, IconComponent>([
 	["file.newFolder", FolderPlusIcon],
 	["file.newFile", FileIcon],
 	["file.undo", ArrowCounterClockwiseIcon],
+	["file.redo", ArrowClockwiseIcon],
 	["tags.edit", TagIcon],
 	["bookmark.pin", BookmarkSimpleIcon],
 	["bookmark.unpin", XCircleIcon],

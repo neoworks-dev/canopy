@@ -327,6 +327,16 @@ func (service *FileService) UndoLabel() string {
 	return service.engine.UndoLabel()
 }
 
+// Redo performs the action the last undo took back and reports its label.
+func (service *FileService) Redo() (string, error) {
+	return service.engine.Redo()
+}
+
+// RedoLabel describes what Redo would perform, empty when there is nothing.
+func (service *FileService) RedoLabel() string {
+	return service.engine.RedoLabel()
+}
+
 // RenameEntry renames one entry inside its own directory.
 func (service *FileService) RenameEntry(path string, newName string) (string, error) {
 	return service.engine.Rename(path, newName)

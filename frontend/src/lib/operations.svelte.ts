@@ -1,6 +1,8 @@
 import {
 	CancelOperation,
 	PauseOperation,
+	Redo,
+	RedoLabel,
 	ResolveConflict,
 	ResumeOperation,
 	StartOperation,
@@ -22,13 +24,14 @@ const dismissAfterMilliseconds = 4000;
 
 /**
  * Frontend half of the operation engine: mirrors the queue the Go side runs,
- * holds the conflict prompt waiting for an answer, and keeps the undo label
- * current.
+ * holds the conflict prompt waiting for an answer, and keeps the undo and redo
+ * labels current.
  */
 export class OperationQueue {
 	operations = $state<OperationProgress[]>([]);
 	conflict = $state<ConflictPrompt | null>(null);
 	undoLabel = $state("");
+	redoLabel = $state("");
 	errorMessage = $state("");
 
 	private onFinished: () => void;
@@ -44,7 +47,7 @@ export class OperationQueue {
 			EventsOn(operationEvents.conflict, (prompt: ConflictPrompt) => (this.conflict = prompt)),
 			EventsOn(operationEvents.finished, (progress: OperationProgress) => this.complete(progress)),
 		];
-		this.refreshUndoLabel();
+		this.refreshHistoryLabels();
 		return () => stops.forEach((stop) => stop());
 	}
 
@@ -86,22 +89,27 @@ export class OperationQueue {
 	}
 
 	async undo() {
+		await this.step(Undo);
+	}
+
+	async redo() {
+		await this.step(Redo);
+	}
+
+	async refreshHistoryLabels() {
+		this.undoLabel = await labelOrEmpty(UndoLabel);
+		this.redoLabel = await labelOrEmpty(RedoLabel);
+	}
+
+	private async step(take: () => Promise<string>) {
 		this.errorMessage = "";
 		try {
-			await Undo();
+			await take();
 		} catch (error) {
 			this.errorMessage = describeError(error);
 		}
-		await this.refreshUndoLabel();
+		await this.refreshHistoryLabels();
 		this.onFinished();
-	}
-
-	async refreshUndoLabel() {
-		try {
-			this.undoLabel = await UndoLabel();
-		} catch {
-			this.undoLabel = "";
-		}
 	}
 
 	private apply(progress: OperationProgress) {
@@ -116,7 +124,7 @@ export class OperationQueue {
 	private complete(progress: OperationProgress) {
 		this.apply(progress);
 		this.dropStalePrompt(progress.id);
-		this.refreshUndoLabel();
+		this.refreshHistoryLabels();
 		this.onFinished();
 		this.scheduleDismissal(progress);
 	}
@@ -137,6 +145,14 @@ export class OperationQueue {
 			return;
 		}
 		setTimeout(() => this.dismiss(progress.id), dismissAfterMilliseconds);
+	}
+}
+
+async function labelOrEmpty(read: () => Promise<string>): Promise<string> {
+	try {
+		return await read();
+	} catch {
+		return "";
 	}
 }
 

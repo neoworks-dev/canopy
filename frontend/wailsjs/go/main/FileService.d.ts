@@ -69,6 +69,10 @@ export function ReadClipboardPaths():Promise<Array<string>>;
 
 export function RecentEntries():Promise<Array<recents.Entry>>;
 
+export function Redo():Promise<string>;
+
+export function RedoLabel():Promise<string>;
+
 export function RemoveBookmark(arg1:string):Promise<void>;
 
 export function RemoveTag(arg1:Array<string>,arg2:string):Promise<void>;
