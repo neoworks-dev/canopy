@@ -4,6 +4,7 @@ import {launcher} from '../models';
 import {filesystem} from '../models';
 import {fileops} from '../models';
 import {settings} from '../models';
+import {zoxide} from '../models';
 
 export function ApplicationsFor(arg1:string):Promise<Array<launcher.Application>>;
 
@@ -62,3 +63,7 @@ export function UndoLabel():Promise<string>;
 export function ValidateEntryName(arg1:string):Promise<void>;
 
 export function WatchDirectory(arg1:string):Promise<void>;
+
+export function ZoxideAvailable():Promise<boolean>;
+
+export function ZoxideQuery(arg1:string,arg2:string):Promise<Array<zoxide.Entry>>;

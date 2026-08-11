@@ -39,6 +39,7 @@
 	import EntryGrid from "./lib/EntryGrid.svelte";
 	import EntryRows from "./lib/EntryRows.svelte";
 	import FindField from "./lib/FindField.svelte";
+	import JumpField from "./lib/JumpField.svelte";
 	import OpenWithDialog from "./lib/OpenWithDialog.svelte";
 	import OperationProgress from "./lib/OperationProgress.svelte";
 	import PathBar from "./lib/PathBar.svelte";
@@ -168,6 +169,7 @@
 	let isConfirmingDelete = $state(false);
 	let openWithPath = $state("");
 	let isFindOpen = $state(false);
+	let isJumpOpen = $state(false);
 	// What the selection was before the find prompt started moving it, so
 	// cancelling puts it back.
 	let findOrigin: Selection = emptySelection;
@@ -572,6 +574,7 @@
 			searchOpen: isSearchActive,
 			trashOpen: isTrashOpen,
 			findOpen: isFindOpen,
+			jumpOpen: isJumpOpen,
 			selectionCount: selectedEntries.length,
 			clipboardCount: clipboardPaths.length,
 			entryCount: visibleEntries.length,
@@ -749,6 +752,7 @@
 			"list.clearSelection": () => (selection = emptySelection),
 			"list.toggleSelection": toggleFocusedEntry,
 			"list.find": openFind,
+			"zoxide.jump": () => (isJumpOpen = true),
 
 			"view.rows": showRows,
 			"view.grid": showGrid,
@@ -1146,6 +1150,12 @@
 		selection = selectionAfterJump(selection, visiblePaths, index, false);
 	}
 
+	function jumpToFolder(path: string) {
+		isJumpOpen = false;
+		searchQuery = "";
+		navigateTo(path);
+	}
+
 	function closeSearch() {
 		searchQuery = "";
 		listContainer?.focus();
@@ -1429,6 +1439,14 @@
 		class="pointer-events-none fixed z-30 rounded-sm border border-line-strong bg-hover/40"
 		style="left: {band.left}px; top: {band.top}px; width: {band.width}px; height: {band.height}px"
 	></div>
+{/if}
+
+{#if isJumpOpen}
+	<JumpField
+		{currentPath}
+		onJump={jumpToFolder}
+		onClose={() => (isJumpOpen = false)}
+	/>
 {/if}
 
 {#if menu}

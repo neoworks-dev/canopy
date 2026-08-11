@@ -117,3 +117,11 @@ export function ValidateEntryName(arg1) {
 export function WatchDirectory(arg1) {
   return window['go']['main']['FileService']['WatchDirectory'](arg1);
 }
+
+export function ZoxideAvailable() {
+  return window['go']['main']['FileService']['ZoxideAvailable']();
+}
+
+export function ZoxideQuery(arg1, arg2) {
+  return window['go']['main']['FileService']['ZoxideQuery'](arg1, arg2);
+}

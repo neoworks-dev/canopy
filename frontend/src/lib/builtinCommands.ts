@@ -108,6 +108,7 @@ export const staticCommandDescriptors: CommandDescriptor[] = [
 	{ id: "search.here", title: "Search this folder", category: "Search" },
 	{ id: "search.global", title: "Search everywhere", category: "Search" },
 	{ id: "search.close", title: "Close search", category: "Search", when: "searchOpen" },
+	{ id: "zoxide.jump", title: "Jump to a folder", category: "Navigation" },
 ];
 
 /** Context menu layout: each inner array is one group, rendered with a rule. */
@@ -186,6 +187,8 @@ export const defaultKeymap: Keybinding[] = [
 	{ key: "f", command: "search.here", when: "listActive" },
 	{ key: "z", command: "search.global", when: "listActive" },
 	{ key: "ctrl+f", command: "search.here" },
+	{ key: "Z", command: "zoxide.jump", when: "listActive" },
+	{ key: "ctrl+j", command: "zoxide.jump" },
 	{ key: "escape", command: "search.close", when: "searchOpen" },
 ];
 

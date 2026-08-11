@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Card } from "@neoworks-dev/ui";
-	import { ListDirectory } from "../../wailsjs/go/main/FileService";
+	import { ListDirectory, ZoxideQuery } from "../../wailsjs/go/main/FileService";
 	import PathBreadcrumb from "./PathBreadcrumb.svelte";
 	import { defaultSortOrder } from "./sorting";
 
@@ -51,13 +51,40 @@
 
 	async function refreshSuggestions(text: string) {
 		const request = ++latestCompletion;
-		const { directory, prefix } = splitForCompletion(text);
-		const matches = await directoryMatches(directory, prefix);
+		const matches = await suggestionsFor(text);
 		if (request !== latestCompletion) {
 			return;
 		}
 		suggestions = matches;
 		activeSuggestion = -1;
+	}
+
+	async function suggestionsFor(text: string): Promise<string[]> {
+		const jumpQuery = zoxideQueryIn(text);
+		if (jumpQuery !== null) {
+			return frecentMatches(jumpQuery);
+		}
+		const { directory, prefix } = splitForCompletion(text);
+		return directoryMatches(directory, prefix);
+	}
+
+	// A "z " prefix turns the bar from completing a path into matching a folder by
+	// frecency, the way the shell command of the same name does. An empty query
+	// offers the most frecent folders, so the prefix is discoverable.
+	function zoxideQueryIn(text: string): string | null {
+		if (!text.startsWith("z ")) {
+			return null;
+		}
+		return text.slice(2).trim();
+	}
+
+	async function frecentMatches(query: string): Promise<string[]> {
+		try {
+			const found = await ZoxideQuery(query, path);
+			return found.slice(0, maxSuggestions).map((entry) => entry.path);
+		} catch {
+			return [];
+		}
 	}
 
 	async function directoryMatches(directory: string, prefix: string): Promise<string[]> {
@@ -122,7 +149,19 @@
 		if (activeSuggestion >= 0) {
 			return suggestions[activeSuggestion];
 		}
+		// A jump query is not a path, so submitting one takes the best match rather
+		// than trying to open the text that was typed.
+		if (zoxideQueryIn(draft) !== null) {
+			return bestMatch();
+		}
 		return draft.trim();
+	}
+
+	function bestMatch(): string {
+		if (suggestions.length === 0) {
+			return "";
+		}
+		return suggestions[0];
 	}
 
 	function completeWithSuggestion(event: KeyboardEvent) {

@@ -67,6 +67,7 @@ describe("the default keymap", () => {
 		expect(commandFor("f")).toBe("search.here");
 		expect(commandFor("z")).toBe("search.global");
 		expect(commandFor("/")).toBe("list.find");
+		expect(commandFor("Z")).toBe("zoxide.jump");
 		expect(commandFor("h")).toBe("navigate.parent");
 		expect(commandFor("l")).toBe("navigate.open");
 	});

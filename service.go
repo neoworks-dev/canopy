@@ -13,7 +13,12 @@ import (
 	"file-explorer-neoworks/internal/launcher"
 	"file-explorer-neoworks/internal/settings"
 	"file-explorer-neoworks/internal/watcher"
+	"file-explorer-neoworks/internal/zoxide"
 )
+
+// Enough ranked directories to pick from without turning the prompt into a list
+// to read.
+const zoxideResultLimit = 12
 
 // EventDirectoryChanged carries the path of a watched directory whose contents
 // changed underneath the listing.
@@ -25,6 +30,7 @@ type FileService struct {
 	engine   *fileops.Engine
 	watcher  *watcher.Watcher
 	settings *settings.Store
+	zoxide   *zoxide.Database
 
 	// The last state the frontend saved, so the window geometry captured at
 	// shutdown can be written alongside it.
@@ -41,7 +47,22 @@ func NewFileService() *FileService {
 	service.watcher = watcher.New(service.emitDirectoryChanged)
 	service.settings = settings.Open()
 	service.current = service.settings.Load()
+	service.zoxide = zoxide.New()
 	return service
+}
+
+// ZoxideQuery ranks the directories zoxide remembers against a query, leaving
+// out the one the window is already showing. An empty result covers both "no
+// match" and "zoxide is not installed": neither is a failure the user has to be
+// told about, so the prompt simply has nothing to offer.
+func (service *FileService) ZoxideQuery(query string, exclude string) []zoxide.Entry {
+	return service.zoxide.Query(query, exclude, zoxideResultLimit)
+}
+
+// ZoxideAvailable reports whether zoxide is installed, so a prompt that could
+// never answer can say why instead of looking broken.
+func (service *FileService) ZoxideAvailable() bool {
+	return service.zoxide.Available()
 }
 
 func (service *FileService) emitDirectoryChanged(path string) {
