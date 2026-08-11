@@ -9,6 +9,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"file-explorer-neoworks/internal/mediaserver"
 	"file-explorer-neoworks/internal/settings"
 )
 
@@ -25,7 +26,8 @@ func main() {
 		Width:  window.Width,
 		Height: window.Height,
 		AssetServer: &assetserver.Options{
-			Assets: assets,
+			Assets:  assets,
+			Handler: mediaserver.Handler(),
 		},
 		BackgroundColour: &options.RGBA{R: 10, G: 10, B: 11, A: 1},
 		Bind: []interface{}{

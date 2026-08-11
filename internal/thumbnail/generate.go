@@ -6,6 +6,8 @@ import (
 	"errors"
 	"os/exec"
 	"strconv"
+
+	"file-explorer-neoworks/internal/audio"
 )
 
 // The edge length the shared cache calls "large". Tiles are drawn well below
@@ -48,6 +50,10 @@ var videoExtensions = map[string]bool{
 
 func rendererFor(extension string) renderer {
 	if imageExtensions[extension] {
+		return renderImageWithFFmpeg
+	}
+	// Cover art is a video stream to ffmpeg, so a sound file draws as an image.
+	if audio.SupportsExtension(extension) {
 		return renderImageWithFFmpeg
 	}
 	if videoExtensions[extension] {

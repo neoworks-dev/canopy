@@ -1,3 +1,36 @@
+export namespace audio {
+	
+	export class Details {
+	    duration: number;
+	    bitrate: number;
+	    channels: number;
+	    sampleRate: number;
+	    codec: string;
+	    title: string;
+	    artist: string;
+	    album: string;
+	    waveform: number[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Details(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.duration = source["duration"];
+	        this.bitrate = source["bitrate"];
+	        this.channels = source["channels"];
+	        this.sampleRate = source["sampleRate"];
+	        this.codec = source["codec"];
+	        this.title = source["title"];
+	        this.artist = source["artist"];
+	        this.album = source["album"];
+	        this.waveform = source["waveform"];
+	    }
+	}
+
+}
+
 export namespace bookmarks {
 	
 	export class Bookmark {
@@ -162,6 +195,7 @@ export namespace filesystem {
 	    dataUrl: string;
 	    truncated: boolean;
 	    size: number;
+	    audio: audio.Details;
 	
 	    static createFrom(source: any = {}) {
 	        return new Preview(source);
@@ -176,6 +210,7 @@ export namespace filesystem {
 	        this.dataUrl = source["dataUrl"];
 	        this.truncated = source["truncated"];
 	        this.size = source["size"];
+	        this.audio = this.convertValues(source["audio"], audio.Details);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

@@ -9,15 +9,17 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"file-explorer-neoworks/internal/audio"
 	"file-explorer-neoworks/internal/highlight"
 	"file-explorer-neoworks/internal/thumbnail"
 )
 
 // Preview is what the explorer can show about a single file without handing it
 // to another application. Kind tells the frontend which field to render:
-// "text", "image", "directory", or "unsupported".
+// "text", "image", "audio", "directory", or "unsupported".
 // Tokens is the same text split into coloured runs, empty when the file has no
 // highlighting, in which case the pane draws Text as it is.
+// DataURL carries the drawing for an image, and the cover art for a sound file.
 type Preview struct {
 	Path      string            `json:"path"`
 	Kind      string            `json:"kind"`
@@ -26,6 +28,7 @@ type Preview struct {
 	DataURL   string            `json:"dataUrl"`
 	Truncated bool              `json:"truncated"`
 	Size      int64             `json:"size"`
+	Audio     audio.Details     `json:"audio"`
 }
 
 // Enough text to scroll through without pushing a huge file across the Wails
@@ -73,10 +76,30 @@ func previewOfFile(absolutePath string, size int64) (Preview, error) {
 	if isImage {
 		return imagePreview(absolutePath, size, mediaType)
 	}
+	if audio.Supports(absolutePath) {
+		return audioPreview(absolutePath, size)
+	}
 	if thumbnail.Supports(absolutePath) {
 		return renderedPreview(absolutePath, size)
 	}
 	return textPreview(absolutePath, size)
+}
+
+// A sound file has nothing to draw of its own, so the pane gets what the
+// container says about it and the shape of the sound. Cover art comes from the
+// same renderer images use, since embedded art is a video stream to ffmpeg.
+func audioPreview(absolutePath string, size int64) (Preview, error) {
+	details, readable := audio.Read(absolutePath)
+	if !readable {
+		return Preview{Path: absolutePath, Size: size, Kind: "unsupported"}, nil
+	}
+	return Preview{
+		Path:    absolutePath,
+		Size:    size,
+		Kind:    "audio",
+		Audio:   details,
+		DataURL: thumbnail.RenderPreview(absolutePath),
+	}, nil
 }
 
 // A PDF or a video has no bytes worth showing as they are, so the pane gets the
