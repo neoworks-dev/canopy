@@ -12,6 +12,7 @@
  *   viewMode       "rows" or "grid"
  *   folderPinned   the folder in focus is pinned to the sidebar
  *   directoryOpen  the pane is showing a directory rather than a virtual list
+ *   paletteOpen    the command palette is on screen
  *   tabCount paneCount canSplit
  */
 import type { CommandDescriptor } from "./commands";
@@ -149,6 +150,12 @@ export const staticCommandDescriptors: CommandDescriptor[] = [
 	{ id: "search.global", title: "Search everywhere", category: "Search" },
 	{ id: "search.close", title: "Close search", category: "Search", when: "searchOpen" },
 	{ id: "zoxide.jump", title: "Jump to a folder", category: "Navigation" },
+	{
+		id: "palette.open",
+		title: "Show all commands",
+		category: "General",
+		when: "!paletteOpen",
+	},
 ];
 
 /** Context menu layout: each inner array is one group, rendered with a rule. */
@@ -244,6 +251,9 @@ export const defaultKeymap: Keybinding[] = [
 	{ key: "Z", command: "zoxide.jump", when: "listActive" },
 	{ key: "ctrl+j", command: "zoxide.jump" },
 	{ key: "escape", command: "search.close", when: "searchOpen" },
+
+	{ key: "ctrl+shift+p", command: "palette.open" },
+	{ key: ":", command: "palette.open", when: "listActive" },
 ];
 
 function buildMovementCommands(): MovementCommand[] {

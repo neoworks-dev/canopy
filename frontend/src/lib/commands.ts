@@ -63,13 +63,13 @@ export class CommandRegistry {
 		if (!command) {
 			return false;
 		}
-		return evaluateWhen(whenOf(command), context);
+		return commandApplies(command, context);
 	}
 
 	/** Runs the command if it exists and applies; reports whether it did. */
 	run(id: string, context: WhenContext): boolean {
 		const command = this.commands.get(id);
-		if (!command || !evaluateWhen(whenOf(command), context)) {
+		if (!command || !commandApplies(command, context)) {
 			return false;
 		}
 		command.run();
@@ -86,9 +86,10 @@ export class CommandRegistry {
 	}
 }
 
-function whenOf(command: Command): string {
+/** Whether a command applies right now. A command with no clause always does. */
+export function commandApplies(command: Command, context: WhenContext): boolean {
 	if (!command.when) {
-		return "";
+		return true;
 	}
-	return command.when;
+	return evaluateWhen(command.when, context);
 }

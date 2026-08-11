@@ -36,6 +36,7 @@
 	import { IndexStatus, Search } from "../wailsjs/go/main/IndexService";
 	import { settings as storedSettings } from "../wailsjs/go/models";
 	import type { bookmarks, filesystem, proto, recents } from "../wailsjs/go/models";
+	import CommandPalette from "./lib/CommandPalette.svelte";
 	import ConfirmDialog from "./lib/ConfirmDialog.svelte";
 	import ConflictDialog from "./lib/ConflictDialog.svelte";
 	import ContextMenu from "./lib/ContextMenu.svelte";
@@ -181,6 +182,7 @@
 	let isConfirmingDelete = $state(false);
 	let openWithPath = $state("");
 	let isJumpOpen = $state(false);
+	let paletteContext = $state<WhenContext | null>(null);
 	// A failure that belongs to no pane: launching a file, tagging a selection.
 	let actionError = $state("");
 	// Chords typed so far in a sequence such as "g g", waiting for the rest.
@@ -649,6 +651,7 @@
 			searchOpen: isSearchOpen,
 			trashOpen: tab.location.kind === "trash",
 			jumpOpen: isJumpOpen,
+			paletteOpen: paletteContext !== null,
 			selectionCount: selectedEntries.length,
 			clipboardCount: clipboardPaths.length,
 			entryCount: status.entryCount,
@@ -754,6 +757,28 @@
 		registry.run(id, commandContext);
 	}
 
+	// The palette runs against the context it opened with, not the one its own
+	// input creates by taking focus off the listing.
+	function openPalette() {
+		paletteContext = { ...commandContext, paletteOpen: true };
+	}
+
+	function runPaletteCommand(id: string) {
+		const context = paletteContext;
+		paletteContext = null;
+		if (!context) {
+			return;
+		}
+		registry.run(id, context);
+	}
+
+	function paletteShortcutFor(id: string): string {
+		if (!paletteContext) {
+			return "";
+		}
+		return shortcutFor(keymap, id, paletteContext);
+	}
+
 	function toggleHidden() {
 		showHidden = !showHidden;
 	}
@@ -797,6 +822,7 @@
 			"list.toggleSelection": () => activePane()?.toggleFocusedEntry(),
 			"list.find": () => activePane()?.openFind(),
 			"zoxide.jump": () => (isJumpOpen = true),
+			"palette.open": openPalette,
 
 			"tab.new": openNewTab,
 			"tab.close": closeActiveTab,
@@ -1319,6 +1345,16 @@
 		{/if}
 	</div>
 </div>
+
+{#if paletteContext}
+	<CommandPalette
+		commands={registry.all()}
+		context={paletteContext}
+		shortcutOf={paletteShortcutFor}
+		onRun={runPaletteCommand}
+		onClose={() => (paletteContext = null)}
+	/>
+{/if}
 
 {#if isJumpOpen}
 	<JumpField {currentPath} onJump={jumpToFolder} onClose={() => (isJumpOpen = false)} />
