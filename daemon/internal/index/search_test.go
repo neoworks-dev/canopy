@@ -63,3 +63,32 @@ func TestOwningRootRejectsSiblingPrefixes(t *testing.T) {
 		t.Fatal("a sibling directory sharing a name prefix must not match")
 	}
 }
+
+func TestScopeBoundsCoverEverythingBelowADirectory(t *testing.T) {
+	lower, upper := scopeBounds("/home/moritz/Downloads")
+
+	inside := []string{"/home/moritz/Downloads/a.txt", "/home/moritz/Downloads/deep/b.txt"}
+	for _, path := range inside {
+		if path < lower || path >= upper {
+			t.Fatalf("%q falls outside [%q, %q)", path, lower, upper)
+		}
+	}
+
+	// A sibling sharing the prefix must not be swept in, and neither should the
+	// directory itself.
+	outside := []string{"/home/moritz/Downloads2/a.txt", "/home/moritz/Downloads", "/home/moritz/a"}
+	for _, path := range outside {
+		if path >= lower && path < upper {
+			t.Fatalf("%q falls inside [%q, %q)", path, lower, upper)
+		}
+	}
+}
+
+func TestScopeBoundsCoverEveryAbsolutePathAtTheRoot(t *testing.T) {
+	lower, upper := scopeBounds("/")
+	for _, path := range []string{"/a", "/home/moritz/x", "/zzz"} {
+		if path < lower || path >= upper {
+			t.Fatalf("%q falls outside [%q, %q)", path, lower, upper)
+		}
+	}
+}

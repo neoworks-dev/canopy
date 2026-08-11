@@ -276,7 +276,7 @@ func writeTreeFile(t *testing.T, treePath string, relativePath string) {
 
 func searchOrFail(t *testing.T, daemonClient *client.Client, query string) []proto.Hit {
 	t.Helper()
-	result, err := daemonClient.Search(query, 50, false)
+	result, err := daemonClient.Search(proto.SearchParams{Text: query, Limit: 50})
 	if err != nil {
 		t.Fatalf("search %q: %v", query, err)
 	}

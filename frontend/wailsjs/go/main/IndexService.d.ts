@@ -4,4 +4,4 @@ import {proto} from '../models';
 
 export function IndexStatus():Promise<proto.StatusResult>;
 
-export function Search(arg1:string):Promise<proto.SearchResult>;
+export function Search(arg1:string,arg2:string):Promise<proto.SearchResult>;

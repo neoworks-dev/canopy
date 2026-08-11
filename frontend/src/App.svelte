@@ -180,6 +180,8 @@
 	let bandKeep: string[] = [];
 
 	let searchQuery = $state("");
+	// The directory a search is confined to, or "" for every indexed root.
+	let searchScope = $state("");
 	let searchHits = $state<proto.Hit[]>([]);
 	let searchTruncated = $state(false);
 	let searchErrorMessage = $state("");
@@ -243,12 +245,13 @@
 
 	$effect(() => {
 		const query = searchQuery.trim();
+		const scope = searchScope;
 		if (!query) {
 			clearSearch();
 			return;
 		}
 		selection = emptySelection;
-		const timer = setTimeout(() => runSearch(query), searchDebounceMilliseconds);
+		const timer = setTimeout(() => runSearch(query, scope), searchDebounceMilliseconds);
 		return () => clearTimeout(timer);
 	});
 
@@ -411,10 +414,10 @@
 		}
 	}
 
-	async function runSearch(query: string) {
+	async function runSearch(query: string, scope: string) {
 		const sequence = ++latestSearchSequence;
 		isSearching = true;
-		const outcome = await requestSearch(query);
+		const outcome = await requestSearch(query, scope);
 		if (sequence !== latestSearchSequence) {
 			return;
 		}
@@ -422,9 +425,9 @@
 		isSearching = false;
 	}
 
-	async function requestSearch(query: string): Promise<SearchOutcome> {
+	async function requestSearch(query: string, scope: string): Promise<SearchOutcome> {
 		try {
-			const result = await Search(query);
+			const result = await Search(query, scope);
 			return { hits: result.hits, truncated: result.truncated, errorMessage: "" };
 		} catch (error) {
 			return { hits: [], truncated: false, errorMessage: describeError(error) };
@@ -439,6 +442,7 @@
 
 	function clearSearch() {
 		latestSearchSequence++;
+		searchScope = "";
 		searchHits = [];
 		searchTruncated = false;
 		searchErrorMessage = "";
@@ -534,6 +538,18 @@
 	function focusSearch() {
 		searchInput?.focus();
 		searchInput?.select();
+	}
+
+	// The scope is set before the field takes focus, so the first keystroke
+	// already queries the right thing.
+	function searchThisFolder() {
+		searchScope = currentPath;
+		focusSearch();
+	}
+
+	function searchEverywhere() {
+		searchScope = "";
+		focusSearch();
 	}
 
 	function activeDescendant(): string | undefined {
@@ -754,8 +770,8 @@
 			"file.newFile": () => createEntry("file"),
 			"file.undo": () => operations.undo(),
 
-			"search.here": focusSearch,
-			"search.global": focusSearch,
+			"search.here": searchThisFolder,
+			"search.global": searchEverywhere,
 			"search.close": closeSearch,
 		};
 	}
@@ -1135,6 +1151,28 @@
 		listContainer?.focus();
 	}
 
+	function searchPlaceholder(): string {
+		if (!searchScope) {
+			return "Search everywhere";
+		}
+		return `Search in ${nameOfDirectory(searchScope)}`;
+	}
+
+	function scopeLabel(): string {
+		if (!searchScope) {
+			return "";
+		}
+		return nameOfDirectory(searchScope);
+	}
+
+	function nameOfDirectory(path: string): string {
+		const name = path.split("/").filter(Boolean).pop();
+		if (!name) {
+			return "/";
+		}
+		return name;
+	}
+
 	function reverseSort() {
 		sortOrder = sortOrderReversed(sortOrder);
 		reloadListing();
@@ -1222,7 +1260,11 @@
 			onEditingChange={(editing) => (isEditingPath = editing)}
 		/>
 
-		<SearchField bind:value={searchQuery} bind:input={searchInput} />
+		<SearchField
+			bind:value={searchQuery}
+			bind:input={searchInput}
+			placeholder={searchPlaceholder()}
+		/>
 
 		<Button size="sm" variant={viewVariant("rows")} icon={ListIcon} onclick={showRows} />
 		<Button size="sm" variant={viewVariant("grid")} icon={SquaresFourIcon} onclick={showGrid} />
@@ -1278,7 +1320,12 @@
 						{#if searchHits.length === 0}
 							<SectionHeader title="No matches" />
 						{:else}
-							<SearchResults hits={searchHits} truncated={searchTruncated} onOpen={openHit} />
+							<SearchResults
+							hits={searchHits}
+							truncated={searchTruncated}
+							scope={scopeLabel()}
+							onOpen={openHit}
+						/>
 						{/if}
 					{/if}
 				</div>

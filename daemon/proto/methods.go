@@ -54,6 +54,9 @@ type SearchParams struct {
 	Text            string `json:"text"`
 	Limit           int    `json:"limit"`
 	DirectoriesOnly bool   `json:"directoriesOnly"`
+	// Scope limits results to a directory and everything under it. Empty
+	// searches every indexed root.
+	Scope string `json:"scope,omitempty"`
 }
 
 // Hit is one search result. Times are Unix seconds so the wire format stays

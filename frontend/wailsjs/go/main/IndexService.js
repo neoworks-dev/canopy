@@ -6,6 +6,6 @@ export function IndexStatus() {
   return window['go']['main']['IndexService']['IndexStatus']();
 }
 
-export function Search(arg1) {
-  return window['go']['main']['IndexService']['Search'](arg1);
+export function Search(arg1, arg2) {
+  return window['go']['main']['IndexService']['Search'](arg1, arg2);
 }

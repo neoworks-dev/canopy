@@ -7,14 +7,17 @@
 	let {
 		hits,
 		truncated,
+		scope,
 		onOpen,
 	}: {
 		hits: proto.Hit[];
 		truncated: boolean;
+		/** The folder the search was confined to, or "" for the whole index. */
+		scope: string;
 		onOpen: (hit: proto.Hit) => void;
 	} = $props();
 
-	const countLabel = $derived(describeCount(hits.length, truncated));
+	const countLabel = $derived(describeCount(hits.length, truncated) + describeScope(scope));
 
 	function describeCount(count: number, isTruncated: boolean): string {
 		if (isTruncated) {
@@ -24,6 +27,13 @@
 			return "1 match";
 		}
 		return `${count} matches`;
+	}
+
+	function describeScope(folder: string): string {
+		if (!folder) {
+			return "";
+		}
+		return ` in ${folder}`;
 	}
 
 	// A hit can be anywhere in the indexed roots, so its location matters more

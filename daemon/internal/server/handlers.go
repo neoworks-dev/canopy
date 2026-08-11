@@ -94,7 +94,12 @@ func (server *Server) handleSearch(_ context.Context, raw json.RawMessage, _ *co
 	if err != nil {
 		return nil, err
 	}
-	records, truncated, err := server.indexer.Search(params.Text, params.Limit, params.DirectoriesOnly)
+	records, truncated, err := server.indexer.Search(index.Query{
+		Text:            params.Text,
+		Limit:           params.Limit,
+		DirectoriesOnly: params.DirectoriesOnly,
+		Scope:           params.Scope,
+	})
 	if err != nil {
 		return nil, err
 	}

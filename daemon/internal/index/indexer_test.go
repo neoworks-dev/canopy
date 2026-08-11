@@ -190,7 +190,7 @@ func assertNoHits(t *testing.T, indexer *Indexer, query string) {
 
 func searchOrFail(t *testing.T, indexer *Indexer, query string) []FileRecord {
 	t.Helper()
-	hits, _, err := indexer.Search(query, 100, false)
+	hits, _, err := indexer.Search(Query{Text: query, Limit: 100})
 	if err != nil {
 		t.Fatalf("search %q: %v", query, err)
 	}
@@ -218,4 +218,51 @@ func waitUntil(t *testing.T, description string, satisfied func() bool) {
 		time.Sleep(25 * time.Millisecond)
 	}
 	t.Fatalf("timed out waiting for %s", description)
+}
+
+func TestSearchScopeLimitsResultsToOneSubtree(t *testing.T) {
+	treePath := buildTree(t, []string{
+		"invoices/report.pdf",
+		"invoices/nested/report.txt",
+		"archive/report.pdf",
+	})
+	indexer := startTestIndexer(t)
+
+	if err := indexer.AddRoot(treePath); err != nil {
+		t.Fatalf("add root: %v", err)
+	}
+	waitForHit(t, indexer, "report", filepath.Join(treePath, "archive/report.pdf"))
+
+	scope := filepath.Join(treePath, "invoices")
+	hits, _, err := indexer.Search(Query{Text: "report", Limit: 100, Scope: scope})
+	if err != nil {
+		t.Fatalf("scoped search: %v", err)
+	}
+	if len(hits) != 2 {
+		t.Fatalf("got %d hits, want the two below %s", len(hits), scope)
+	}
+	if !containsPath(hits, filepath.Join(scope, "nested/report.txt")) {
+		t.Fatal("a scoped search should reach into subdirectories")
+	}
+	if containsPath(hits, filepath.Join(treePath, "archive/report.pdf")) {
+		t.Fatal("a scoped search returned a hit from outside the scope")
+	}
+}
+
+func TestAnEmptyScopeSearchesEverything(t *testing.T) {
+	treePath := buildTree(t, []string{"invoices/report.pdf", "archive/report.pdf"})
+	indexer := startTestIndexer(t)
+
+	if err := indexer.AddRoot(treePath); err != nil {
+		t.Fatalf("add root: %v", err)
+	}
+	waitForHit(t, indexer, "report", filepath.Join(treePath, "archive/report.pdf"))
+
+	hits, _, err := indexer.Search(Query{Text: "report", Limit: 100})
+	if err != nil {
+		t.Fatalf("search: %v", err)
+	}
+	if len(hits) != 2 {
+		t.Fatalf("got %d hits, want both", len(hits))
+	}
 }

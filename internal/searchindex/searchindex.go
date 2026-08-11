@@ -28,13 +28,18 @@ func New() *Connection {
 	return &Connection{}
 }
 
-// Search matches file and directory names anywhere in the indexed roots.
-func (connection *Connection) Search(text string) (proto.SearchResult, error) {
+// Search matches file and directory names. A scope limits the results to one
+// directory and everything under it; an empty scope searches the indexed roots.
+func (connection *Connection) Search(text string, scope string) (proto.SearchResult, error) {
 	daemonClient, err := connection.ensureClient()
 	if err != nil {
 		return proto.SearchResult{}, err
 	}
-	return daemonClient.Search(text, defaultSearchLimit, false)
+	return daemonClient.Search(proto.SearchParams{
+		Text:  text,
+		Limit: defaultSearchLimit,
+		Scope: scope,
+	})
 }
 
 func (connection *Connection) Status() (proto.StatusResult, error) {

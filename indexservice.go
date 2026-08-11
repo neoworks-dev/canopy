@@ -18,9 +18,10 @@ func NewIndexService() *IndexService {
 }
 
 // Search returns indexed entries whose names match the query. An empty query
-// yields no hits rather than the whole index.
-func (service *IndexService) Search(query string) (proto.SearchResult, error) {
-	return service.connection.Search(query)
+// yields no hits rather than the whole index. An empty scope searches every
+// indexed root; otherwise only the given directory and what is under it.
+func (service *IndexService) Search(query string, scope string) (proto.SearchResult, error) {
+	return service.connection.Search(query, scope)
 }
 
 // IndexStatus tells the frontend whether a crawl is still running, so a partial

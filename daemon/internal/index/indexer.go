@@ -134,8 +134,8 @@ func (indexer *Indexer) Rescan(requestedPath string) error {
 	return nil
 }
 
-func (indexer *Indexer) Search(text string, limit int, directoriesOnly bool) ([]FileRecord, bool, error) {
-	return indexer.store.Search(text, limit, directoriesOnly)
+func (indexer *Indexer) Search(query Query) ([]FileRecord, bool, error) {
+	return indexer.store.Search(query)
 }
 
 func (indexer *Indexer) Status() (Status, error) {

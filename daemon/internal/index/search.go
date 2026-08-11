@@ -16,19 +16,37 @@ const searchStatement = `
 	SELECT files.path, files.name, files.parentPath, files.isDir, files.size, files.modTimeUnix
 	FROM fileSearch
 	JOIN files ON files.fileId = fileSearch.rowid
-	WHERE fileSearch MATCH ? AND (? = 0 OR files.isDir = 1)
+	WHERE fileSearch MATCH ?
+		AND (? = 0 OR files.isDir = 1)
+		AND (? = '' OR (files.path >= ? AND files.path < ?))
 	ORDER BY bm25(fileSearch), length(files.path), files.name
 	LIMIT ?`
 
+// Query is one search request.
+type Query struct {
+	Text            string
+	Limit           int
+	DirectoriesOnly bool
+	// Scope limits results to a directory and everything under it. Empty
+	// searches every indexed root.
+	Scope string
+}
+
 // Search matches indexed names. The second return value reports that more
 // matches existed than the limit allowed.
-func (store *Store) Search(text string, limit int, directoriesOnly bool) ([]FileRecord, bool, error) {
-	matchExpression := buildMatchExpression(text)
+func (store *Store) Search(query Query) ([]FileRecord, bool, error) {
+	matchExpression := buildMatchExpression(query.Text)
 	if matchExpression == "" {
 		return []FileRecord{}, false, nil
 	}
-	effectiveLimit := clampSearchLimit(limit)
-	rows, err := store.database.Query(searchStatement, matchExpression, directoriesOnly, effectiveLimit+1)
+	effectiveLimit := clampSearchLimit(query.Limit)
+	lowerBound, upperBound := scopeBounds(query.Scope)
+	rows, err := store.database.Query(
+		searchStatement,
+		matchExpression, query.DirectoriesOnly,
+		query.Scope, lowerBound, upperBound,
+		effectiveLimit+1,
+	)
 	if err != nil {
 		return nil, false, fmt.Errorf("search: %w", err)
 	}
@@ -39,6 +57,15 @@ func (store *Store) Search(text string, limit int, directoriesOnly bool) ([]File
 		return nil, false, err
 	}
 	return truncateToLimit(records, effectiveLimit)
+}
+
+// scopeBounds turns a directory into the half-open path range covering
+// everything below it. '0' is the byte after '/', so the range needs no pattern
+// matching and the unique index on path can serve it. A scope of "/" bounds
+// every absolute path, which is what searching the root should mean.
+func scopeBounds(scope string) (string, string) {
+	trimmed := strings.TrimSuffix(scope, "/")
+	return trimmed + "/", trimmed + "0"
 }
 
 func truncateToLimit(records []FileRecord, limit int) ([]FileRecord, bool, error) {

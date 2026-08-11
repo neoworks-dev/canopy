@@ -102,13 +102,9 @@ func (client *Client) Rescan(path string) error {
 	return client.call(proto.MethodRescan, proto.RescanParams{Path: path}, nil)
 }
 
-func (client *Client) Search(text string, limit int, directoriesOnly bool) (proto.SearchResult, error) {
+func (client *Client) Search(params proto.SearchParams) (proto.SearchResult, error) {
 	var result proto.SearchResult
-	err := client.call(proto.MethodSearchQuery, proto.SearchParams{
-		Text:            text,
-		Limit:           limit,
-		DirectoriesOnly: directoriesOnly,
-	}, &result)
+	err := client.call(proto.MethodSearchQuery, params, &result)
 	return result, err
 }
 
