@@ -123,6 +123,9 @@
 	let listMetrics = $state<ListMetrics>(unmeasuredMetrics);
 	let viewport = $state<Viewport>({ scrollTop: 0, height: 0 });
 	let listContainer = $state<HTMLDivElement>();
+	// The deepest column of the Miller view, which is what scrolls the listing
+	// there rather than the pane around it.
+	let millerScroller = $state<HTMLDivElement>();
 	let renamingPath = $state("");
 	let isFindOpen = $state(false);
 	let gitReport = $state<git.Report | null>(null);
@@ -189,16 +192,22 @@
 	});
 
 	// The window depends on how much of the pane fits, which changes with the
-	// window and with the panes beside it.
+	// window and with the panes beside it. Which element that is depends on the
+	// view: the pane itself scrolls a list or a grid, and the deepest column
+	// scrolls a chain of columns, so each one scrolls on its own.
 	$effect(() => {
-		if (!listContainer) {
+		const scroller = verticalScroller();
+		if (!scroller) {
 			return;
 		}
-		const container = listContainer;
-		const observer = new ResizeObserver(() => measureViewport(container));
-		observer.observe(container);
-		measureViewport(container);
-		return () => observer.disconnect();
+		const observer = new ResizeObserver(() => measureViewport(scroller));
+		observer.observe(scroller);
+		scroller.addEventListener("scroll", trackScroll);
+		measureViewport(scroller);
+		return () => {
+			observer.disconnect();
+			scroller.removeEventListener("scroll", trackScroll);
+		};
 	});
 
 	// The report is tracked so a change to the listing or the selection sends a
@@ -432,14 +441,22 @@
 	// Computed rather than scrolled into view, because the entry the keyboard just
 	// moved to may not be mounted yet.
 	function revealEntry(index: number) {
-		if (!listContainer) {
+		const scroller = verticalScroller();
+		if (!scroller) {
 			return;
 		}
 		const target = scrollTopRevealing(listMetrics, index, viewport);
 		if (target === viewport.scrollTop) {
 			return;
 		}
-		listContainer.scrollTo({ top: target, behavior: "smooth" });
+		scroller.scrollTo({ top: target, behavior: "smooth" });
+	}
+
+	function verticalScroller(): HTMLElement | undefined {
+		if (viewMode === "columns") {
+			return millerScroller;
+		}
+		return listContainer;
 	}
 
 	function applyMetrics(reported: ListMetrics) {
@@ -449,18 +466,18 @@
 		listMetrics = reported;
 	}
 
-	function trackScroll(event: Event & { currentTarget: HTMLDivElement }) {
-		viewport = {
-			scrollTop: event.currentTarget.scrollTop,
-			height: event.currentTarget.clientHeight,
-		};
+	function trackScroll(event: Event) {
+		if (!(event.currentTarget instanceof HTMLElement)) {
+			return;
+		}
+		measureViewport(event.currentTarget);
 		if (!band) {
 			return;
 		}
 		redrawBand();
 	}
 
-	function measureViewport(container: HTMLDivElement) {
+	function measureViewport(container: HTMLElement) {
 		viewport = { scrollTop: container.scrollTop, height: container.clientHeight };
 	}
 
@@ -894,8 +911,8 @@
 				ondragend={endDrag}
 				ondrop={applyDrop}
 				onfocus={onActivate}
-				onscroll={trackScroll}
-				class="min-h-0 flex-1 overflow-y-auto rounded-lg focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-line-faint focus-visible:outline-none"
+				class="min-h-0 flex-1 rounded-lg focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-line-faint focus-visible:outline-none"
+				class:overflow-y-auto={viewMode !== "columns"}
 				class:overflow-x-auto={viewMode === "columns"}
 				class:ring-1={marksTheWholeFolder()}
 				class:ring-inset={marksTheWholeFolder()}
@@ -917,6 +934,7 @@
 						onContextMenu={openContextMenu}
 						onDragStart={startDrag}
 						onMetrics={applyMetrics}
+						onScroller={(element) => (millerScroller = element)}
 						onNavigate={(path) => onNavigate({ kind: "directory", path })}
 					/>
 				{:else if viewMode === "grid"}

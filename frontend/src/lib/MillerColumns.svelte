@@ -27,6 +27,7 @@
 		onContextMenu,
 		onDragStart,
 		onMetrics,
+		onScroller,
 		currentPath,
 		sortOrder,
 		showHidden,
@@ -44,6 +45,8 @@
 		onContextMenu: (index: number, event: MouseEvent) => void;
 		onDragStart: (index: number, event: DragEvent) => void;
 		onMetrics: (metrics: ListMetrics) => void;
+		/** Hands the pane the element that scrolls its listing. */
+		onScroller: (element: HTMLDivElement | undefined) => void;
 		currentPath: string;
 		sortOrder: SortOrder;
 		showHidden: boolean;
@@ -59,6 +62,12 @@
 	// The chain leaves out the folder on screen: that one is rendered from the
 	// entries the pane already holds rather than read a second time.
 	const ancestors = $derived(columnChain(currentPath, visibleColumnLimit).slice(0, -1));
+
+	// The pane virtualizes and scrolls whichever element holds its own listing,
+	// which in this view is the column at the end of the chain.
+	$effect(() => {
+		onScroller(trailing);
+	});
 
 	// Row heights come from the type scale, so they are read back from a mounted
 	// row rather than restated as a number here.
@@ -94,7 +103,7 @@
 	}
 </script>
 
-<div class="flex min-h-full items-start gap-2">
+<div class="flex h-full items-stretch gap-2">
 	{#each ancestors as columnPath (columnPath)}
 		<MillerColumn
 			path={columnPath}
@@ -105,7 +114,9 @@
 		/>
 	{/each}
 
-	<div bind:this={trailing} class="flex w-64 shrink-0 flex-col">
+	<!-- The deepest column is the pane's vertical viewport, so the pane is handed
+		 the element to measure and to scroll. -->
+	<div bind:this={trailing} class="flex h-full w-64 shrink-0 flex-col overflow-y-auto">
 		<div style="height: {topPadding}px"></div>
 
 		{#each entries as entry, position (entry.path)}

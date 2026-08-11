@@ -73,7 +73,7 @@
 	}
 </script>
 
-<div class="flex w-56 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-line-faint pr-2">
+<div class="flex h-full w-56 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-line-faint pr-2">
 	{#if isLoading}
 		<div class="flex justify-center p-2">
 			<LoadingSpinner size={14} />
