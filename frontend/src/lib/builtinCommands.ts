@@ -9,7 +9,7 @@
  *   trashOpen      the trash pane has replaced the listing
  *   selectionCount clipboardCount entryCount
  *   canUndo canGoBack canGoForward canGoUp
- *   viewMode       "rows" or "grid"
+ *   viewMode       "rows", "grid" or "columns"
  *   folderPinned   the folder in focus is pinned to the sidebar
  *   directoryOpen  the pane is showing a directory rather than a virtual list
  *   paletteOpen    the command palette is on screen
@@ -109,6 +109,7 @@ export const staticCommandDescriptors: CommandDescriptor[] = [
 
 	{ id: "view.rows", title: "Show as list", category: "View" },
 	{ id: "view.grid", title: "Show as grid", category: "View" },
+	{ id: "view.columns", title: "Show as columns", category: "View" },
 	{ id: "view.toggleHidden", title: "Show hidden files", category: "View" },
 	{ id: "view.sortByName", title: "Sort by name", category: "View" },
 	{ id: "view.sortBySize", title: "Sort by size", category: "View" },
@@ -237,6 +238,7 @@ export const defaultKeymap: Keybinding[] = [
 
 	{ key: "ctrl+1", command: "view.rows" },
 	{ key: "ctrl+2", command: "view.grid" },
+	{ key: "ctrl+3", command: "view.columns" },
 	{ key: ".", command: "view.toggleHidden", when: "listActive" },
 	{ key: "ctrl+h", command: "view.toggleHidden" },
 	{ key: "s n", command: "view.sortByName", when: "listActive" },

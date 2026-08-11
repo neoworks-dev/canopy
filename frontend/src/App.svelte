@@ -955,6 +955,7 @@
 
 			"view.rows": () => setViewMode("rows"),
 			"view.grid": () => setViewMode("grid"),
+			"view.columns": () => setViewMode("columns"),
 			"view.toggleHidden": toggleHidden,
 			"view.sortByName": () => sortByColumn("name"),
 			"view.sortBySize": () => sortByColumn("size"),

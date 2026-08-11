@@ -15,6 +15,7 @@
 	import EntryGrid from "./EntryGrid.svelte";
 	import EntryRows from "./EntryRows.svelte";
 	import FindField from "./FindField.svelte";
+	import MillerColumns from "./MillerColumns.svelte";
 	import SearchPane from "./SearchPane.svelte";
 	import TagPane from "./TagPane.svelte";
 	import TrashPane from "./TrashPane.svelte";
@@ -895,11 +896,30 @@
 				onfocus={onActivate}
 				onscroll={trackScroll}
 				class="min-h-0 flex-1 overflow-y-auto rounded-lg focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-line-faint focus-visible:outline-none"
+				class:overflow-x-auto={viewMode === "columns"}
 				class:ring-1={marksTheWholeFolder()}
 				class:ring-inset={marksTheWholeFolder()}
 				class:ring-action={marksTheWholeFolder()}
 			>
-				{#if viewMode === "grid"}
+				{#if viewMode === "columns"}
+					<MillerColumns
+						currentPath={directoryPath}
+						entries={mountedEntries}
+						firstIndex={mountedWindow.firstIndex}
+						topPadding={mountedWindow.topPadding}
+						bottomPadding={mountedWindow.bottomPadding}
+						{selectedPaths}
+						focusIndex={selection.focusIndex}
+						{sortOrder}
+						{showHidden}
+						onSelect={selectEntry}
+						onOpen={openEntry}
+						onContextMenu={openContextMenu}
+						onDragStart={startDrag}
+						onMetrics={applyMetrics}
+						onNavigate={(path) => onNavigate({ kind: "directory", path })}
+					/>
+				{:else if viewMode === "grid"}
 					<EntryGrid
 						entries={mountedEntries}
 						firstIndex={mountedWindow.firstIndex}

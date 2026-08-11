@@ -11,7 +11,7 @@ import { sidebarSectionsFrom, type SidebarSectionId } from "./sidebar";
 import { defaultSortOrder, type SortKey, type SortOrder } from "./sorting";
 import { whenClauseIsValid } from "./whenClause";
 
-export type ViewMode = "rows" | "grid";
+export type ViewMode = "rows" | "grid" | "columns";
 
 /** The parts of the settings file the frontend owns. */
 export type ViewSettings = {
@@ -126,8 +126,8 @@ function whenFrom(stored: string | undefined): string {
 }
 
 function viewModeFrom(stored: string | undefined): ViewMode {
-	if (stored === "grid") {
-		return "grid";
+	if (stored === "grid" || stored === "columns") {
+		return stored;
 	}
 	return "rows";
 }

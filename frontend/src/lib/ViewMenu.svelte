@@ -4,6 +4,7 @@
 	import ListIcon from "phosphor-svelte/lib/ListIcon";
 	import SlidersHorizontalIcon from "phosphor-svelte/lib/SlidersHorizontalIcon";
 	import SquaresFourIcon from "phosphor-svelte/lib/SquaresFourIcon";
+	import ColumnsIcon from "phosphor-svelte/lib/ColumnsIcon";
 	import { availableColumns, type ColumnId } from "./columns";
 	import type { ViewMode } from "./settings";
 
@@ -32,6 +33,7 @@
 	const viewModes: { id: ViewMode; label: string; icon: IconComponent }[] = [
 		{ id: "rows", label: "List", icon: ListIcon },
 		{ id: "grid", label: "Grid", icon: SquaresFourIcon },
+		{ id: "columns", label: "Columns", icon: ColumnsIcon },
 	];
 
 	let isOpen = $state(false);

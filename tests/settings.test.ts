@@ -40,7 +40,12 @@ describe("viewSettingsFrom", () => {
 	});
 
 	test("an unknown view mode falls back to rows", () => {
-		expect(viewSettingsFrom({ viewMode: "columns" }).viewMode).toBe("rows");
+		expect(viewSettingsFrom({ viewMode: "coverflow" }).viewMode).toBe("rows");
+	});
+
+	test("every view mode the explorer has is read back", () => {
+		expect(viewSettingsFrom({ viewMode: "grid" }).viewMode).toBe("grid");
+		expect(viewSettingsFrom({ viewMode: "columns" }).viewMode).toBe("columns");
 	});
 
 	test("column ids that no longer exist are dropped", () => {
