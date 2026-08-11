@@ -30,6 +30,15 @@ describe("viewSettingsFrom", () => {
 		expect(viewSettingsFrom({ panes: {} }).panes).toEqual(defaultViewSettings.panes);
 	});
 
+	test("folded sidebar groups are applied, unknown names dropped", () => {
+		const applied = viewSettingsFrom({ collapsedSections: ["recent", "networks"] });
+		expect(applied.collapsedSections).toEqual(["recent"]);
+	});
+
+	test("a file that says nothing about the sidebar leaves every group open", () => {
+		expect(viewSettingsFrom({}).collapsedSections).toEqual([]);
+	});
+
 	test("an unknown view mode falls back to rows", () => {
 		expect(viewSettingsFrom({ viewMode: "columns" }).viewMode).toBe("rows");
 	});

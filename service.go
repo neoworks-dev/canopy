@@ -3,15 +3,19 @@ package main
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"file-explorer-neoworks/internal/bookmarks"
 	"file-explorer-neoworks/internal/clipboard"
 	"file-explorer-neoworks/internal/fileops"
 	"file-explorer-neoworks/internal/filesystem"
 	"file-explorer-neoworks/internal/launcher"
+	"file-explorer-neoworks/internal/recents"
 	"file-explorer-neoworks/internal/settings"
+	"file-explorer-neoworks/internal/tags"
 	"file-explorer-neoworks/internal/thumbnail"
 	"file-explorer-neoworks/internal/watcher"
 	"file-explorer-neoworks/internal/zoxide"
@@ -32,6 +36,8 @@ type FileService struct {
 	watcher  *watcher.Watcher
 	settings *settings.Store
 	zoxide   *zoxide.Database
+	recents  *recents.Store
+	tagNames *tags.Vocabulary
 
 	// The last state the frontend saved, so the window geometry captured at
 	// shutdown can be written alongside it.
@@ -49,6 +55,8 @@ func NewFileService() *FileService {
 	service.settings = settings.Open()
 	service.current = service.settings.Load()
 	service.zoxide = zoxide.New()
+	service.recents = recents.Open()
+	service.tagNames = tags.OpenVocabulary()
 	return service
 }
 
@@ -91,7 +99,12 @@ func (service *FileService) emit(name string, data any) {
 // ListDirectory reads the directory at path in the given order. An empty path
 // means the home directory.
 func (service *FileService) ListDirectory(path string, order filesystem.Order) (filesystem.Listing, error) {
-	return filesystem.ReadDirectory(path, order)
+	listing, err := filesystem.ReadDirectory(path, order)
+	if err != nil {
+		return listing, err
+	}
+	service.recents.Record(listing.Path, true)
+	return listing, nil
 }
 
 // LoadSettings reports the preferences this launch started from.
@@ -167,6 +180,88 @@ func (service *FileService) Places() []filesystem.Place {
 	return filesystem.Places()
 }
 
+// Devices lists the mounted volumes beside the places, with the free space each
+// one has left.
+func (service *FileService) Devices() []filesystem.Device {
+	return filesystem.Devices()
+}
+
+// Bookmarks lists the folders pinned in the file the desktop's file choosers
+// share, so pinning one here pins it everywhere.
+func (service *FileService) Bookmarks() []bookmarks.Bookmark {
+	return bookmarks.List()
+}
+
+func (service *FileService) AddBookmark(path string) error {
+	return bookmarks.Add(path, filepath.Base(path))
+}
+
+func (service *FileService) RemoveBookmark(path string) error {
+	return bookmarks.Remove(path)
+}
+
+// RecentEntries lists what this explorer opened, newest first.
+func (service *FileService) RecentEntries() []recents.Entry {
+	return service.recents.List()
+}
+
+func (service *FileService) ClearRecents() {
+	service.recents.Clear()
+}
+
+// TagsOf reports the labels on one file, which live on the file itself.
+func (service *FileService) TagsOf(path string) []string {
+	return tags.Of(path)
+}
+
+// AddTag labels every path in a selection and puts the name in the sidebar.
+func (service *FileService) AddTag(paths []string, name string) error {
+	if err := applyToAll(paths, func(path string) error { return tags.Add(path, name) }); err != nil {
+		return err
+	}
+	service.tagNames.Remember([]string{name})
+	return nil
+}
+
+func (service *FileService) RemoveTag(paths []string, name string) error {
+	return applyToAll(paths, func(path string) error { return tags.Remove(path, name) })
+}
+
+// KnownTags lists the names the sidebar offers. Tags are stored on the files,
+// so the set of names in use is remembered separately rather than found by
+// walking the whole filesystem.
+func (service *FileService) KnownTags() []string {
+	return service.tagNames.Names()
+}
+
+// ForgetTag drops a name from the sidebar and leaves the files carrying it
+// alone.
+func (service *FileService) ForgetTag(name string) {
+	service.tagNames.Forget(name)
+}
+
+// FilesWithTag walks the home directory for the files carrying one tag. There
+// is no index of them: the attribute is on each file, so finding them means
+// asking each one.
+func (service *FileService) FilesWithTag(name string) []filesystem.Entry {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return []filesystem.Entry{}
+	}
+	return tags.Search(home, name)
+}
+
+// The first failure stops the run, so a selection is not left half labelled
+// without anybody being told.
+func applyToAll(paths []string, apply func(path string) error) error {
+	for _, path := range paths {
+		if err := apply(path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // StartOperation queues a copy, move, trash or delete and reports the id that
 // identifies it in progress events and conflict prompts.
 func (service *FileService) StartOperation(kind string, sources []string, destination string) (string, error) {
@@ -240,7 +335,11 @@ func (service *FileService) EmptyTrash() error {
 // OpenPath launches a path with the remembered override for its type, or the
 // system default.
 func (service *FileService) OpenPath(path string) error {
-	return launcher.Open(path)
+	if err := launcher.Open(path); err != nil {
+		return err
+	}
+	service.recents.Record(path, false)
+	return nil
 }
 
 // ApplicationsFor lists the desktop entries registered for a path's type.

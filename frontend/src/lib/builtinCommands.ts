@@ -104,6 +104,20 @@ export const staticCommandDescriptors: CommandDescriptor[] = [
 	{ id: "file.newFolder", title: "New folder", category: "File" },
 	{ id: "file.newFile", title: "New file", category: "File" },
 	{ id: "file.undo", title: "Undo", category: "File", when: "canUndo" },
+	{ id: "tags.edit", title: "Tags…", category: "File", when: "selectionCount > 0" },
+
+	{
+		id: "bookmark.pin",
+		title: "Pin this folder",
+		category: "Navigation",
+		when: "listActive && !folderPinned",
+	},
+	{
+		id: "bookmark.unpin",
+		title: "Unpin this folder",
+		category: "Navigation",
+		when: "listActive && folderPinned",
+	},
 
 	{ id: "search.here", title: "Search this folder", category: "Search" },
 	{ id: "search.global", title: "Search everywhere", category: "Search" },
@@ -115,13 +129,14 @@ export const staticCommandDescriptors: CommandDescriptor[] = [
 export const selectionMenuIds: string[][] = [
 	["navigate.open", "navigate.openWith"],
 	["file.cut", "file.copy", "file.paste"],
-	["file.rename"],
+	["file.rename", "tags.edit"],
 	["file.trash", "file.deletePermanently"],
 ];
 
 export const backgroundMenuIds: string[][] = [
 	["file.newFolder", "file.newFile"],
 	["file.paste"],
+	["bookmark.pin", "bookmark.unpin"],
 	["file.undo"],
 ];
 
@@ -170,6 +185,8 @@ export const defaultKeymap: Keybinding[] = [
 	{ key: "n d", command: "file.newFolder", when: "listActive" },
 	{ key: "n f", command: "file.newFile", when: "listActive" },
 	{ key: "ctrl+shift+n", command: "file.newFolder" },
+	{ key: "t", command: "tags.edit", when: "listActive" },
+	{ key: "b", command: "bookmark.pin", when: "listActive" },
 	{ key: "u", command: "file.undo", when: "listActive" },
 	{ key: "ctrl+z", command: "file.undo" },
 

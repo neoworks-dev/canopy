@@ -9,26 +9,36 @@
 	import EyeSlashIcon from "phosphor-svelte/lib/EyeSlashIcon";
 	import WarningIcon from "phosphor-svelte/lib/WarningIcon";
 	import {
+		AddBookmark,
+		AddTag,
+		Bookmarks,
 		CopyPathsToClipboard,
 		CreateFile,
 		CreateFolder,
+		Devices,
+		ForgetTag,
+		KnownTags,
 		ListDirectory,
 		LoadSettings,
 		OpenPath,
 		OpenWith,
 		Places,
 		ReadClipboardPaths,
+		RecentEntries,
+		RemoveBookmark,
+		RemoveTag,
 		RenameEntry,
 		SaveSettings,
 		SetDefaultApplication,
 		StopWatching,
 		SuggestName,
+		TagsOf,
 		WatchDirectory,
 	} from "../wailsjs/go/main/FileService";
 	import { IndexStatus, Search } from "../wailsjs/go/main/IndexService";
 	import { EventsOn } from "../wailsjs/runtime/runtime";
 	import { settings as storedSettings } from "../wailsjs/go/models";
-	import type { filesystem, proto } from "../wailsjs/go/models";
+	import type { bookmarks, filesystem, proto, recents } from "../wailsjs/go/models";
 	import ConfirmDialog from "./lib/ConfirmDialog.svelte";
 	import ConflictDialog from "./lib/ConflictDialog.svelte";
 	import ContextMenu from "./lib/ContextMenu.svelte";
@@ -43,6 +53,8 @@
 	import PlacesSidebar from "./lib/PlacesSidebar.svelte";
 	import PreviewPane from "./lib/PreviewPane.svelte";
 	import SearchField from "./lib/SearchField.svelte";
+	import TagDialog from "./lib/TagDialog.svelte";
+	import TagPane from "./lib/TagPane.svelte";
 	import TrashPane from "./lib/TrashPane.svelte";
 	import ViewMenu from "./lib/ViewMenu.svelte";
 	import {
@@ -88,6 +100,10 @@
 	} from "./lib/marquee";
 	import { targetIndexFor, type Movement } from "./lib/movement";
 	import { defaultPaneWidths } from "./lib/panes";
+	import {
+		sectionsAfterToggle,
+		type SidebarSectionId,
+	} from "./lib/sidebar";
 	import {
 		defaultViewSettings,
 		viewSettingsFrom,
@@ -145,6 +161,16 @@
 
 	let listing = $state<filesystem.Listing | null>(null);
 	let places = $state<filesystem.Place[]>([]);
+	let devices = $state<filesystem.Device[]>([]);
+	let pinned = $state<bookmarks.Bookmark[]>([]);
+	let recent = $state<recents.Entry[]>([]);
+	let tagNames = $state<string[]>([]);
+	// The tag whose pane has replaced the listing, or "" when none has.
+	let openTag = $state("");
+	let collapsedSections = $state<SidebarSectionId[]>([]);
+	// The tags on the selection, read when the dialog opens so it can show them.
+	let selectionTags = $state<string[]>([]);
+	let isTagDialogOpen = $state(false);
 	let errorMessage = $state("");
 	// Failures of one action, reported above the listing instead of replacing it.
 	let actionError = $state("");
@@ -224,8 +250,10 @@
 	const conflict = $derived(operations.conflict);
 	// Only a cut marks entries as pending; a copy leaves them as they are.
 	const cutPaths = $derived(new Set(pathsHeldByCut()));
-	// The trash and search panes replace the listing, so nothing is watched then.
+	// The trash, tag and search panes replace the listing, so nothing is watched
+	// then.
 	const watchedPath = $derived(directoryOnScreen());
+	const isFolderPinned = $derived(pinned.some((bookmark) => bookmark.path === currentPath));
 	// Only the entries around the viewport are mounted, so a directory of a
 	// hundred thousand builds a screenful of DOM rather than all of it.
 	const mountedWindow = $derived(listWindow(listMetrics, visibleEntries.length, viewport));
@@ -235,7 +263,7 @@
 
 	onMount(() => {
 		start();
-		loadPlaces();
+		loadSidebar();
 		const stopOperations = operations.listen();
 		const stopWatching = EventsOn(directoryChangedEvent, applyExternalChange);
 		return () => {
@@ -337,6 +365,7 @@
 		sortOrder = stored.sort;
 		sidebarWidth = stored.panes.sidebar;
 		detailsWidth = stored.panes.details;
+		collapsedSections = stored.collapsedSections;
 		userKeybindings = stored.keybindings;
 		areSettingsLoaded = true;
 		return stored;
@@ -361,11 +390,13 @@
 			sort: sortOrder,
 			lastDirectory: currentPath,
 			panes: { sidebar: sidebarWidth, details: detailsWidth },
+			collapsedSections,
 		});
 	}
 
 	async function navigateTo(path: string) {
 		isTrashOpen = false;
+		openTag = "";
 		isEditingPath = false;
 		isLoading = true;
 		errorMessage = "";
@@ -377,6 +408,7 @@
 			errorMessage = describeError(error);
 		}
 		isLoading = false;
+		refreshRecents();
 	}
 
 	/** Re-reads the current directory in place, keeping history and selection. */
@@ -395,7 +427,7 @@
 	}
 
 	function directoryOnScreen(): string {
-		if (isTrashOpen) {
+		if (isTrashOpen || openTag) {
 			return "";
 		}
 		return currentPath;
@@ -421,13 +453,33 @@
 		reloadListing();
 	}
 
-	// The sidebar is a convenience, so a failed lookup hides it rather than
-	// blocking the listing behind an error.
-	async function loadPlaces() {
+	// The sidebar is a convenience, so a lookup that fails leaves its group empty
+	// rather than blocking the listing behind an error.
+	async function loadSidebar() {
+		places = await orEmpty(Places());
+		devices = await orEmpty(Devices());
+		await refreshPins();
+		await refreshRecents();
+		await refreshTagNames();
+	}
+
+	async function refreshPins() {
+		pinned = await orEmpty(Bookmarks());
+	}
+
+	async function refreshRecents() {
+		recent = await orEmpty(RecentEntries());
+	}
+
+	async function refreshTagNames() {
+		tagNames = await orEmpty(KnownTags());
+	}
+
+	async function orEmpty<Item>(request: Promise<Item[]>): Promise<Item[]> {
 		try {
-			places = await Places();
+			return await request;
 		} catch {
-			places = [];
+			return [];
 		}
 	}
 
@@ -613,12 +665,13 @@
 			canGoForward: canGoForward(history),
 			canGoUp,
 			viewMode,
+			folderPinned: isFolderPinned,
 		};
 	}
 
-	/** The listing is the pane on screen, rather than trash or an error. */
+	/** The listing is the pane on screen, rather than trash, tags or an error. */
 	function isListActive(): boolean {
-		return !isTrashOpen && errorMessage === "" && !isLoading;
+		return !isTrashOpen && openTag === "" && errorMessage === "" && !isLoading;
 	}
 
 	function selectionMenuGroups(): MenuItem[][] {
@@ -685,6 +738,7 @@
 	// Loads what the history now points at without recording another visit.
 	async function openHistoryLocation() {
 		isTrashOpen = false;
+		openTag = "";
 		selection = emptySelection;
 		errorMessage = "";
 		try {
@@ -702,7 +756,60 @@
 	function openTrash() {
 		closeSearch();
 		isTrashOpen = true;
+		openTag = "";
 		selection = emptySelection;
+	}
+
+	function openTagPane(name: string) {
+		closeSearch();
+		openTag = name;
+		isTrashOpen = false;
+		selection = emptySelection;
+	}
+
+	// A recently opened folder is browsed; a recently opened file is handed back
+	// to the application that opens it.
+	function openRecent(entry: recents.Entry) {
+		if (entry.isDir) {
+			openPlace(entry.path);
+			return;
+		}
+		launch(entry.path);
+	}
+
+	// A tagged file is shown where it lives, the same way a search hit is.
+	async function revealEntryAt(path: string) {
+		await navigateTo(parentDirectoryOf(path));
+		focusEntry(path);
+	}
+
+	function toggleSection(section: SidebarSectionId) {
+		collapsedSections = sectionsAfterToggle(collapsedSections, section);
+	}
+
+	async function pinCurrentFolder() {
+		await AddBookmark(currentPath);
+		await refreshPins();
+	}
+
+	async function unpinFolder(path: string) {
+		await RemoveBookmark(path);
+		await refreshPins();
+	}
+
+	async function forgetTag(name: string) {
+		await ForgetTag(name);
+		await refreshTagNames();
+		closeTagPane(name);
+	}
+
+	// The pane of a tag that is no longer offered has nothing left to show.
+	function closeTagPane(name: string) {
+		if (openTag !== name) {
+			return;
+		}
+		openTag = "";
+		navigateTo(currentPath);
 	}
 
 	function toggleHidden() {
@@ -811,6 +918,10 @@
 			"file.newFolder": () => createEntry("folder"),
 			"file.newFile": () => createEntry("file"),
 			"file.undo": () => operations.undo(),
+
+			"tags.edit": startTagging,
+			"bookmark.pin": pinCurrentFolder,
+			"bookmark.unpin": () => unpinFolder(currentPath),
 
 			"search.here": searchThisFolder,
 			"search.global": searchEverywhere,
@@ -945,6 +1056,49 @@
 
 	function selectedPathList(): string[] {
 		return selectedEntries.map((entry) => entry.path);
+	}
+
+	// The dialog shows what the selection already carries, which only means
+	// something when it is one file.
+	async function startTagging() {
+		selectionTags = await tagsOfSelection();
+		isTagDialogOpen = true;
+	}
+
+	async function tagsOfSelection(): Promise<string[]> {
+		if (selectedEntries.length !== 1) {
+			return [];
+		}
+		try {
+			return await TagsOf(selectedEntries[0].path);
+		} catch {
+			return [];
+		}
+	}
+
+	async function applyTag(name: string) {
+		actionError = "";
+		try {
+			await AddTag(selectedPathList(), name);
+		} catch (error) {
+			actionError = describeError(error);
+		}
+		await afterTagging();
+	}
+
+	async function dropTag(name: string) {
+		actionError = "";
+		try {
+			await RemoveTag(selectedPathList(), name);
+		} catch (error) {
+			actionError = describeError(error);
+		}
+		await afterTagging();
+	}
+
+	async function afterTagging() {
+		selectionTags = await tagsOfSelection();
+		await refreshTagNames();
 	}
 
 	function startRename() {
@@ -1156,7 +1310,10 @@
 
 	/** Surfaces that take the keyboard for themselves while they are open. */
 	function ownsTheKeyboard(): boolean {
-		return Boolean(menu) || isConfirmingDelete || openWithPath !== "" || Boolean(conflict);
+		if (Boolean(menu) || isConfirmingDelete || isTagDialogOpen) {
+			return true;
+		}
+		return openWithPath !== "" || Boolean(conflict);
 	}
 
 	function applyChord(chord: string, event: KeyboardEvent) {
@@ -1296,6 +1453,13 @@
 		return indexingLabel(indexStatus);
 	}
 
+	function taggingTitle(): string {
+		if (selectedEntries.length === 1) {
+			return `Tags for ${selectedEntries[0].name}`;
+		}
+		return `Tags for ${itemCountLabel(selectedEntries.length)}`;
+	}
+
 	function deleteMessage(): string {
 		return `${itemCountLabel(selectedEntries.length)} will be deleted permanently. This cannot be undone.`;
 	}
@@ -1370,11 +1534,22 @@
 		{#if places.length > 0}
 			<PlacesSidebar
 				{places}
+				{devices}
+				{pinned}
+				{recent}
+				{tagNames}
 				{currentPath}
 				{isTrashOpen}
+				{openTag}
+				{collapsedSections}
 				width={sidebarWidth}
+				onToggleSection={toggleSection}
 				onNavigate={openPlace}
+				onOpenRecent={openRecent}
 				onOpenTrash={openTrash}
+				onOpenTag={openTagPane}
+				onRemoveBookmark={unpinFolder}
+				onForgetTag={forgetTag}
 			/>
 			<PaneResizer
 				side="left"
@@ -1392,6 +1567,14 @@
 			{#if isTrashOpen}
 				<div class="flex min-h-0 flex-col gap-2 overflow-y-auto">
 					<TrashPane onRestored={() => reloadListing()} />
+				</div>
+			{:else if openTag}
+				<div class="flex min-h-0 flex-col gap-2 overflow-y-auto">
+					<TagPane
+						name={openTag}
+						onOpen={openEntry}
+						onReveal={(entry) => revealEntryAt(entry.path)}
+					/>
 				</div>
 			{:else if errorMessage}
 				<Card surface="raised" padding="none" class="flex items-center gap-2 p-2">
@@ -1535,6 +1718,17 @@
 		confirmLabel="Delete"
 		onConfirm={confirmPermanentDelete}
 		onCancel={() => (isConfirmingDelete = false)}
+	/>
+{/if}
+
+{#if isTagDialogOpen}
+	<TagDialog
+		title={taggingTitle()}
+		known={tagNames}
+		applied={selectionTags}
+		onApply={applyTag}
+		onRemove={dropTag}
+		onClose={() => (isTagDialogOpen = false)}
 	/>
 {/if}
 

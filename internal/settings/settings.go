@@ -48,6 +48,8 @@ type Settings struct {
 	LastDirectory string           `json:"lastDirectory"`
 	Window        Window           `json:"window"`
 	Panes         Panes            `json:"panes"`
+	// The sidebar groups the user has folded shut, by the frontend's own names.
+	CollapsedSections []string `json:"collapsedSections,omitempty"`
 	// Written by hand only. The store restores whatever was on disk before every
 	// write, so the application cannot overwrite them.
 	Keybindings []Keybinding `json:"keybindings,omitempty"`

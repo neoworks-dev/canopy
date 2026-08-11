@@ -1,3 +1,22 @@
+export namespace bookmarks {
+	
+	export class Bookmark {
+	    name: string;
+	    path: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Bookmark(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.path = source["path"];
+	    }
+	}
+
+}
+
 export namespace fileops {
 	
 	export class TrashedItem {
@@ -27,6 +46,26 @@ export namespace fileops {
 
 export namespace filesystem {
 	
+	export class Device {
+	    name: string;
+	    path: string;
+	    isRemovable: boolean;
+	    totalBytes: number;
+	    freeBytes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Device(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.path = source["path"];
+	        this.isRemovable = source["isRemovable"];
+	        this.totalBytes = source["totalBytes"];
+	        this.freeBytes = source["freeBytes"];
+	    }
+	}
 	export class Entry {
 	    name: string;
 	    path: string;
@@ -242,6 +281,29 @@ export namespace proto {
 
 }
 
+export namespace recents {
+	
+	export class Entry {
+	    name: string;
+	    path: string;
+	    isDir: boolean;
+	    openedAt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Entry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.path = source["path"];
+	        this.isDir = source["isDir"];
+	        this.openedAt = source["openedAt"];
+	    }
+	}
+
+}
+
 export namespace settings {
 	
 	export class Keybinding {
@@ -301,6 +363,7 @@ export namespace settings {
 	    lastDirectory: string;
 	    window: Window;
 	    panes: Panes;
+	    collapsedSections?: string[];
 	    keybindings?: Keybinding[];
 	
 	    static createFrom(source: any = {}) {
@@ -317,6 +380,7 @@ export namespace settings {
 	        this.lastDirectory = source["lastDirectory"];
 	        this.window = this.convertValues(source["window"], Window);
 	        this.panes = this.convertValues(source["panes"], Panes);
+	        this.collapsedSections = source["collapsedSections"];
 	        this.keybindings = this.convertValues(source["keybindings"], Keybinding);
 	    }
 	

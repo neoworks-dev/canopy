@@ -7,6 +7,7 @@ import { availableColumns, defaultColumnIds, type ColumnId } from "./columns";
 import { parseKeySequence } from "./keys";
 import type { Keybinding } from "./keymap";
 import { defaultPaneWidths, paneWidthFrom, type PaneWidths } from "./panes";
+import { sidebarSectionsFrom, type SidebarSectionId } from "./sidebar";
 import { defaultSortOrder, type SortKey, type SortOrder } from "./sorting";
 import { whenClauseIsValid } from "./whenClause";
 
@@ -21,6 +22,8 @@ export type ViewSettings = {
 	lastDirectory: string;
 	/** Widths of the panes flanking the listing. */
 	panes: PaneWidths;
+	/** The sidebar groups that are folded shut. */
+	collapsedSections: SidebarSectionId[];
 	/** Appended after the built-in keymap, so these override it. */
 	keybindings: Keybinding[];
 };
@@ -36,6 +39,7 @@ export type StoredSettings = {
 	sort?: { key?: string; descending?: boolean; directoriesFirst?: boolean };
 	lastDirectory?: string;
 	panes?: { sidebar?: number; details?: number };
+	collapsedSections?: string[];
 	keybindings?: Array<{ key?: string; command?: string; when?: string }>;
 };
 
@@ -50,6 +54,7 @@ export const defaultViewSettings: ViewSettings = {
 	sort: defaultSortOrder,
 	lastDirectory: "",
 	panes: defaultPaneWidths,
+	collapsedSections: [],
 	keybindings: [],
 };
 
@@ -62,6 +67,7 @@ export function viewSettingsFrom(stored: StoredSettings): ViewSettings {
 		sort: sortOrderFrom(stored.sort),
 		lastDirectory: pathFrom(stored.lastDirectory),
 		panes: paneWidthsFrom(stored.panes),
+		collapsedSections: sidebarSectionsFrom(stored.collapsedSections),
 		keybindings: keybindingsFrom(stored.keybindings),
 	};
 }
