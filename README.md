@@ -9,6 +9,10 @@ design system.
 - Go 1.25+
 - Bun
 - `webkit2gtk-4.1` and `gtk3`
+- `ffmpeg` for thumbnails, image previews and audio waveforms
+- `gst-plugins-good` for playback in the details pane. WebKit plays media
+  through GStreamer, and without this package there is no audio sink and no
+  parser for mp3, m4a, wav or flac, which takes the web process down with it.
 
 ## Commands
 

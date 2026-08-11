@@ -40,6 +40,11 @@
 	let paused = $state(true);
 	// The address the track streams from, which the Go side mints per file.
 	let mediaUrl = $state("");
+	// The player is built on the first press of play. Loading a media element
+	// starts the webview's media backend, which is a stack of system codecs this
+	// application does not control; selecting a file must not depend on it.
+	let isPlayerWanted = $state(false);
+	let hasPlaybackFailed = $state(false);
 	// The stylesheet decides what the two halves of the waveform look like, so the
 	// colours are read back off elements carrying those classes.
 	let playedProbe = $state<HTMLSpanElement>();
@@ -67,6 +72,8 @@
 		mediaUrl = "";
 		currentTime = 0;
 		paused = true;
+		isPlayerWanted = false;
+		hasPlaybackFailed = false;
 		const address = await MediaURL(wanted);
 		if (wanted !== path) {
 			return;
@@ -74,7 +81,12 @@
 		mediaUrl = address;
 	}
 
+	// The first press builds the player, which starts as soon as it can play.
 	function togglePlayback() {
+		if (!isPlayerWanted) {
+			isPlayerWanted = true;
+			return;
+		}
 		if (!element) {
 			return;
 		}
@@ -82,7 +94,26 @@
 			element.pause();
 			return;
 		}
-		element.play().catch(() => undefined);
+		play(element);
+	}
+
+	function startWhenReady(event: Event & { currentTarget: HTMLAudioElement }) {
+		if (!event.currentTarget.paused) {
+			return;
+		}
+		play(event.currentTarget);
+	}
+
+	function play(player: HTMLAudioElement) {
+		player.play().catch(reportPlaybackFailure);
+	}
+
+	// A system without the codecs the webview needs cannot play the file at all,
+	// which is worth saying rather than leaving a button that does nothing.
+	function reportPlaybackFailure() {
+		hasPlaybackFailed = true;
+		isPlayerWanted = false;
+		paused = true;
 	}
 
 	// The element's own events rather than bindings: binding currentTime drives it
@@ -203,8 +234,9 @@
 		<button
 			type="button"
 			onclick={togglePlayback}
+			disabled={hasPlaybackFailed}
 			aria-label={playbackLabel()}
-			class="shrink-0 rounded-md bg-raised p-2 text-muted transition duration-fast hover:bg-hover hover:text-default"
+			class="shrink-0 rounded-md bg-raised p-2 text-muted transition duration-fast hover:bg-hover hover:text-default disabled:text-faint"
 		>
 			{#if paused}
 				<PlayIcon size={14} weight="fill" />
@@ -238,6 +270,12 @@
 		</span>
 	</div>
 
+	{#if hasPlaybackFailed}
+		<p class="shrink-0 text-2xs text-faint">
+			This file cannot be played here. The system is missing the codecs the webview needs.
+		</p>
+	{/if}
+
 	{#if rows.length > 0}
 		<dl class="flex shrink-0 flex-col gap-2 rounded-lg bg-raised p-2">
 			{#each rows as row (row.label)}
@@ -249,16 +287,18 @@
 		</dl>
 	{/if}
 
-	{#if mediaUrl}
+	{#if mediaUrl && isPlayerWanted}
 		<audio
 			bind:this={element}
+			oncanplay={startWhenReady}
 			ontimeupdate={rememberTime}
 			onseeked={rememberTime}
 			onplay={rememberPlaybackState}
 			onpause={rememberPlaybackState}
 			onended={rememberPlaybackState}
+			onerror={reportPlaybackFailure}
 			src={mediaUrl}
-			preload="metadata"
+			preload="auto"
 		></audio>
 	{/if}
 
