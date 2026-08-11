@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from "svelte";
 	import MusicNotesIcon from "phosphor-svelte/lib/MusicNotesIcon";
 	import PauseIcon from "phosphor-svelte/lib/PauseIcon";
 	import PlayIcon from "phosphor-svelte/lib/PlayIcon";
@@ -55,11 +56,17 @@
 		draw();
 	});
 
+	// The pane keeps this component across a change of selection, so a new track
+	// arrives as a new path rather than as a fresh player.
 	$effect(() => {
-		resolveMediaUrl(path);
+		const wanted = path;
+		untrack(() => startTrack(wanted));
 	});
 
-	async function resolveMediaUrl(wanted: string) {
+	async function startTrack(wanted: string) {
+		mediaUrl = "";
+		currentTime = 0;
+		paused = true;
 		const address = await MediaURL(wanted);
 		if (wanted !== path) {
 			return;
@@ -76,6 +83,17 @@
 			return;
 		}
 		element.play().catch(() => undefined);
+	}
+
+	// The element's own events rather than bindings: binding currentTime drives it
+	// from an animation frame loop, which redraws the waveform sixty times a second
+	// for a bar that moves a few pixels a minute.
+	function rememberTime(event: Event & { currentTarget: HTMLAudioElement }) {
+		currentTime = event.currentTarget.currentTime;
+	}
+
+	function rememberPlaybackState(event: Event & { currentTarget: HTMLAudioElement }) {
+		paused = event.currentTarget.paused;
 	}
 
 	function playbackLabel(): string {
@@ -95,20 +113,32 @@
 
 	function draw() {
 		const context = canvas?.getContext("2d");
-		if (!context) {
+		if (!context || canvasWidth === 0) {
 			return;
 		}
 		prepareCanvas(context);
 		drawBars(context, waveformBars(details.waveform, Math.floor(canvasWidth / barPitch)));
 	}
 
-	// A canvas is sized in device pixels and drawn in CSS ones, and resizing it
-	// clears everything the context was told.
+	/**
+	 * A canvas is sized in device pixels and drawn in CSS ones. Assigning either
+	 * dimension reallocates the drawing surface even when the value is unchanged,
+	 * which is not something a redraw on every frame of playback can afford, so the
+	 * size is only written when it actually differs.
+	 */
 	function prepareCanvas(context: CanvasRenderingContext2D) {
 		const ratio = window.devicePixelRatio;
-		context.canvas.width = Math.ceil(canvasWidth * ratio);
-		context.canvas.height = Math.ceil(canvasHeight * ratio);
-		context.scale(ratio, ratio);
+		resizeCanvas(context.canvas, Math.ceil(canvasWidth * ratio), Math.ceil(canvasHeight * ratio));
+		context.setTransform(ratio, 0, 0, ratio, 0, 0);
+		context.clearRect(0, 0, canvasWidth, canvasHeight);
+	}
+
+	function resizeCanvas(surface: HTMLCanvasElement, width: number, height: number) {
+		if (surface.width === width && surface.height === height) {
+			return;
+		}
+		surface.width = width;
+		surface.height = height;
 	}
 
 	function drawBars(context: CanvasRenderingContext2D, bars: number[]) {
@@ -220,7 +250,15 @@
 	{/if}
 
 	{#if mediaUrl}
-		<audio bind:this={element} bind:currentTime bind:paused src={mediaUrl} preload="metadata"
+		<audio
+			bind:this={element}
+			ontimeupdate={rememberTime}
+			onseeked={rememberTime}
+			onplay={rememberPlaybackState}
+			onpause={rememberPlaybackState}
+			onended={rememberPlaybackState}
+			src={mediaUrl}
+			preload="metadata"
 		></audio>
 	{/if}
 
