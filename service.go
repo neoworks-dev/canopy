@@ -57,10 +57,10 @@ func (service *FileService) emit(name string, data any) {
 	runtime.EventsEmit(service.context, name, data)
 }
 
-// ListDirectory reads the directory at path. An empty path means the home
-// directory.
-func (service *FileService) ListDirectory(path string) (filesystem.Listing, error) {
-	return filesystem.ReadDirectory(path)
+// ListDirectory reads the directory at path in the given order. An empty path
+// means the home directory.
+func (service *FileService) ListDirectory(path string, order filesystem.Order) (filesystem.Listing, error) {
+	return filesystem.ReadDirectory(path, order)
 }
 
 // WatchDirectory follows one directory and emits EventDirectoryChanged when its

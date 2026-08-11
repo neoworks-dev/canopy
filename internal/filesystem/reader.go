@@ -3,14 +3,13 @@ package filesystem
 import (
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
 	"time"
 )
 
-// ReadDirectory lists one directory. Entries are sorted directories-first, then
-// case-insensitively by name.
-func ReadDirectory(requestedPath string) (Listing, error) {
+// ReadDirectory lists one directory in the given order. Sorting stays on this
+// side so it holds for the whole directory, not just the entries the listing
+// currently has mounted.
+func ReadDirectory(requestedPath string, order Order) (Listing, error) {
 	absolutePath, err := ResolvePath(requestedPath)
 	if err != nil {
 		return Listing{}, err
@@ -22,16 +21,16 @@ func ReadDirectory(requestedPath string) (Listing, error) {
 	return Listing{
 		Path:       absolutePath,
 		ParentPath: ParentPath(absolutePath),
-		Entries:    toEntries(absolutePath, directoryEntries),
+		Entries:    toEntries(absolutePath, directoryEntries, order),
 	}, nil
 }
 
-func toEntries(parentPath string, directoryEntries []os.DirEntry) []Entry {
+func toEntries(parentPath string, directoryEntries []os.DirEntry, order Order) []Entry {
 	entries := make([]Entry, 0, len(directoryEntries))
 	for _, directoryEntry := range directoryEntries {
 		entries = append(entries, toEntry(parentPath, directoryEntry))
 	}
-	sortEntries(entries)
+	sortEntries(entries, order)
 	return entries
 }
 
@@ -49,17 +48,7 @@ func toEntry(parentPath string, directoryEntry os.DirEntry) Entry {
 	}
 	entry.Size = info.Size()
 	entry.ModTime = info.ModTime().Format(time.RFC3339)
+	entry.modifiedAt = info.ModTime()
 	entry.Mode = info.Mode().String()
 	return entry
-}
-
-func sortEntries(entries []Entry) {
-	sort.Slice(entries, func(firstIndex, secondIndex int) bool {
-		first := entries[firstIndex]
-		second := entries[secondIndex]
-		if first.IsDir != second.IsDir {
-			return first.IsDir
-		}
-		return strings.ToLower(first.Name) < strings.ToLower(second.Name)
-	})
 }

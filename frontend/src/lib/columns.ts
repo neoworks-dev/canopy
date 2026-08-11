@@ -1,6 +1,7 @@
 import type { filesystem } from "../../wailsjs/go/models";
 import { classifyEntry, kindLabel } from "./fileKind";
 import { formatFileSize, formatModifiedTime } from "./format";
+import type { SortKey } from "./sorting";
 
 export type ColumnId = "kind" | "size" | "modified" | "permissions";
 
@@ -12,6 +13,12 @@ export type ColumnDefinition = {
 	/** Extra classes for the value cell, e.g. a monospace mode string. */
 	valueClass: string;
 	valueOf: (entry: filesystem.Entry) => string;
+	/**
+	 * The key the Go side sorts this column by, empty where it cannot. Type is
+	 * classified here from the file extension, and the backend does not have that
+	 * table, so there is nothing for it to sort by.
+	 */
+	sortKey: SortKey | "";
 };
 
 export const availableColumns: ColumnDefinition[] = [
@@ -21,6 +28,7 @@ export const availableColumns: ColumnDefinition[] = [
 		widthClass: "w-20",
 		valueClass: "",
 		valueOf: (entry) => kindLabel(classifyEntry(entry)),
+		sortKey: "",
 	},
 	{
 		id: "size",
@@ -28,6 +36,7 @@ export const availableColumns: ColumnDefinition[] = [
 		widthClass: "w-24",
 		valueClass: "text-right tabular-nums",
 		valueOf: sizeValue,
+		sortKey: "size",
 	},
 	{
 		id: "modified",
@@ -35,6 +44,7 @@ export const availableColumns: ColumnDefinition[] = [
 		widthClass: "w-28",
 		valueClass: "",
 		valueOf: (entry) => formatModifiedTime(entry.modTime),
+		sortKey: "modified",
 	},
 	{
 		id: "permissions",
@@ -42,6 +52,7 @@ export const availableColumns: ColumnDefinition[] = [
 		widthClass: "w-28",
 		valueClass: "font-mono",
 		valueOf: permissionsValue,
+		sortKey: "permissions",
 	},
 ];
 

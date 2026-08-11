@@ -83,6 +83,22 @@ export namespace filesystem {
 		    return a;
 		}
 	}
+	export class Order {
+	    key: string;
+	    descending: boolean;
+	    directoriesFirst: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Order(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.descending = source["descending"];
+	        this.directoriesFirst = source["directoriesFirst"];
+	    }
+	}
 	export class Place {
 	    name: string;
 	    path: string;

@@ -1,7 +1,9 @@
 <script lang="ts">
 	import EntryIcon from "./EntryIcon.svelte";
 	import RenameField from "./RenameField.svelte";
+	import SortHeader from "./SortHeader.svelte";
 	import { entryElementId, type EntryViewProps } from "./entryList";
+	import type { SortKey, SortOrder } from "./sorting";
 
 	// ListRow from @neoworks-dev/ui carries a title/subtitle pair and no column
 	// tracks, so a row with selectable state and configurable columns is built
@@ -22,7 +24,9 @@
 		onRenameCommit,
 		onRenameCancel,
 		onMetrics,
-	}: EntryViewProps = $props();
+		order,
+		onSort,
+	}: EntryViewProps & { order: SortOrder; onSort: (key: SortKey) => void } = $props();
 
 	let list = $state<HTMLDivElement>();
 	let header = $state<HTMLDivElement>();
@@ -59,9 +63,23 @@
 		class="flex items-center gap-2 px-2 pb-1 text-2xs tracking-caps text-faint uppercase"
 	>
 		<span class="w-8 shrink-0"></span>
-		<span class="min-w-0 flex-1">Name</span>
+		<SortHeader
+			label="Name"
+			sortKey="name"
+			widthClass="min-w-0 flex-1"
+			valueClass=""
+			{order}
+			{onSort}
+		/>
 		{#each columns as column (column.id)}
-			<span class="shrink-0 {column.widthClass} {column.valueClass}">{column.label}</span>
+			<SortHeader
+				label={column.label}
+				sortKey={column.sortKey}
+				widthClass={column.widthClass}
+				valueClass={column.valueClass}
+				{order}
+				{onSort}
+			/>
 		{/each}
 	</div>
 

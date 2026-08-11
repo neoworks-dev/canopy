@@ -2,6 +2,7 @@
 	import { Card } from "@neoworks-dev/ui";
 	import { ListDirectory } from "../../wailsjs/go/main/FileService";
 	import PathBreadcrumb from "./PathBreadcrumb.svelte";
+	import { defaultSortOrder } from "./sorting";
 
 	const maxSuggestions = 8;
 
@@ -61,7 +62,9 @@
 
 	async function directoryMatches(directory: string, prefix: string): Promise<string[]> {
 		try {
-			const listing = await ListDirectory(directory);
+			// Completion only reads names, so it takes the default order rather than
+			// whatever the listing is currently sorted by.
+			const listing = await ListDirectory(directory, defaultSortOrder);
 			return listing.entries
 				.filter((entry) => entry.isDir && startsWithPrefix(entry.name, prefix))
 				.slice(0, maxSuggestions)

@@ -1,5 +1,7 @@
 package filesystem
 
+import "time"
+
 // Entry describes a single item inside a directory. JSON tags drive the
 // TypeScript bindings Wails generates for the frontend.
 type Entry struct {
@@ -9,6 +11,10 @@ type Entry struct {
 	Size    int64  `json:"size"`
 	ModTime string `json:"modTime"`
 	Mode    string `json:"mode"`
+
+	// The timestamp behind ModTime, kept so sorting compares instants rather
+	// than the formatted string.
+	modifiedAt time.Time
 }
 
 // Listing is the result of reading one directory.

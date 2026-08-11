@@ -30,8 +30,8 @@ export function HomeDirectory() {
   return window['go']['main']['FileService']['HomeDirectory']();
 }
 
-export function ListDirectory(arg1) {
-  return window['go']['main']['FileService']['ListDirectory'](arg1);
+export function ListDirectory(arg1, arg2) {
+  return window['go']['main']['FileService']['ListDirectory'](arg1, arg2);
 }
 
 export function ListTrash() {

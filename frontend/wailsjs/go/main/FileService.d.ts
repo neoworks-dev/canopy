@@ -18,7 +18,7 @@ export function EmptyTrash():Promise<void>;
 
 export function HomeDirectory():Promise<string>;
 
-export function ListDirectory(arg1:string):Promise<filesystem.Listing>;
+export function ListDirectory(arg1:string,arg2:filesystem.Order):Promise<filesystem.Listing>;
 
 export function ListTrash():Promise<Array<fileops.TrashedItem>>;
 

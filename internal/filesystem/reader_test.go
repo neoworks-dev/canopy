@@ -15,7 +15,7 @@ func TestReadDirectorySortsDirectoriesFirstThenByName(t *testing.T) {
 	mustMakeDir(t, filepath.Join(root, "zebra"))
 	mustMakeDir(t, filepath.Join(root, "Alpha"))
 
-	listing, err := ReadDirectory(root)
+	listing, err := ReadDirectory(root, DefaultOrder())
 	if err != nil {
 		t.Fatalf("ReadDirectory returned error: %v", err)
 	}
@@ -32,7 +32,7 @@ func TestReadDirectoryReportsSizeAndParent(t *testing.T) {
 		t.Fatalf("writing fixture failed: %v", err)
 	}
 
-	listing, err := ReadDirectory(root)
+	listing, err := ReadDirectory(root, DefaultOrder())
 	if err != nil {
 		t.Fatalf("ReadDirectory returned error: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestReadDirectoryReportsPermissions(t *testing.T) {
 	}
 	mustMakeDir(t, filepath.Join(root, "nested"))
 
-	listing, err := ReadDirectory(root)
+	listing, err := ReadDirectory(root, DefaultOrder())
 	if err != nil {
 		t.Fatalf("ReadDirectory returned error: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestReadDirectoryReportsPermissions(t *testing.T) {
 }
 
 func TestReadDirectoryRejectsMissingPath(t *testing.T) {
-	_, err := ReadDirectory(filepath.Join(t.TempDir(), "does-not-exist"))
+	_, err := ReadDirectory(filepath.Join(t.TempDir(), "does-not-exist"), DefaultOrder())
 	if err == nil {
 		t.Fatal("expected an error for a missing directory, got nil")
 	}
@@ -88,7 +88,7 @@ func TestReadDirectoryIncludesHiddenEntries(t *testing.T) {
 	mustWriteFile(t, filepath.Join(root, ".hidden"))
 	mustWriteFile(t, filepath.Join(root, "visible"))
 
-	listing, err := ReadDirectory(root)
+	listing, err := ReadDirectory(root, DefaultOrder())
 	if err != nil {
 		t.Fatalf("ReadDirectory returned error: %v", err)
 	}
@@ -142,7 +142,7 @@ func BenchmarkReadDirectoryOfManyEntries(b *testing.B) {
 	}
 
 	for b.Loop() {
-		if _, err := ReadDirectory(root); err != nil {
+		if _, err := ReadDirectory(root, DefaultOrder()); err != nil {
 			b.Fatalf("ReadDirectory returned error: %v", err)
 		}
 	}

@@ -71,6 +71,13 @@
 		type Rectangle,
 	} from "./lib/marquee";
 	import { targetIndexFor } from "./lib/movement";
+	import {
+		defaultSortOrder,
+		sortOrderAfterHeaderClick,
+		sortOrderWithDirectoriesFirst,
+		type SortKey,
+		type SortOrder,
+	} from "./lib/sorting";
 	import { OperationQueue } from "./lib/operations.svelte";
 	import {
 		emptySelection,
@@ -127,6 +134,7 @@
 	let showHidden = $state(false);
 	let viewMode = $state<ViewMode>("rows");
 	let visibleColumnIds = $state<ColumnId[]>(defaultColumnIds);
+	let sortOrder = $state<SortOrder>(defaultSortOrder);
 	let selection = $state<Selection>(emptySelection);
 	let history = $state(emptyHistory);
 	let isEditingPath = $state(false);
@@ -260,7 +268,7 @@
 		errorMessage = "";
 		selection = emptySelection;
 		try {
-			listing = await ListDirectory(path);
+			listing = await ListDirectory(path, sortOrder);
 			history = historyAfterVisit(history, listing.path);
 		} catch (error) {
 			errorMessage = describeError(error);
@@ -275,7 +283,7 @@
 		}
 		const previousPaths = visiblePaths;
 		try {
-			listing = await ListDirectory(currentPath);
+			listing = await ListDirectory(currentPath, sortOrder);
 		} catch (error) {
 			errorMessage = describeError(error);
 			return;
@@ -503,7 +511,7 @@
 		selection = emptySelection;
 		errorMessage = "";
 		try {
-			listing = await ListDirectory(currentLocation(history));
+			listing = await ListDirectory(currentLocation(history), sortOrder);
 		} catch (error) {
 			errorMessage = describeError(error);
 		}
@@ -526,6 +534,18 @@
 
 	function setColumns(ids: ColumnId[]) {
 		visibleColumnIds = ids;
+	}
+
+	// The Go side sorts, so a new order means re-reading the directory rather than
+	// reordering what is on screen.
+	function sortByColumn(key: SortKey) {
+		sortOrder = sortOrderAfterHeaderClick(sortOrder, key);
+		reloadListing();
+	}
+
+	function setDirectoriesFirst(directoriesFirst: boolean) {
+		sortOrder = sortOrderWithDirectoriesFirst(sortOrder, directoriesFirst);
+		reloadListing();
 	}
 
 	// The two views have different geometry, so the old measurements are dropped
@@ -1058,7 +1078,12 @@
 		<Button size="sm" variant={viewVariant("rows")} icon={ListIcon} onclick={showRows} />
 		<Button size="sm" variant={viewVariant("grid")} icon={SquaresFourIcon} onclick={showGrid} />
 
-		<ColumnMenu visibleIds={visibleColumnIds} onChange={setColumns} />
+		<ColumnMenu
+			visibleIds={visibleColumnIds}
+			onChange={setColumns}
+			directoriesFirst={sortOrder.directoriesFirst}
+			onDirectoriesFirstChange={setDirectoriesFirst}
+		/>
 
 		<Button size="sm" variant="ghost" icon={hiddenToggleIcon()} onclick={toggleHidden} />
 	</Card>
@@ -1182,6 +1207,8 @@
 							onRenameCommit={commitRename}
 							onRenameCancel={cancelRename}
 							onMetrics={applyMetrics}
+							order={sortOrder}
+							onSort={sortByColumn}
 						/>
 					{/if}
 				</div>

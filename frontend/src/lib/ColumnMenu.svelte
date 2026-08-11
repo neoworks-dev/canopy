@@ -8,9 +8,13 @@
 	let {
 		visibleIds,
 		onChange,
+		directoriesFirst,
+		onDirectoriesFirstChange,
 	}: {
 		visibleIds: ColumnId[];
 		onChange: (ids: ColumnId[]) => void;
+		directoriesFirst: boolean;
+		onDirectoriesFirstChange: (directoriesFirst: boolean) => void;
 	} = $props();
 
 	let isOpen = $state(false);
@@ -62,6 +66,15 @@
 						<span class="text-sm text-default">{column.label}</span>
 					</label>
 				{/each}
+
+				<p class="px-1 text-2xs tracking-caps text-faint uppercase">Sorting</p>
+				<label class="flex cursor-pointer items-center gap-2 rounded-md p-2 hover:bg-hover">
+					<Checkbox
+						checked={directoriesFirst}
+						onchange={() => onDirectoriesFirstChange(!directoriesFirst)}
+					/>
+					<span class="text-sm text-default">Folders first</span>
+				</label>
 			</Card>
 		</div>
 	{/if}
