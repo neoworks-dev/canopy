@@ -2,6 +2,7 @@
 	import { Card } from "@neoworks-dev/ui";
 	import CheckIcon from "phosphor-svelte/lib/CheckIcon";
 	import CopyIcon from "phosphor-svelte/lib/CopyIcon";
+	import MagnifyingGlassIcon from "phosphor-svelte/lib/MagnifyingGlassIcon";
 	import { ListDirectory, ZoxideQuery } from "../../wailsjs/go/main/FileService";
 	import { ClipboardSetText } from "../../wailsjs/runtime/runtime";
 	import PathBreadcrumb from "./PathBreadcrumb.svelte";
@@ -15,11 +16,13 @@
 		isEditing,
 		onNavigate,
 		onEditingChange,
+		onSearch,
 	}: {
 		path: string;
 		isEditing: boolean;
 		onNavigate: (path: string) => void;
 		onEditingChange: (editing: boolean) => void;
+		onSearch: () => void;
 	} = $props();
 
 	let draft = $state("");
@@ -275,6 +278,15 @@
 			{:else}
 				<CopyIcon size={14} />
 			{/if}
+		</button>
+		<button
+			type="button"
+			onclick={onSearch}
+			aria-label="Search this folder"
+			title="Search this folder"
+			class="shrink-0 rounded-md p-1 text-faint transition duration-fast hover:bg-hover hover:text-default"
+		>
+			<MagnifyingGlassIcon size={14} />
 		</button>
 	</div>
 {/if}

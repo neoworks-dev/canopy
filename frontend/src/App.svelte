@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, untrack } from "svelte";
+	import { onMount, tick, untrack } from "svelte";
 	import { Button, Card, LoadingSpinner, SectionHeader } from "@neoworks-dev/ui";
 	import type { IconComponent } from "@neoworks-dev/ui";
 	import CaretLeftIcon from "phosphor-svelte/lib/CaretLeftIcon";
@@ -42,7 +42,6 @@
 	import PlacesSidebar from "./lib/PlacesSidebar.svelte";
 	import PreviewPane from "./lib/PreviewPane.svelte";
 	import SearchField from "./lib/SearchField.svelte";
-	import SearchResults from "./lib/SearchResults.svelte";
 	import TrashPane from "./lib/TrashPane.svelte";
 	import ViewMenu from "./lib/ViewMenu.svelte";
 	import {
@@ -185,6 +184,8 @@
 	let bandKeep: string[] = [];
 
 	let searchQuery = $state("");
+	// Whether the location field is showing search rather than the path.
+	let isSearchOpen = $state(false);
 	// The directory a search is confined to, or "" for every indexed root.
 	let searchScope = $state("");
 	let searchHits = $state<proto.Hit[]>([]);
@@ -383,7 +384,7 @@
 	}
 
 	function directoryOnScreen(): string {
-		if (isTrashOpen || isSearchActive) {
+		if (isTrashOpen) {
 			return "";
 		}
 		return currentPath;
@@ -445,9 +446,10 @@
 		searchErrorMessage = outcome.errorMessage;
 	}
 
+	// The scope outlives an empty query: opening the field on a folder and typing
+	// into it must still search that folder.
 	function clearSearch() {
 		latestSearchSequence++;
-		searchScope = "";
 		searchHits = [];
 		searchTruncated = false;
 		searchErrorMessage = "";
@@ -462,14 +464,21 @@
 		}
 	}
 
-	function openHit(hit: proto.Hit) {
-		searchQuery = "";
-		if (hit.isDir) {
-			navigateTo(hit.path);
+	// A hit is opened where it lives: the folder holding it is listed and the entry
+	// itself is focused, so the next keystroke acts on it.
+	async function openHit(hit: proto.Hit) {
+		closeSearch();
+		await navigateTo(parentDirectoryOf(hit.path));
+		focusEntry(hit.path);
+	}
+
+	function focusEntry(path: string) {
+		const index = visiblePaths.indexOf(path);
+		if (index < 0) {
 			return;
 		}
-		navigateTo(parentDirectoryOf(hit.path));
-		launch(hit.path);
+		selection = selectionAfterJump(emptySelection, visiblePaths, index, false);
+		listContainer?.focus();
 	}
 
 	function collectVisibleEntries(): filesystem.Entry[] {
@@ -544,21 +553,24 @@
 		container.focus();
 	}
 
-	function focusSearch() {
-		searchInput?.focus();
-		searchInput?.select();
-	}
-
 	// The scope is set before the field takes focus, so the first keystroke
 	// already queries the right thing.
 	function searchThisFolder() {
-		searchScope = currentPath;
-		focusSearch();
+		openSearch(currentPath);
 	}
 
 	function searchEverywhere() {
-		searchScope = "";
-		focusSearch();
+		openSearch("");
+	}
+
+	// The field replaces the path, so it opens empty rather than on whatever the
+	// last search was, and only exists once the swap has rendered.
+	async function openSearch(scope: string) {
+		searchScope = scope;
+		searchQuery = "";
+		isSearchOpen = true;
+		await tick();
+		searchInput?.focus();
 	}
 
 	function activeDescendant(): string | undefined {
@@ -578,7 +590,7 @@
 	function currentCommandContext(): WhenContext {
 		return {
 			listActive: isListActive(),
-			searchOpen: isSearchActive,
+			searchOpen: isSearchOpen,
 			trashOpen: isTrashOpen,
 			findOpen: isFindOpen,
 			jumpOpen: isJumpOpen,
@@ -593,9 +605,9 @@
 		};
 	}
 
-	/** The listing is the pane on screen, rather than trash, search or an error. */
+	/** The listing is the pane on screen, rather than trash or an error. */
 	function isListActive(): boolean {
-		return !isTrashOpen && !isSearchActive && errorMessage === "" && !isLoading;
+		return !isTrashOpen && errorMessage === "" && !isLoading;
 	}
 
 	function selectionMenuGroups(): MenuItem[][] {
@@ -637,7 +649,7 @@
 	}
 
 	function goHome() {
-		searchQuery = "";
+		closeSearch();
 		navigateTo("");
 	}
 
@@ -672,12 +684,12 @@
 	}
 
 	function openPlace(path: string) {
-		searchQuery = "";
+		closeSearch();
 		navigateTo(path);
 	}
 
 	function openTrash() {
-		searchQuery = "";
+		closeSearch();
 		isTrashOpen = true;
 		selection = emptySelection;
 	}
@@ -1201,12 +1213,14 @@
 
 	function jumpToFolder(path: string) {
 		isJumpOpen = false;
-		searchQuery = "";
+		closeSearch();
 		navigateTo(path);
 	}
 
 	function closeSearch() {
 		searchQuery = "";
+		searchScope = "";
+		isSearchOpen = false;
 		listContainer?.focus();
 	}
 
@@ -1214,7 +1228,7 @@
 		if (!searchScope) {
 			return "Search everywhere";
 		}
-		return `Search in ${nameOfDirectory(searchScope)}`;
+		return "Search this folder";
 	}
 
 	function scopeLabel(): string {
@@ -1270,6 +1284,15 @@
 		return `Indexing ${status.filesIndexed.toLocaleString()} entries so far`;
 	}
 
+	// The result set is still growing while the first crawl runs, which is worth
+	// saying next to a thin set of matches.
+	function indexingNotice(): string {
+		if (!isIndexing || !indexStatus) {
+			return "";
+		}
+		return indexingLabel(indexStatus);
+	}
+
 	function deleteMessage(): string {
 		return `${itemCountLabel(selectedEntries.length)} will be deleted permanently. This cannot be undone.`;
 	}
@@ -1304,18 +1327,29 @@
 		/>
 		<Button size="sm" variant="ghost" icon={HouseIcon} onclick={goHome} />
 
-		<PathBar
-			path={currentPath}
-			isEditing={isEditingPath}
-			onNavigate={navigateTo}
-			onEditingChange={(editing) => (isEditingPath = editing)}
-		/>
-
-		<SearchField
-			bind:value={searchQuery}
-			bind:input={searchInput}
-			placeholder={searchPlaceholder()}
-		/>
+		{#if isSearchOpen}
+			<SearchField
+				bind:value={searchQuery}
+				bind:input={searchInput}
+				placeholder={searchPlaceholder()}
+				scope={scopeLabel()}
+				hits={searchHits}
+				truncated={searchTruncated}
+				errorMessage={searchErrorMessage}
+				indexingLabel={indexingNotice()}
+				{isSearching}
+				onOpenHit={openHit}
+				onClose={closeSearch}
+			/>
+		{:else}
+			<PathBar
+				path={currentPath}
+				isEditing={isEditingPath}
+				onNavigate={navigateTo}
+				onEditingChange={(editing) => (isEditingPath = editing)}
+				onSearch={searchThisFolder}
+			/>
+		{/if}
 
 		<ViewMenu
 			{viewMode}
@@ -1348,36 +1382,6 @@
 			{#if isTrashOpen}
 				<div class="flex min-h-0 flex-col gap-2 overflow-y-auto">
 					<TrashPane onRestored={() => reloadListing()} />
-				</div>
-			{:else if isSearchActive}
-				<div class="flex min-h-0 flex-col gap-2 overflow-y-auto">
-					{#if searchErrorMessage}
-						<Card surface="raised" padding="none" class="flex items-center gap-2 p-2">
-							<WarningIcon size={20} class="shrink-0 text-red" />
-							<div class="min-w-0">
-								<p class="text-sm font-medium text-default">Search is unavailable</p>
-								<p class="truncate text-xs text-dim">{searchErrorMessage}</p>
-							</div>
-						</Card>
-					{:else if isSearching && searchHits.length === 0}
-						<div class="flex justify-center p-2">
-							<LoadingSpinner />
-						</div>
-					{:else}
-						{#if isIndexing && indexStatus}
-							<p class="text-xs text-dim">{indexingLabel(indexStatus)}</p>
-						{/if}
-						{#if searchHits.length === 0}
-							<SectionHeader title="No matches" />
-						{:else}
-							<SearchResults
-							hits={searchHits}
-							truncated={searchTruncated}
-							scope={scopeLabel()}
-							onOpen={openHit}
-						/>
-						{/if}
-					{/if}
 				</div>
 			{:else if errorMessage}
 				<Card surface="raised" padding="none" class="flex items-center gap-2 p-2">

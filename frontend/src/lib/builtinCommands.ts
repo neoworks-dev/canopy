@@ -5,7 +5,7 @@
  *
  * Clause vocabulary, supplied by App.svelte on every key press:
  *   listActive     the directory listing is the pane on screen
- *   searchOpen     search results have replaced the listing
+ *   searchOpen     the location field is showing search rather than the path
  *   trashOpen      the trash pane has replaced the listing
  *   findOpen       the find-by-name prompt is showing
  *   selectionCount clipboardCount entryCount
