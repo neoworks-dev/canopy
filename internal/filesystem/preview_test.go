@@ -122,3 +122,21 @@ func writeTemporaryFile(t *testing.T, name string, contents []byte) string {
 	}
 	return path
 }
+
+// A PDF holds nothing worth showing as bytes, so it is drawn rather than read.
+// One that no renderer can make sense of still reports its metadata.
+func TestReadPreviewDrawsRatherThanReadsAPDF(t *testing.T) {
+	path := writeTemporaryFile(t, "broken.pdf", []byte("%PDF-1.7 and then nothing usable"))
+
+	preview, err := ReadPreview(path)
+	if err != nil {
+		t.Fatalf("ReadPreview: %v", err)
+	}
+
+	if preview.Kind != "unsupported" {
+		t.Fatalf("kind = %q, want unsupported", preview.Kind)
+	}
+	if preview.Text != "" {
+		t.Errorf("text = %q, want a PDF not to be read as text", preview.Text)
+	}
+}

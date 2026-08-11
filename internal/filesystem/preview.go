@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
+
+	"file-explorer-neoworks/internal/thumbnail"
 )
 
 // Preview is what the explorer can show about a single file without handing it
@@ -65,7 +67,21 @@ func previewOfFile(absolutePath string, size int64) (Preview, error) {
 	if isImage {
 		return imagePreview(absolutePath, size, mediaType)
 	}
+	if thumbnail.Supports(absolutePath) {
+		return renderedPreview(absolutePath, size)
+	}
 	return textPreview(absolutePath, size)
+}
+
+// A PDF or a video has no bytes worth showing as they are, so the pane gets the
+// same drawing the tiles use, at the size it has room for. A file nothing can
+// draw falls back to the metadata every preview carries.
+func renderedPreview(absolutePath string, size int64) (Preview, error) {
+	dataURL := thumbnail.RenderPreview(absolutePath)
+	if dataURL == "" {
+		return Preview{Path: absolutePath, Size: size, Kind: "unsupported"}, nil
+	}
+	return Preview{Path: absolutePath, Size: size, Kind: "image", DataURL: dataURL}, nil
 }
 
 func imagePreview(absolutePath string, size int64, mediaType string) (Preview, error) {

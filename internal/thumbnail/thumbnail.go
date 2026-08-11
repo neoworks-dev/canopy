@@ -24,6 +24,10 @@ const concurrentRenders = 4
 // cannot make sense of does not hold a slot for the rest of the session.
 const renderTimeout = 20 * time.Second
 
+// What a details pane can show without the image being the largest thing that
+// crosses the bridge in a session.
+const previewSize = 1024
+
 var renderSlots = make(chan struct{}, concurrentRenders)
 
 // Thumbnail is one preview image, ready to be used as an image source. An empty
@@ -46,6 +50,17 @@ func Render(absolutePath string) Thumbnail {
 		return empty
 	}
 	return Thumbnail{Path: absolutePath, DataURL: dataURLFor(absolutePath, info, renderer)}
+}
+
+// RenderPreview draws one file at the size a details pane shows, which is
+// large enough that it is not worth keeping in the shared cache: it is asked
+// for once per selection rather than once per tile.
+func RenderPreview(absolutePath string) string {
+	render := rendererFor(strings.ToLower(filepath.Ext(absolutePath)))
+	if render == nil {
+		return ""
+	}
+	return encodeDataURL(renderWithinLimits(absolutePath, render, previewSize))
 }
 
 // Supports reports whether a path is one Render could produce an image for,
@@ -75,7 +90,7 @@ func renderAndCache(
 	modifiedAt string,
 	render renderer,
 ) []byte {
-	image := renderWithinLimits(absolutePath, render)
+	image := renderWithinLimits(absolutePath, render, thumbnailSize)
 	if image == nil {
 		return nil
 	}
@@ -87,13 +102,13 @@ func renderAndCache(
 	return annotated
 }
 
-func renderWithinLimits(absolutePath string, render renderer) []byte {
+func renderWithinLimits(absolutePath string, render renderer, size int) []byte {
 	renderSlots <- struct{}{}
 	defer func() { <-renderSlots }()
 
 	ctx, cancel := context.WithTimeout(context.Background(), renderTimeout)
 	defer cancel()
-	image, err := render(ctx, absolutePath)
+	image, err := render(ctx, absolutePath, size)
 	if err != nil {
 		return nil
 	}

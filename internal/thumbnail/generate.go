@@ -8,6 +8,7 @@ import (
 	"image/png"
 	"os"
 	"os/exec"
+	"strconv"
 
 	_ "image/gif"
 	_ "image/jpeg"
@@ -19,9 +20,8 @@ const thumbnailSize = 256
 
 var errNoRenderer = errors.New("no renderer for this file type")
 
-// renderer turns one file into a PNG no larger than thumbnailSize on its
-// longest side.
-type renderer func(ctx context.Context, absolutePath string) ([]byte, error)
+// renderer turns one file into a PNG no larger than size on its longest side.
+type renderer func(ctx context.Context, absolutePath string, size int) ([]byte, error)
 
 // Extensions the standard library decodes on its own. Everything else needs a
 // helper program, which may not be installed.
@@ -76,7 +76,7 @@ func CanRender(extension string) bool {
 	return rendererFor(extension) != nil
 }
 
-func renderNativeImage(_ context.Context, absolutePath string) ([]byte, error) {
+func renderNativeImage(_ context.Context, absolutePath string, size int) ([]byte, error) {
 	file, err := os.Open(absolutePath)
 	if err != nil {
 		return nil, err
@@ -86,7 +86,7 @@ func renderNativeImage(_ context.Context, absolutePath string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return encodePNG(scaleToFit(decoded, thumbnailSize))
+	return encodePNG(scaleToFit(decoded, size))
 }
 
 func encodePNG(scaled image.Image) ([]byte, error) {
@@ -99,26 +99,27 @@ func encodePNG(scaled image.Image) ([]byte, error) {
 
 // ffmpeg reads the formats the standard library does not, so an image it can
 // decode is scaled and re-encoded in one pass.
-func renderImageWithFFmpeg(ctx context.Context, absolutePath string) ([]byte, error) {
-	return runRenderer(ctx, "ffmpeg", ffmpegArguments(absolutePath)...)
+func renderImageWithFFmpeg(ctx context.Context, absolutePath string, size int) ([]byte, error) {
+	return runRenderer(ctx, "ffmpeg", ffmpegArguments(absolutePath, size)...)
 }
 
 // A frame from inside the file rather than the first one, which on most videos
 // is a black fade-in.
-func renderVideoFrame(ctx context.Context, absolutePath string) ([]byte, error) {
+func renderVideoFrame(ctx context.Context, absolutePath string, size int) ([]byte, error) {
 	frame, err := runRenderer(ctx, "ffmpegthumbnailer",
-		"-i", absolutePath, "-o", "-", "-c", "png", "-s", "256", "-t", "20%")
+		"-i", absolutePath, "-o", "-", "-c", "png", "-s", strconv.Itoa(size), "-t", "20%")
 	if err == nil {
 		return frame, nil
 	}
-	return runRenderer(ctx, "ffmpeg", append([]string{"-ss", "3"}, ffmpegArguments(absolutePath)...)...)
+	return runRenderer(ctx, "ffmpeg", append([]string{"-ss", "3"}, ffmpegArguments(absolutePath, size)...)...)
 }
 
-func ffmpegArguments(absolutePath string) []string {
+func ffmpegArguments(absolutePath string, size int) []string {
+	edge := strconv.Itoa(size)
 	return []string{
 		"-v", "error",
 		"-i", absolutePath,
-		"-vf", "scale=w='min(256,iw)':h='min(256,ih)':force_original_aspect_ratio=decrease",
+		"-vf", "scale=w='min(" + edge + ",iw)':h='min(" + edge + ",ih)':force_original_aspect_ratio=decrease",
 		"-frames:v", "1",
 		"-f", "image2",
 		"-c:v", "png",
@@ -126,9 +127,9 @@ func ffmpegArguments(absolutePath string) []string {
 	}
 }
 
-func renderFirstPDFPage(ctx context.Context, absolutePath string) ([]byte, error) {
+func renderFirstPDFPage(ctx context.Context, absolutePath string, size int) ([]byte, error) {
 	return runRenderer(ctx, "pdftoppm",
-		"-png", "-f", "1", "-l", "1", "-scale-to", "256", absolutePath, "-")
+		"-png", "-f", "1", "-l", "1", "-scale-to", strconv.Itoa(size), absolutePath, "-")
 }
 
 // A helper that is not installed is a missing feature rather than a failure, so
