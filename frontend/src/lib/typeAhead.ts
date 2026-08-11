@@ -1,43 +1,14 @@
 /**
- * Type-ahead: typing printable characters over the listing jumps to the first
- * entry with that prefix. The buffer resets after a short idle pause, so a new
- * word starts a new search rather than extending the previous one.
+ * Finding an entry by the start of its name. The query comes from the find
+ * prompt rather than from the listing's own key handling, so there is no idle
+ * buffer here: what the user has typed is on screen.
  */
-export type TypeAhead = {
-	query: string;
-	updatedAt: number;
-};
-
-export const emptyTypeAhead: TypeAhead = { query: "", updatedAt: 0 };
-
-export const typeAheadResetMilliseconds = 900;
-
-/** Keys that carry a modifier belong to a shortcut, not to a name. */
-export type TypeAheadKey = {
-	key: string;
-	ctrlKey: boolean;
-	metaKey: boolean;
-	altKey: boolean;
-};
-
-export function isTypeAheadKey(event: TypeAheadKey): boolean {
-	if (event.ctrlKey || event.metaKey || event.altKey) {
-		return false;
-	}
-	return [...event.key].length === 1 && event.key !== " ";
-}
-
-export function typeAheadAfterKey(current: TypeAhead, character: string, now: number): TypeAhead {
-	if (now - current.updatedAt > typeAheadResetMilliseconds) {
-		return { query: character.toLowerCase(), updatedAt: now };
-	}
-	return { query: current.query + character.toLowerCase(), updatedAt: now };
-}
 
 /**
  * Finds the entry to jump to, searching forwards from the current position and
- * wrapping around. A single repeated character cycles through the matches
- * instead of sticking to the first one.
+ * wrapping around. A single character starts the search one past the current
+ * entry, so repeating it steps through the matches instead of sticking to the
+ * first one.
  */
 export function typeAheadMatch(names: string[], query: string, currentIndex: number): number {
 	if (names.length === 0 || query === "") {

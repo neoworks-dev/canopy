@@ -28,6 +28,11 @@ export function sortOrderAfterHeaderClick(current: SortOrder, key: SortKey): Sor
 	return { ...current, descending: !current.descending };
 }
 
+/** Flips the direction without changing which column the listing is sorted by. */
+export function sortOrderReversed(current: SortOrder): SortOrder {
+	return { ...current, descending: !current.descending };
+}
+
 export function sortOrderWithDirectoriesFirst(
 	current: SortOrder,
 	directoriesFirst: boolean,

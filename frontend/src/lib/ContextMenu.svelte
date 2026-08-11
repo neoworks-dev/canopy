@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Card } from "@neoworks-dev/ui";
-	import type { ActionContext, ActionDefinition, ActionId } from "./actions";
+	import type { MenuItem } from "./commands";
 
 	// @neoworks-dev/ui has no menu: Select picks one value from a list and NavBar
 	// is a horizontal href tab bar, so neither carries grouped, disabled or
@@ -9,15 +9,13 @@
 		x,
 		y,
 		groups,
-		context,
 		onSelect,
 		onClose,
 	}: {
 		x: number;
 		y: number;
-		groups: ActionDefinition[][];
-		context: ActionContext;
-		onSelect: (id: ActionId) => void;
+		groups: MenuItem[][];
+		onSelect: (id: string) => void;
 		onClose: () => void;
 	} = $props();
 
@@ -39,7 +37,7 @@
 	function collectEnabledIndexes(): number[] {
 		const indexes: number[] = [];
 		items.forEach((item, index) => {
-			if (item.isEnabled(context)) {
+			if (item.enabled) {
 				indexes.push(index);
 			}
 		});
@@ -63,8 +61,8 @@
 		onClose();
 	}
 
-	function choose(item: ActionDefinition) {
-		if (!item.isEnabled(context)) {
+	function choose(item: MenuItem) {
+		if (!item.enabled) {
 			return;
 		}
 		onSelect(item.id);
@@ -139,7 +137,7 @@
 			{#each group as item (item.id)}
 				{@const index = items.indexOf(item)}
 				{@const ItemIcon = item.icon}
-				{@const isEnabled = item.isEnabled(context)}
+				{@const isEnabled = item.enabled}
 				<button
 					type="button"
 					role="menuitem"
@@ -155,7 +153,7 @@
 					class:hover:text-default={isEnabled}
 				>
 					<ItemIcon size={16} class="shrink-0" />
-					<span class="min-w-0 flex-1 truncate">{item.label}</span>
+					<span class="min-w-0 flex-1 truncate">{item.title}</span>
 					{#if item.shortcut}
 						<span class="shrink-0 text-2xs text-faint">{item.shortcut}</span>
 					{/if}

@@ -38,6 +38,7 @@
 	import ContextMenu from "./lib/ContextMenu.svelte";
 	import EntryGrid from "./lib/EntryGrid.svelte";
 	import EntryRows from "./lib/EntryRows.svelte";
+	import FindField from "./lib/FindField.svelte";
 	import OpenWithDialog from "./lib/OpenWithDialog.svelte";
 	import OperationProgress from "./lib/OperationProgress.svelte";
 	import PathBar from "./lib/PathBar.svelte";
@@ -47,12 +48,17 @@
 	import SearchResults from "./lib/SearchResults.svelte";
 	import TrashPane from "./lib/TrashPane.svelte";
 	import {
-		backgroundMenuGroups,
-		selectionMenuGroups,
-		type ActionContext,
-		type ActionDefinition,
-		type ActionId,
-	} from "./lib/actions";
+		backgroundMenuIds,
+		defaultKeymap,
+		movementCommands,
+		selectionMenuIds,
+		staticCommandDescriptors,
+	} from "./lib/builtinCommands";
+	import { iconForCommand } from "./lib/commandIcons";
+	import { CommandRegistry, type Command, type MenuItem } from "./lib/commands";
+	import { chordFromEvent } from "./lib/keys";
+	import { compileKeymap, resolveChord, shortcutFor, type ChordResolution } from "./lib/keymap";
+	import type { WhenContext } from "./lib/whenClause";
 	import { columnsFor, defaultColumnIds, type ColumnId } from "./lib/columns";
 	import { entryElementId, indexOfOption } from "./lib/entryList";
 	import { describeError } from "./lib/errors";
@@ -73,7 +79,7 @@
 		type Point,
 		type Rectangle,
 	} from "./lib/marquee";
-	import { targetIndexFor } from "./lib/movement";
+	import { targetIndexFor, type Movement } from "./lib/movement";
 	import {
 		defaultViewSettings,
 		viewSettingsFrom,
@@ -82,6 +88,7 @@
 	import {
 		defaultSortOrder,
 		sortOrderAfterHeaderClick,
+		sortOrderReversed,
 		sortOrderWithDirectoriesFirst,
 		type SortKey,
 		type SortOrder,
@@ -97,12 +104,6 @@
 		selectionFromIndexes,
 		type Selection,
 	} from "./lib/selection";
-	import {
-		emptyTypeAhead,
-		isTypeAheadKey,
-		typeAheadAfterKey,
-		typeAheadMatch,
-	} from "./lib/typeAhead";
 	import {
 		listWindow,
 		pageSize,
@@ -128,7 +129,7 @@
 	type MenuState = {
 		x: number;
 		y: number;
-		groups: ActionDefinition[][];
+		groups: MenuItem[][];
 	};
 
 	let listing = $state<filesystem.Listing | null>(null);
@@ -160,7 +161,12 @@
 	let renamingPath = $state("");
 	let isConfirmingDelete = $state(false);
 	let openWithPath = $state("");
-	let typeAhead = emptyTypeAhead;
+	let isFindOpen = $state(false);
+	// What the selection was before the find prompt started moving it, so
+	// cancelling puts it back.
+	let findOrigin: Selection = emptySelection;
+	// Chords typed so far in a sequence such as "g g", waiting for the rest.
+	let pendingChords = $state<string[]>([]);
 
 	let band = $state<Rectangle | null>(null);
 	let bandOrigin: Point = { x: 0, y: 0 };
@@ -178,6 +184,8 @@
 	let latestSearchSequence = 0;
 
 	const operations = new OperationQueue(() => reloadListing());
+	const registry = new CommandRegistry();
+	registry.registerAll(builtinCommandList());
 
 	const currentPath = $derived(pathOf(listing));
 	const canGoUp = $derived(Boolean(listing?.parentPath));
@@ -188,7 +196,8 @@
 	const activeColumns = $derived(columnsFor(visibleColumnIds));
 	const isSearchActive = $derived(searchQuery.trim().length > 0);
 	const isIndexing = $derived(indexStatus?.state === "scanning");
-	const actionContext = $derived(currentActionContext());
+	const commandContext = $derived(currentCommandContext());
+	const keymap = $derived(compileKeymap(defaultKeymap));
 	const conflict = $derived(operations.conflict);
 	// Only a cut marks entries as pending; a copy leaves them as they are.
 	const cutPaths = $derived(new Set(pathsHeldByCut()));
@@ -530,12 +539,57 @@
 		return clipboardPaths;
 	}
 
-	function currentActionContext(): ActionContext {
+	function currentCommandContext(): WhenContext {
 		return {
+			listActive: isListActive(),
+			searchOpen: isSearchActive,
+			trashOpen: isTrashOpen,
+			findOpen: isFindOpen,
 			selectionCount: selectedEntries.length,
 			clipboardCount: clipboardPaths.length,
+			entryCount: visibleEntries.length,
 			canUndo: operations.undoLabel !== "",
+			canGoBack: canGoBack(history),
+			canGoForward: canGoForward(history),
+			canGoUp,
+			viewMode,
 		};
+	}
+
+	/** The listing is the pane on screen, rather than trash, search or an error. */
+	function isListActive(): boolean {
+		return !isTrashOpen && !isSearchActive && errorMessage === "" && !isLoading;
+	}
+
+	function selectionMenuGroups(): MenuItem[][] {
+		return menuGroups(selectionMenuIds);
+	}
+
+	function backgroundMenuGroups(): MenuItem[][] {
+		return menuGroups(backgroundMenuIds);
+	}
+
+	function menuGroups(layout: string[][]): MenuItem[][] {
+		return layout.map((group) => group.flatMap(menuItemFor));
+	}
+
+	// A command that is no longer registered drops out of the menu rather than
+	// rendering a row that cannot run.
+	function menuItemFor(id: string): MenuItem[] {
+		const command = registry.byId(id);
+		const icon = iconForCommand(id);
+		if (!command || !icon) {
+			return [];
+		}
+		return [
+			{
+				id,
+				title: command.title,
+				icon,
+				enabled: registry.isEnabled(id, commandContext),
+				shortcut: shortcutFor(keymap, id, commandContext),
+			},
+		];
 	}
 
 	function goUp() {
@@ -648,24 +702,82 @@
 		menu = null;
 	}
 
-	function runAction(id: ActionId) {
+	function runCommand(id: string) {
 		closeMenu();
-		actionHandlers[id]();
+		registry.run(id, commandContext);
 	}
 
-	const actionHandlers: Record<ActionId, () => void> = {
-		open: openSelection,
-		openWith: startOpenWith,
-		cut: cutSelection,
-		copy: copySelection,
-		paste: pasteClipboard,
-		rename: startRename,
-		trash: trashSelection,
-		deletePermanently: () => (isConfirmingDelete = true),
-		newFolder: () => createEntry("folder"),
-		newFile: () => createEntry("file"),
-		undo: () => operations.undo(),
-	};
+	function commandHandlers(): Record<string, () => void> {
+		return {
+			"navigate.open": openSelection,
+			"navigate.openWith": startOpenWith,
+			"navigate.parent": goUp,
+			"navigate.back": goBack,
+			"navigate.forward": goForward,
+			"navigate.home": goHome,
+			"navigate.trash": openTrash,
+			"navigate.editPath": () => (isEditingPath = true),
+
+			"list.selectAll": () => (selection = selectAll(visiblePaths)),
+			"list.clearSelection": () => (selection = emptySelection),
+			"list.toggleSelection": toggleFocusedEntry,
+			"list.find": openFind,
+
+			"view.rows": showRows,
+			"view.grid": showGrid,
+			"view.toggleHidden": toggleHidden,
+			"view.sortByName": () => sortByColumn("name"),
+			"view.sortBySize": () => sortByColumn("size"),
+			"view.sortByModified": () => sortByColumn("modified"),
+			"view.sortByPermissions": () => sortByColumn("permissions"),
+			"view.reverseSort": reverseSort,
+			"view.toggleDirectoriesFirst": () => setDirectoriesFirst(!sortOrder.directoriesFirst),
+
+			"file.cut": cutSelection,
+			"file.copy": copySelection,
+			"file.paste": pasteClipboard,
+			"file.rename": startRename,
+			"file.trash": trashSelection,
+			"file.deletePermanently": () => (isConfirmingDelete = true),
+			"file.newFolder": () => createEntry("folder"),
+			"file.newFile": () => createEntry("file"),
+			"file.undo": () => operations.undo(),
+
+			"search.here": focusSearch,
+			"search.global": focusSearch,
+			"search.close": closeSearch,
+		};
+	}
+
+	function builtinCommandList(): Command[] {
+		const handlers = commandHandlers();
+		const described = staticCommandDescriptors.map((descriptor) => ({
+			...descriptor,
+			icon: iconForCommand(descriptor.id),
+			run: handlerFor(handlers, descriptor.id),
+		}));
+		return [...described, ...movementCommandList()];
+	}
+
+	function movementCommandList(): Command[] {
+		return movementCommands.map((command) => ({
+			id: command.id,
+			title: command.title,
+			category: "Listing",
+			when: "listActive",
+			run: () => moveSelection(command.movement, command.extend),
+		}));
+	}
+
+	// A built-in without a handler is a wiring mistake, and one that would show up
+	// as a shortcut that quietly does nothing.
+	function handlerFor(handlers: Record<string, () => void>, id: string): () => void {
+		const handler = handlers[id];
+		if (!handler) {
+			throw new Error(`command ${id} has no handler`);
+		}
+		return handler;
+	}
 
 	function openSelection() {
 		selectedEntries.forEach(openEntry);
@@ -900,138 +1012,76 @@
 		return [...listContainer.querySelectorAll('[role="option"]')];
 	}
 
+	/**
+	 * One key handler for the whole window. Which surface a chord belongs to is a
+	 * "when" clause on the binding rather than a listener on that surface, so a
+	 * contributed binding can reach anywhere without needing its own listener.
+	 *
+	 * Typing into a field suspends the keymap entirely: that is what makes a bare
+	 * letter safe to bind to a command.
+	 */
 	function handleWindowKeydown(event: KeyboardEvent) {
-		if (isTypingTarget(event.target)) {
+		if (isTypingTarget(event.target) || ownsTheKeyboard()) {
+			pendingChords = [];
 			return;
 		}
-		if (applyGlobalShortcut(event)) {
-			event.preventDefault();
+		const chord = chordFromEvent(event);
+		if (chord === "" || activatesFocusedControl(event.target, chord)) {
+			return;
 		}
+		applyChord(chord, event);
+	}
+
+	// A focused button answers to space and enter itself. Running a command on the
+	// same press would fire both.
+	function activatesFocusedControl(target: EventTarget | null, chord: string): boolean {
+		if (chord !== "space" && chord !== "enter") {
+			return false;
+		}
+		if (!(target instanceof HTMLElement)) {
+			return false;
+		}
+		return ["BUTTON", "A", "SELECT"].includes(target.tagName);
 	}
 
 	function isTypingTarget(target: EventTarget | null): boolean {
 		if (!(target instanceof HTMLElement)) {
 			return false;
 		}
-		return target.tagName === "INPUT" || target.isContentEditable;
+		return target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
 	}
 
-	function applyGlobalShortcut(event: KeyboardEvent): boolean {
-		if (event.altKey) {
-			return applyHistoryShortcut(event.key);
-		}
-		if (event.ctrlKey || event.metaKey) {
-			return applyControlShortcut(event);
-		}
-		if (event.key === "Backspace") {
-			goUp();
-			return true;
-		}
-		return false;
+	/** Surfaces that take the keyboard for themselves while they are open. */
+	function ownsTheKeyboard(): boolean {
+		return Boolean(menu) || isConfirmingDelete || openWithPath !== "" || Boolean(conflict);
 	}
 
-	function applyHistoryShortcut(key: string): boolean {
-		if (key === "ArrowLeft") {
-			goBack();
-			return true;
-		}
-		if (key === "ArrowRight") {
-			goForward();
-			return true;
-		}
-		return false;
-	}
-
-	function applyControlShortcut(event: KeyboardEvent): boolean {
-		if (event.key === "l") {
-			isEditingPath = true;
-			return true;
-		}
-		if (event.key === "f") {
-			focusSearch();
-			return true;
-		}
-		if (event.key === "h") {
-			toggleHidden();
-			return true;
-		}
-		if (event.key === "z") {
-			operations.undo();
-			return true;
-		}
-		return applyControlListShortcut(event);
-	}
-
-	function applyControlListShortcut(event: KeyboardEvent): boolean {
-		if (event.key === "N" && event.shiftKey) {
-			createEntry("folder");
-			return true;
-		}
-		if (event.key === "a") {
-			selection = selectAll(visiblePaths);
-			return true;
-		}
-		return applyClipboardShortcut(event.key);
-	}
-
-	function applyClipboardShortcut(key: string): boolean {
-		const handlers: Record<string, () => void> = {
-			c: copySelection,
-			x: cutSelection,
-			v: pasteClipboard,
-		};
-		const handler = handlers[key];
-		if (!handler) {
-			return false;
-		}
-		handler();
-		return true;
-	}
-
-	function handleListKeydown(event: KeyboardEvent) {
-		if (event.ctrlKey || event.metaKey || event.altKey) {
+	function applyChord(chord: string, event: KeyboardEvent) {
+		const resolution = resolveChord(keymap, pendingChords, chord, commandContext);
+		if (resolution.status === "pending") {
+			pendingChords = [...pendingChords, chord];
+			event.preventDefault();
 			return;
 		}
-		if (applyListShortcut(event)) {
+		pendingChords = [];
+		runResolvedChord(resolution, event);
+	}
+
+	function runResolvedChord(resolution: ChordResolution, event: KeyboardEvent) {
+		if (resolution.status !== "run") {
+			return;
+		}
+		if (registry.run(resolution.command, commandContext)) {
 			event.preventDefault();
 		}
 	}
 
-	function applyListShortcut(event: KeyboardEvent): boolean {
-		if (event.key === "Escape") {
-			selection = emptySelection;
-			return true;
-		}
-		if (event.key === "Enter") {
-			openSelection();
-			return true;
-		}
-		if (event.key === "F2") {
-			startRename();
-			return true;
-		}
-		if (event.key === "Delete") {
-			applyDeleteShortcut(event.shiftKey);
-			return true;
-		}
-		return applyMovementShortcut(event);
-	}
-
-	function applyDeleteShortcut(permanent: boolean) {
-		if (permanent) {
-			isConfirmingDelete = true;
+	function moveSelection(movement: Movement, extend: boolean) {
+		const target = targetIndexFor(movement, selection.focusIndex, movementContext());
+		if (target < 0) {
 			return;
 		}
-		trashSelection();
-	}
-
-	function applyMovementShortcut(event: KeyboardEvent): boolean {
-		const target = targetIndexFor(event.key, selection.focusIndex, movementContext());
-		if (target >= 0) {
-			selection = selectionAfterJump(selection, visiblePaths, target, event.shiftKey);
-			return true;
-		}
-		return applyTypeAhead(event);
+		selection = selectionAfterJump(selection, visiblePaths, target, extend);
 	}
 
 	function movementContext() {
@@ -1042,18 +1092,41 @@
 		};
 	}
 
-	function applyTypeAhead(event: KeyboardEvent): boolean {
-		if (!isTypeAheadKey(event)) {
-			return false;
+	function toggleFocusedEntry() {
+		if (selection.focusIndex < 0) {
+			return;
 		}
-		typeAhead = typeAheadAfterKey(typeAhead, event.key, Date.now());
-		const names = visibleEntries.map((entry) => entry.name);
-		const match = typeAheadMatch(names, typeAhead.query, selection.focusIndex);
-		if (match < 0) {
-			return true;
+		selection = selectionAfterClick(selection, visiblePaths, selection.focusIndex, {
+			toggle: true,
+			range: false,
+		});
+	}
+
+	function openFind() {
+		findOrigin = selection;
+		isFindOpen = true;
+	}
+
+	function closeFind(accepted: boolean) {
+		isFindOpen = false;
+		if (!accepted) {
+			selection = findOrigin;
 		}
-		selection = selectionAfterJump(selection, visiblePaths, match, false);
-		return true;
+		listContainer?.focus();
+	}
+
+	function jumpToFound(index: number) {
+		selection = selectionAfterJump(selection, visiblePaths, index, false);
+	}
+
+	function closeSearch() {
+		searchQuery = "";
+		listContainer?.focus();
+	}
+
+	function reverseSort() {
+		sortOrder = sortOrderReversed(sortOrder);
+		reloadListing();
 	}
 
 	function viewVariant(mode: ViewMode): "surface" | "ghost" {
@@ -1222,6 +1295,14 @@
 						<span class="min-w-0 flex-1 truncate text-xs text-dim">{actionError}</span>
 					</button>
 				{/if}
+				{#if isFindOpen}
+					<FindField
+						names={visibleEntries.map((entry) => entry.name)}
+						focusIndex={selection.focusIndex}
+						onMatch={jumpToFound}
+						onClose={closeFind}
+					/>
+				{/if}
 				<div
 					bind:this={listContainer}
 					role="listbox"
@@ -1229,7 +1310,6 @@
 					aria-label="Directory contents"
 					aria-multiselectable="true"
 					aria-activedescendant={activeDescendant()}
-					onkeydown={handleListKeydown}
 					oncontextmenu={openBackgroundMenu}
 					onpointerdown={startBand}
 					onpointermove={updateBand}
@@ -1298,8 +1378,7 @@
 		x={menu.x}
 		y={menu.y}
 		groups={menu.groups}
-		context={actionContext}
-		onSelect={runAction}
+		onSelect={runCommand}
 		onClose={closeMenu}
 	/>
 {/if}

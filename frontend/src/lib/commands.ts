@@ -23,6 +23,15 @@ export type Command = CommandDescriptor & {
 	run: () => void;
 };
 
+/** One rendered menu row: a command with its state already resolved. */
+export type MenuItem = {
+	id: string;
+	title: string;
+	icon: IconComponent;
+	enabled: boolean;
+	shortcut: string;
+};
+
 export class CommandRegistry {
 	private commands = new Map<string, Command>();
 
