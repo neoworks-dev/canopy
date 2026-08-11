@@ -679,6 +679,20 @@
 		return selectedEntries.length === 1;
 	}
 
+	// An operation the engine refused outright has no progress card to report it,
+	// so the strip carries it alongside the failures of the chrome's own actions.
+	function reportedError(): string {
+		if (actionError) {
+			return actionError;
+		}
+		return operations.errorMessage;
+	}
+
+	function dismissReportedError() {
+		actionError = "";
+		operations.errorMessage = "";
+	}
+
 	// A rubber band or a drag under way in any pane would otherwise open and close
 	// the details pane under the pointer as the selection changes beneath it.
 	function isPointerDragging(): boolean {
@@ -1360,14 +1374,14 @@
 			</span>
 			<span class="shrink-0 text-faint">·</span>
 		{/if}
-		{#if actionError}
+		{#if reportedError()}
 			<button
 				type="button"
-				onclick={() => (actionError = "")}
+				onclick={dismissReportedError}
 				class="flex min-w-0 items-center gap-2 rounded-md px-1 text-left"
 			>
 				<WarningIcon size={14} class="shrink-0 text-red" />
-				<span class="min-w-0 truncate text-xs text-dim">{actionError}</span>
+				<span class="min-w-0 truncate text-xs text-dim">{reportedError()}</span>
 			</button>
 		{:else}
 			{#if strip.primary}

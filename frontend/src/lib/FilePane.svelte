@@ -699,8 +699,14 @@
 		transfer.setData("text/plain", paths.join("\n"));
 	}
 
-	// One handler on the listing rather than one per row: the rows are virtualized,
-	// so the element under the pointer is found by hit testing instead.
+	/**
+	 * One handler on the listing rather than one per row: the rows are virtualized,
+	 * so the element under the pointer is found by hit testing instead.
+	 *
+	 * Bound to dragenter as well as dragover. An element only becomes a drop target
+	 * once one of the two is cancelled, and the webview does not settle for the
+	 * second on its own.
+	 */
 	function trackDragOver(event: DragEvent) {
 		if (!event.dataTransfer) {
 			return;
@@ -709,6 +715,22 @@
 		isDragOver = true;
 		dropTargetPath = folderPathUnder(event);
 		event.dataTransfer.dropEffect = dropOperation(dragSourceOf(event.dataTransfer), event);
+	}
+
+	// Moving onto a row leaves the container, which would otherwise drop the
+	// highlight on every row boundary the pointer crosses.
+	function trackDragLeave(event: DragEvent) {
+		if (containsRelatedTarget(event)) {
+			return;
+		}
+		clearDragFeedback();
+	}
+
+	function containsRelatedTarget(event: DragEvent): boolean {
+		if (!listContainer || !(event.relatedTarget instanceof Node)) {
+			return false;
+		}
+		return listContainer.contains(event.relatedTarget);
 	}
 
 	function folderPathUnder(event: DragEvent): string {
@@ -720,7 +742,7 @@
 	}
 
 	function hoveredEntry(event: DragEvent): HoveredEntry | null {
-		const option = optionUnder(event.target);
+		const option = optionUnder(event);
 		if (!option) {
 			return null;
 		}
@@ -731,7 +753,18 @@
 		return { path: entry.path, isDir: entry.isDir };
 	}
 
-	function optionUnder(target: EventTarget | null): Element | null {
+	// The event's own target is what the pointer is over in every ordinary case;
+	// hit testing the coordinates covers a drop the webview reports against the
+	// listing rather than the row inside it.
+	function optionUnder(event: DragEvent): Element | null {
+		const fromTarget = closestOption(event.target);
+		if (fromTarget) {
+			return fromTarget;
+		}
+		return closestOption(document.elementFromPoint(event.clientX, event.clientY));
+	}
+
+	function closestOption(target: EventTarget | null): Element | null {
 		if (!(target instanceof Element)) {
 			return null;
 		}
@@ -757,6 +790,15 @@
 	function clearDragFeedback() {
 		isDragOver = false;
 		dropTargetPath = "";
+	}
+
+	// Dropping entries back into the folder they came from does nothing, so the
+	// listing only offers itself as a target to a drag from somewhere else.
+	function marksTheWholeFolder(): boolean {
+		if (!isDragOver || isDraggingEntries) {
+			return false;
+		}
+		return dropTargetPath === "";
 	}
 
 	// A tagged file is shown where it lives, which means moving this pane to the
@@ -824,16 +866,17 @@
 				onpointerdown={startBand}
 				onpointermove={updateBand}
 				onpointerup={endBand}
+				ondragenter={trackDragOver}
 				ondragover={trackDragOver}
-				ondragleave={clearDragFeedback}
+				ondragleave={trackDragLeave}
 				ondragend={endDrag}
 				ondrop={applyDrop}
 				onfocus={onActivate}
 				onscroll={trackScroll}
 				class="min-h-0 flex-1 overflow-y-auto rounded-lg focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-line-faint focus-visible:outline-none"
-				class:ring-1={isDragOver && dropTargetPath === ""}
-				class:ring-inset={isDragOver && dropTargetPath === ""}
-				class:ring-action={isDragOver && dropTargetPath === ""}
+				class:ring-1={marksTheWholeFolder()}
+				class:ring-inset={marksTheWholeFolder()}
+				class:ring-action={marksTheWholeFolder()}
 			>
 				{#if viewMode === "grid"}
 					<EntryGrid

@@ -34,6 +34,8 @@
 
 	let isDropTarget = $state(false);
 
+	// Cancelling both dragenter and dragover is what makes the item a drop target:
+	// the webview does not settle for the second on its own.
 	function trackDragOver(event: DragEvent) {
 		if (!onDropPaths || !event.dataTransfer) {
 			return;
@@ -70,6 +72,7 @@
 
 <div
 	role="group"
+	ondragenter={trackDragOver}
 	ondragover={trackDragOver}
 	ondragleave={() => (isDropTarget = false)}
 	ondrop={applyDrop}
