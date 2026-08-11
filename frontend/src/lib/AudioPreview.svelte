@@ -2,11 +2,11 @@
 	import MusicNotesIcon from "phosphor-svelte/lib/MusicNotesIcon";
 	import PauseIcon from "phosphor-svelte/lib/PauseIcon";
 	import PlayIcon from "phosphor-svelte/lib/PlayIcon";
+	import { MediaURL } from "../../wailsjs/go/main/FileService";
 	import type { audio } from "../../wailsjs/go/models";
 	import {
 		audioDetailRows,
 		formatDuration,
-		mediaUrlFor,
 		playedFraction,
 		seekFraction,
 		waveformBars,
@@ -37,6 +37,8 @@
 	let canvasHeight = $state(0);
 	let currentTime = $state(0);
 	let paused = $state(true);
+	// The address the track streams from, which the Go side mints per file.
+	let mediaUrl = $state("");
 	// The stylesheet decides what the two halves of the waveform look like, so the
 	// colours are read back off elements carrying those classes.
 	let playedProbe = $state<HTMLSpanElement>();
@@ -52,6 +54,18 @@
 		canvasHeight;
 		draw();
 	});
+
+	$effect(() => {
+		resolveMediaUrl(path);
+	});
+
+	async function resolveMediaUrl(wanted: string) {
+		const address = await MediaURL(wanted);
+		if (wanted !== path) {
+			return;
+		}
+		mediaUrl = address;
+	}
 
 	function togglePlayback() {
 		if (!element) {
@@ -205,8 +219,10 @@
 		</dl>
 	{/if}
 
-	<audio bind:this={element} bind:currentTime bind:paused src={mediaUrlFor(path)} preload="metadata"
-	></audio>
+	{#if mediaUrl}
+		<audio bind:this={element} bind:currentTime bind:paused src={mediaUrl} preload="metadata"
+		></audio>
+	{/if}
 
 	<span bind:this={playedProbe} class="hidden text-action"></span>
 	<span bind:this={remainingProbe} class="hidden text-faint"></span>

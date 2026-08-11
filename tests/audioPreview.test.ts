@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import {
 	audioDetailRows,
 	formatDuration,
-	mediaUrlFor,
 	playedFraction,
 	seekFraction,
 	waveformBars,
@@ -31,14 +30,6 @@ function labelled(rows: Array<{ label: string; value: string }>, label: string):
 	}
 	return row.value;
 }
-
-describe("the address a track plays from", () => {
-	test("the path is escaped, so a space or an ampersand survives it", () => {
-		expect(mediaUrlFor("/music/two words & more.mp3")).toBe(
-			"/media?path=%2Fmusic%2Ftwo%20words%20%26%20more.mp3",
-		);
-	});
-});
 
 describe("clock time", () => {
 	test("a short track is minutes and seconds", () => {

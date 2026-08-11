@@ -78,6 +78,10 @@ export function LoadSettings() {
   return window['go']['main']['FileService']['LoadSettings']();
 }
 
+export function MediaURL(arg1) {
+  return window['go']['main']['FileService']['MediaURL'](arg1);
+}
+
 export function OpenPath(arg1) {
   return window['go']['main']['FileService']['OpenPath'](arg1);
 }

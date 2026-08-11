@@ -48,6 +48,8 @@ export function ListTrash():Promise<Array<fileops.TrashedItem>>;
 
 export function LoadSettings():Promise<settings.Settings>;
 
+export function MediaURL(arg1:string):Promise<string>;
+
 export function OpenPath(arg1:string):Promise<void>;
 
 export function OpenTerminal(arg1:string):Promise<void>;

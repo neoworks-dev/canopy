@@ -5,14 +5,7 @@
  */
 import type { audio } from "../../wailsjs/go/models";
 
-/** The route the Go side serves local files on, which is what plays them. */
-const mediaRoute = "/media";
-
 export type DetailRow = { label: string; value: string };
-
-export function mediaUrlFor(path: string): string {
-	return `${mediaRoute}?path=${encodeURIComponent(path)}`;
-}
 
 /** Clock time, with the hours only on something long enough to have them. */
 export function formatDuration(seconds: number): string {

@@ -14,6 +14,7 @@ import (
 	"file-explorer-neoworks/internal/filesystem"
 	"file-explorer-neoworks/internal/git"
 	"file-explorer-neoworks/internal/launcher"
+	"file-explorer-neoworks/internal/mediaserver"
 	"file-explorer-neoworks/internal/recents"
 	"file-explorer-neoworks/internal/settings"
 	"file-explorer-neoworks/internal/tags"
@@ -39,6 +40,7 @@ type FileService struct {
 	zoxide   *zoxide.Database
 	recents  *recents.Store
 	tagNames *tags.Vocabulary
+	media    mediaserver.Server
 
 	// The last state the frontend saved, so the window geometry captured at
 	// shutdown can be written alongside it.
@@ -367,6 +369,12 @@ func (service *FileService) OpenPath(path string) error {
 	}
 	service.recents.Record(path, false)
 	return nil
+}
+
+// MediaURL is where the webview can play or stream one file from. An empty
+// string means no media listener came up, and nothing can be played.
+func (service *FileService) MediaURL(path string) string {
+	return service.media.MediaURL(path)
 }
 
 // OpenTerminal starts the system's terminal in a directory.
