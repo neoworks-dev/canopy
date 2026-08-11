@@ -178,8 +178,6 @@
 	let recent = $state<recents.Entry[]>([]);
 	let tagNames = $state<string[]>([]);
 	let savedSearches = $state<SavedSearch[]>([]);
-	// The saved search whose results are on screen, or "" while none is.
-	let openSearchName = $state("");
 	let searchDialog = $state<SearchDialogState | null>(null);
 	let collapsedSections = $state<SidebarSectionId[]>([]);
 	// The tags on the selection, read when the dialog opens so it can show them.
@@ -245,6 +243,9 @@
 	const conflict = $derived(operations.conflict);
 	// Only a cut marks entries as pending; a copy leaves them as they are.
 	const cutPaths = $derived(new Set(pathsHeldByCut()));
+	// The saved search whose folder is on screen, which is where the pane is
+	// rather than something to be kept in step with it.
+	const openSearchName = $derived(searchNameOf(tab.location));
 	const isFolderPinned = $derived(pinned.some((bookmark) => bookmark.path === currentPath));
 	// The pane describes one entry, so it earns its width when there is one to
 	// describe — or when the user has asked for it to stay.
@@ -648,7 +649,6 @@
 		searchScope = scope;
 		searchQuery = "";
 		isSearchOpen = true;
-		openSearchName = "";
 		await tick();
 		searchInput?.focus();
 	}
@@ -657,15 +657,18 @@
 		openSearch(currentPath);
 	}
 
-	// Opening a saved search runs it again rather than showing what it once found,
-	// which is the whole reason for keeping the query rather than its results.
-	async function openSavedSearch(search: SavedSearch) {
-		searchScope = search.scope;
-		searchQuery = search.query;
-		isSearchOpen = true;
-		openSearchName = search.name;
-		await tick();
-		searchInput?.focus();
+	// A saved search opens as a folder of whatever it matches now, which is the
+	// whole reason for keeping the query rather than its results.
+	function openSavedSearch(search: SavedSearch) {
+		closeSearch();
+		showLocation({ kind: "search", name: search.name });
+	}
+
+	function searchNameOf(location: TabLocation): string {
+		if (location.kind !== "search") {
+			return "";
+		}
+		return location.name;
 	}
 
 	function startSavingSearch() {
@@ -707,21 +710,18 @@
 		await SaveSearch(name, searchQuery, searchScope);
 	}
 
-	// The sidebar marks whichever saved search is on screen, so renaming the open
-	// one has to carry that mark across.
+	// A pane showing the renamed search is looking for it by name, so it is moved
+	// along with it rather than left reporting that it no longer exists.
 	async function renameSavedSearch(search: SavedSearch, name: string) {
 		await RenameSearch(search.name, name);
 		if (openSearchName !== search.name) {
 			return;
 		}
-		openSearchName = name;
+		showLocation({ kind: "search", name });
 	}
 
 	async function forgetSavedSearch(name: string) {
 		await ForgetSearch(name);
-		if (openSearchName === name) {
-			openSearchName = "";
-		}
 		await refreshSavedSearches();
 	}
 
@@ -733,7 +733,6 @@
 		searchQuery = "";
 		searchScope = "";
 		isSearchOpen = false;
-		openSearchName = "";
 		activePane()?.focusList();
 	}
 
@@ -1426,6 +1425,7 @@
 					{sortOrder}
 					{showHidden}
 					{cutPaths}
+					{savedSearches}
 					onStatus={(reported) => reportStatus(paneGroup.id, reported)}
 					onNavigate={(location) => {
 						activateGroup(paneGroup.id);

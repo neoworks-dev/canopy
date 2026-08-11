@@ -1,6 +1,9 @@
 package main
 
 import (
+	"os"
+
+	"file-explorer-neoworks/internal/filesystem"
 	"file-explorer-neoworks/internal/searchindex"
 
 	"github.com/neoworks-dev/neoworksd/proto"
@@ -22,6 +25,33 @@ func NewIndexService() *IndexService {
 // indexed root; otherwise only the given directory and what is under it.
 func (service *IndexService) Search(query string, scope string) (proto.SearchResult, error) {
 	return service.connection.Search(query, scope)
+}
+
+// SearchEntries runs a query and describes each hit the way a listing describes
+// its own, so a saved search can be shown as a folder rather than as a list of
+// suggestions. A hit the index still holds but the filesystem has lost is left
+// out: the crawl runs behind the tree it follows.
+func (service *IndexService) SearchEntries(query string, scope string) ([]filesystem.Entry, error) {
+	result, err := service.connection.Search(query, scope)
+	if err != nil {
+		return nil, err
+	}
+	return describeHits(result.Hits), nil
+}
+
+func describeHits(hits []proto.Hit) []filesystem.Entry {
+	entries := []filesystem.Entry{}
+	for _, hit := range hits {
+		entries = appendExisting(entries, hit.Path)
+	}
+	return entries
+}
+
+func appendExisting(entries []filesystem.Entry, path string) []filesystem.Entry {
+	if _, err := os.Lstat(path); err != nil {
+		return entries
+	}
+	return append(entries, filesystem.Describe(path))
 }
 
 // IndexStatus tells the frontend whether a crawl is still running, so a partial

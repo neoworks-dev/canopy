@@ -15,6 +15,7 @@
 	import EntryGrid from "./EntryGrid.svelte";
 	import EntryRows from "./EntryRows.svelte";
 	import FindField from "./FindField.svelte";
+	import SearchPane from "./SearchPane.svelte";
 	import TagPane from "./TagPane.svelte";
 	import TrashPane from "./TrashPane.svelte";
 	import { columnsFor, type ColumnId } from "./columns";
@@ -44,6 +45,7 @@
 		type Rectangle,
 	} from "./marquee";
 	import { targetIndexFor, type Movement } from "./movement";
+	import type { SavedSearch } from "./savedSearches";
 	import {
 		emptySelection,
 		pruneSelection,
@@ -76,6 +78,7 @@
 		sortOrder,
 		showHidden,
 		cutPaths,
+		savedSearches,
 		onStatus,
 		onNavigate,
 		onActivate,
@@ -93,6 +96,8 @@
 		sortOrder: SortOrder;
 		showHidden: boolean;
 		cutPaths: Set<string>;
+		/** Looked up by name when this pane is showing one as a folder. */
+		savedSearches: SavedSearch[];
 		onStatus: (status: PaneStatus) => void;
 		onNavigate: (location: TabLocation) => void;
 		onActivate: () => void;
@@ -801,8 +806,12 @@
 		return dropTargetPath === "";
 	}
 
-	// A tagged file is shown where it lives, which means moving this pane to the
-	// folder holding it.
+	function savedSearchNamed(name: string): SavedSearch | undefined {
+		return savedSearches.find((search) => search.name === name);
+	}
+
+	// A tagged file, or one a saved search found, is shown where it lives, which
+	// means moving this pane to the folder holding it.
 	function revealTaggedEntry(entry: filesystem.Entry) {
 		onNavigate({ kind: "directory", path: parentDirectoryOf(entry.path) });
 	}
@@ -819,6 +828,18 @@
 		{#if location.kind === "trash"}
 			<div class="flex min-h-0 flex-col gap-2 overflow-y-auto">
 				<TrashPane onRestored={() => onChanged()} />
+			</div>
+		{:else if location.kind === "search"}
+			<div class="flex min-h-0 flex-col gap-2 overflow-y-auto">
+				{#if savedSearchNamed(location.name)}
+					<SearchPane
+						search={savedSearchNamed(location.name)!}
+						onOpen={openEntry}
+						onReveal={revealTaggedEntry}
+					/>
+				{:else}
+					<p class="text-sm text-dim">This search is no longer saved.</p>
+				{/if}
 			</div>
 		{:else if location.kind === "tag"}
 			<div class="flex min-h-0 flex-col gap-2 overflow-y-auto">

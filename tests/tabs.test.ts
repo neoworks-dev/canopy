@@ -241,6 +241,12 @@ describe("what is watched and what is labelled", () => {
 		expect(tabTitle(activeTab(activeGroup(trash)))).toBe("Trash");
 		expect(tabTitle(activeTab(activeGroup(tagged)))).toBe("work");
 	});
+
+	test("a saved search is labelled with its name", () => {
+		const saved = withLocation(layoutAt("/a"), { kind: "search", name: "Invoices" });
+
+		expect(tabTitle(activeTab(activeGroup(saved)))).toBe("Invoices");
+	});
 });
 
 describe("recording a location in history", () => {
@@ -249,11 +255,19 @@ describe("recording a location in history", () => {
 			directoryLocation("/home/moritz"),
 			{ kind: "trash" } as const,
 			{ kind: "tag", name: "work" } as const,
+			{ kind: "search", name: "Invoices" } as const,
 		];
 
 		for (const location of locations) {
 			expect(locationFromKey(locationKey(location))).toEqual(location);
 		}
+	});
+
+	test("a saved search whose name looks like a path is still read back as one", () => {
+		expect(locationFromKey(locationKey({ kind: "search", name: "/etc" }))).toEqual({
+			kind: "search",
+			name: "/etc",
+		});
 	});
 
 	test("a tag whose name looks like a path is still read back as a tag", () => {

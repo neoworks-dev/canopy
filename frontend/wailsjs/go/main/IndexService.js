@@ -9,3 +9,7 @@ export function IndexStatus() {
 export function Search(arg1, arg2) {
   return window['go']['main']['IndexService']['Search'](arg1, arg2);
 }
+
+export function SearchEntries(arg1, arg2) {
+  return window['go']['main']['IndexService']['SearchEntries'](arg1, arg2);
+}

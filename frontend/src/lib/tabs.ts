@@ -12,7 +12,9 @@ import { emptyHistory, historyAfterVisit, type History } from "./history";
 export type TabLocation =
 	| { kind: "directory"; path: string }
 	| { kind: "trash" }
-	| { kind: "tag"; name: string };
+	| { kind: "tag"; name: string }
+	/** A saved search, shown as a folder of whatever it matches now. */
+	| { kind: "search"; name: string };
 
 export type Tab = {
 	id: string;
@@ -82,7 +84,7 @@ export function tabTitle(tab: Tab): string {
 	if (tab.location.kind === "trash") {
 		return "Trash";
 	}
-	if (tab.location.kind === "tag") {
+	if (tab.location.kind === "tag" || tab.location.kind === "search") {
 		return tab.location.name;
 	}
 	return folderName(tab.location.path);
@@ -237,6 +239,9 @@ export function locationKey(location: TabLocation): string {
 	if (location.kind === "tag") {
 		return `tag:${location.name}`;
 	}
+	if (location.kind === "search") {
+		return `search:${location.name}`;
+	}
 	return location.path;
 }
 
@@ -246,6 +251,9 @@ export function locationFromKey(key: string): TabLocation {
 	}
 	if (key.startsWith("tag:")) {
 		return { kind: "tag", name: key.slice("tag:".length) };
+	}
+	if (key.startsWith("search:")) {
+		return { kind: "search", name: key.slice("search:".length) };
 	}
 	return directoryLocation(key);
 }
