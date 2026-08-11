@@ -38,8 +38,6 @@ export function RenameEntry(arg1:string,arg2:string):Promise<string>;
 
 export function ResolveConflict(arg1:string,arg2:string,arg3:boolean):Promise<void>;
 
-export function ResolvePath(arg1:string):Promise<string>;
-
 export function RestoreFromTrash(arg1:string):Promise<string>;
 
 export function ResumeOperation(arg1:string):Promise<void>;
@@ -47,6 +45,8 @@ export function ResumeOperation(arg1:string):Promise<void>;
 export function SetDefaultApplication(arg1:string,arg2:string):Promise<void>;
 
 export function StartOperation(arg1:string,arg2:Array<string>,arg3:string):Promise<string>;
+
+export function SuggestName(arg1:string,arg2:string):Promise<string>;
 
 export function Undo():Promise<string>;
 

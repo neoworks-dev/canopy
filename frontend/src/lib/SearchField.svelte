@@ -8,12 +8,13 @@
 	let {
 		value = $bindable(""),
 		placeholder = "Search files",
+		input = $bindable<HTMLInputElement | undefined>(),
 	}: {
 		value?: string;
 		placeholder?: string;
+		/** Exposed so a shortcut elsewhere can put the caret in this field. */
+		input?: HTMLInputElement;
 	} = $props();
-
-	let input = $state<HTMLInputElement>();
 
 	function clear() {
 		value = "";

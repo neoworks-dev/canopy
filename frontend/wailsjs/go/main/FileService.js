@@ -70,10 +70,6 @@ export function ResolveConflict(arg1, arg2, arg3) {
   return window['go']['main']['FileService']['ResolveConflict'](arg1, arg2, arg3);
 }
 
-export function ResolvePath(arg1) {
-  return window['go']['main']['FileService']['ResolvePath'](arg1);
-}
-
 export function RestoreFromTrash(arg1) {
   return window['go']['main']['FileService']['RestoreFromTrash'](arg1);
 }
@@ -88,6 +84,10 @@ export function SetDefaultApplication(arg1, arg2) {
 
 export function StartOperation(arg1, arg2, arg3) {
   return window['go']['main']['FileService']['StartOperation'](arg1, arg2, arg3);
+}
+
+export function SuggestName(arg1, arg2) {
+  return window['go']['main']['FileService']['SuggestName'](arg1, arg2);
 }
 
 export function Undo() {

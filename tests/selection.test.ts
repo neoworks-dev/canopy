@@ -4,6 +4,7 @@ import {
 	pruneSelection,
 	selectAll,
 	selectionAfterClick,
+	selectionAfterJump,
 	selectionAfterMove,
 	type Selection,
 } from "../frontend/src/lib/selection";
@@ -92,6 +93,25 @@ describe("selectionAfterMove", () => {
 	test("starts at the first entry when nothing is selected", () => {
 		const selection = selectionAfterMove(emptySelection, paths, 1, false);
 		expect(selection.paths).toEqual(["/a"]);
+	});
+});
+
+describe("selectionAfterJump", () => {
+	test("jumps straight to an entry", () => {
+		const selection = selectionAfterJump(selectionOf(["/a"], 0, 0), paths, 4, false);
+		expect(selection.paths).toEqual(["/e"]);
+		expect(selection.focusIndex).toBe(4);
+	});
+
+	test("extending a jump covers everything from the anchor", () => {
+		const selection = selectionAfterJump(selectionOf(["/b"], 1, 1), paths, 4, true);
+		expect(selection.paths).toEqual(["/b", "/c", "/d", "/e"]);
+		expect(selection.anchorIndex).toBe(1);
+	});
+
+	test("an out-of-range target changes nothing", () => {
+		const current = selectionOf(["/a"], 0, 0);
+		expect(selectionAfterJump(current, paths, 9, false)).toBe(current);
 	});
 });
 

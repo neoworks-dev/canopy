@@ -45,6 +45,19 @@ func FreeName(directory, name string) (string, error) {
 	return target, nil
 }
 
+// SuggestName picks a free name in directory, starting from the one asked for.
+// It is what "New folder" needs when the obvious name is taken.
+func SuggestName(directory, name string) string {
+	if !exists(filepath.Join(directory, name)) {
+		return name
+	}
+	suggestion, err := uniqueName(directory, name)
+	if err != nil {
+		return name
+	}
+	return suggestion
+}
+
 // uniqueName appends a counter until the name is free, which is what the
 // "keep both" conflict resolution needs.
 func uniqueName(directory, name string) (string, error) {

@@ -57,12 +57,6 @@ func (service *FileService) HomeDirectory() (string, error) {
 	return os.UserHomeDir()
 }
 
-// ResolvePath expands "~" and relative input the same way the listing does, so
-// the path bar can validate what was typed.
-func (service *FileService) ResolvePath(path string) (string, error) {
-	return filesystem.ResolvePath(path)
-}
-
 // PreviewFile reads as much of one file as the preview pane can show.
 func (service *FileService) PreviewFile(path string) (filesystem.Preview, error) {
 	return filesystem.ReadPreview(path)
@@ -123,6 +117,12 @@ func (service *FileService) CreateFile(directory string, name string) (string, e
 // written, so the inline editor can refuse it.
 func (service *FileService) ValidateEntryName(name string) error {
 	return fileops.ValidateName(name)
+}
+
+// SuggestName picks a free name in a directory, which is how "New folder"
+// avoids colliding with one that already exists.
+func (service *FileService) SuggestName(directory string, name string) string {
+	return fileops.SuggestName(directory, name)
 }
 
 func (service *FileService) ListTrash() ([]fileops.TrashedItem, error) {

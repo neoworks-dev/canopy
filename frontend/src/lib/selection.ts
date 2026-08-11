@@ -43,14 +43,47 @@ export function selectionAfterMove(
 	step: number,
 	extend: boolean,
 ): Selection {
-	const nextIndex = current.focusIndex + step;
-	if (!isWithinBounds(allPaths, nextIndex)) {
+	return selectionAfterJump(current, allPaths, current.focusIndex + step, extend);
+}
+
+/**
+ * Moves the selection to one specific entry, which is what grid arrows,
+ * Home/End, PageUp/PageDown and type-ahead all resolve to.
+ */
+export function selectionAfterJump(
+	current: Selection,
+	allPaths: string[],
+	index: number,
+	extend: boolean,
+): Selection {
+	if (!isWithinBounds(allPaths, index)) {
 		return current;
 	}
 	if (extend) {
-		return extendSelection(current, allPaths, nextIndex, false);
+		return extendSelection(current, allPaths, index, false);
 	}
-	return selectOnly(allPaths, nextIndex);
+	return selectOnly(allPaths, index);
+}
+
+/**
+ * Selection from a rubber band. `keep` holds the paths that were already
+ * selected when the drag started, which is how a ctrl-drag adds to them.
+ */
+export function selectionFromIndexes(
+	allPaths: string[],
+	indexes: number[],
+	keep: string[],
+): Selection {
+	const covered = indexes.filter((index) => isWithinBounds(allPaths, index));
+	const paths = mergeUnique(keep, covered.map((index) => allPaths[index]));
+	if (covered.length === 0) {
+		return { paths, anchorIndex: -1, focusIndex: -1 };
+	}
+	return {
+		paths,
+		anchorIndex: covered[0],
+		focusIndex: covered[covered.length - 1],
+	};
 }
 
 export function selectAll(allPaths: string[]): Selection {
