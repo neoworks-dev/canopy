@@ -1472,9 +1472,7 @@
 			{/if}
 		</Card>
 
-		{#if selectedEntries.length > 0}
-			<PreviewPane entries={selectedEntries} />
-		{/if}
+		<PreviewPane entries={selectedEntries} />
 	</div>
 </div>
 

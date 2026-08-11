@@ -128,6 +128,10 @@
 		{:else if preview?.kind === "unsupported"}
 			<p class="text-xs text-dim">No preview for this file type.</p>
 		{/if}
+	{:else if entries.length === 0}
+		<p class="m-auto px-2 text-center text-xs text-faint">
+			Select an item to see its details
+		</p>
 	{:else}
 		<p class="text-sm font-medium text-default">{entries.length} items selected</p>
 		<p class="text-xs text-dim">{formatFileSize(totalSize)} in total</p>
