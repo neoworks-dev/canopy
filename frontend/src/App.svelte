@@ -71,6 +71,7 @@
 	} from "./lib/keymap";
 	import type { WhenContext } from "./lib/whenClause";
 	import { defaultColumnIds, type ColumnId } from "./lib/columns";
+	import { isAcceptableDrop, type DropOperation } from "./lib/dragDrop";
 	import { describeError } from "./lib/errors";
 	import { parentDirectoryOf } from "./lib/format";
 	import {
@@ -669,10 +670,19 @@
 	}
 
 	function detailsPaneBelongsOnScreen(): boolean {
+		if (isPointerDragging()) {
+			return false;
+		}
 		if (alwaysShowDetails) {
 			return true;
 		}
 		return selectedEntries.length === 1;
+	}
+
+	// A rubber band or a drag under way in any pane would otherwise open and close
+	// the details pane under the pointer as the selection changes beneath it.
+	function isPointerDragging(): boolean {
+		return Object.values(statuses).some((reported) => reported.isPointerDragging);
 	}
 
 	// The strip carries what the details pane would have said, so it only has
@@ -982,6 +992,19 @@
 		operations.start("trash", selectedPathList(), "");
 	}
 
+	// Every drop lands here, whichever pane or sidebar item took it, so what a
+	// drop is allowed to do is decided in one place.
+	function dropOntoFolder(sources: string[], destination: string, operation: DropOperation) {
+		if (!isAcceptableDrop(sources, destination, operation)) {
+			return;
+		}
+		operations.start(operation, sources, destination);
+	}
+
+	function dropIntoTrash(sources: string[]) {
+		operations.start("trash", sources, "");
+	}
+
 	function confirmPermanentDelete() {
 		isConfirmingDelete = false;
 		operations.start("delete", selectedPathList(), "");
@@ -1248,6 +1271,8 @@
 				onOpenTag={openTagPane}
 				onRemoveBookmark={unpinFolder}
 				onForgetTag={forgetTag}
+				onDropOnFolder={dropOntoFolder}
+				onDropInTrash={dropIntoTrash}
 			/>
 			<PaneResizer
 				side="left"
@@ -1285,6 +1310,7 @@
 					onBackgroundMenu={openBackgroundMenu}
 					onSort={sortByColumn}
 					onChanged={() => operations.refreshUndoLabel()}
+					onDropPaths={dropOntoFolder}
 				>
 					{#snippet header()}
 						<TabStrip

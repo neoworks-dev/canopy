@@ -18,6 +18,18 @@
 	import TagPane from "./TagPane.svelte";
 	import TrashPane from "./TrashPane.svelte";
 	import { columnsFor, type ColumnId } from "./columns";
+	import {
+		dragSourceOf,
+		dropDestination,
+		dropOperation,
+		internalDragType,
+		pathsForDrag,
+		readDraggedPaths,
+		toUriList,
+		uriListType,
+		type DropOperation,
+		type HoveredEntry,
+	} from "./dragDrop";
 	import { entryElementId, indexOfOption } from "./entryList";
 	import { describeError } from "./errors";
 	import { parentDirectoryOf } from "./format";
@@ -72,6 +84,7 @@
 		onBackgroundMenu,
 		onSort,
 		onChanged,
+		onDropPaths,
 		header,
 	}: {
 		location: TabLocation;
@@ -89,6 +102,8 @@
 		onSort: (key: SortKey) => void;
 		/** Something in this pane wrote to disk, which the undo label follows. */
 		onChanged: () => void;
+		/** A drag landed here: hands the transfer to the operation engine. */
+		onDropPaths: (sources: string[], destination: string, operation: DropOperation) => void;
 		/** Rendered flush against the top edge of the pane, above the listing. */
 		header?: Snippet;
 	} = $props();
@@ -105,6 +120,11 @@
 	let renamingPath = $state("");
 	let isFindOpen = $state(false);
 	let gitReport = $state<git.Report | null>(null);
+	// The folder a drag is hovering over, and whether it is over the pane at all.
+	let dropTargetPath = $state("");
+	let isDragOver = $state(false);
+	// Set while entries dragged out of this pane are still in flight.
+	let isDraggingEntries = $state(false);
 
 	// Guards against the report of a folder this pane has already left arriving
 	// after the one it is showing now.
@@ -272,6 +292,7 @@
 			selected: selectedEntries,
 			isListActive: isListActive(),
 			branch: reportedBranch(),
+			isPointerDragging: band !== null || isDraggingEntries,
 		};
 	}
 
@@ -638,6 +659,108 @@
 		return [...listContainer.querySelectorAll('[role="option"]')];
 	}
 
+	/**
+	 * Dragging an entry outside the selection takes the selection with it, the way
+	 * a right-click does, so what moves is always what is highlighted.
+	 */
+	function startDrag(index: number, event: DragEvent) {
+		const entry = visibleEntries[index];
+		if (!entry || !event.dataTransfer) {
+			return;
+		}
+		selectForDrag(index);
+		isDraggingEntries = true;
+		writeDragPayload(event.dataTransfer, pathsForDrag(selection.paths, entry.path));
+	}
+
+	// Entries that landed somewhere are no longer what the user is working on, so
+	// the selection goes with them and the details pane stays shut. A drag that
+	// was cancelled leaves everything as it was.
+	function endDrag(event: DragEvent) {
+		isDraggingEntries = false;
+		clearDragFeedback();
+		if (event.dataTransfer?.dropEffect === "none") {
+			return;
+		}
+		selection = emptySelection;
+	}
+
+	function selectForDrag(index: number) {
+		if (selectedPaths.has(visiblePaths[index])) {
+			return;
+		}
+		selection = selectionAfterJump(selection, visiblePaths, index, false);
+	}
+
+	// The URI list is what another application reads; the explorer's own type is
+	// what tells a drop that it came from here rather than from outside.
+	function writeDragPayload(transfer: DataTransfer, paths: string[]) {
+		transfer.effectAllowed = "copyMove";
+		transfer.setData(internalDragType, JSON.stringify(paths));
+		transfer.setData(uriListType, toUriList(paths));
+		transfer.setData("text/plain", paths.join("\n"));
+	}
+
+	// One handler on the listing rather than one per row: the rows are virtualized,
+	// so the element under the pointer is found by hit testing instead.
+	function trackDragOver(event: DragEvent) {
+		if (!event.dataTransfer) {
+			return;
+		}
+		event.preventDefault();
+		isDragOver = true;
+		dropTargetPath = folderPathUnder(event);
+		event.dataTransfer.dropEffect = dropOperation(dragSourceOf(event.dataTransfer), event);
+	}
+
+	function folderPathUnder(event: DragEvent): string {
+		const hovered = hoveredEntry(event);
+		if (!hovered || !hovered.isDir) {
+			return "";
+		}
+		return hovered.path;
+	}
+
+	function hoveredEntry(event: DragEvent): HoveredEntry | null {
+		const option = optionUnder(event.target);
+		if (!option) {
+			return null;
+		}
+		const entry = visibleEntries[indexOfOption(option)];
+		if (!entry) {
+			return null;
+		}
+		return { path: entry.path, isDir: entry.isDir };
+	}
+
+	function optionUnder(target: EventTarget | null): Element | null {
+		if (!(target instanceof Element)) {
+			return null;
+		}
+		return target.closest('[role="option"]');
+	}
+
+	function applyDrop(event: DragEvent) {
+		event.preventDefault();
+		const transfer = event.dataTransfer;
+		clearDragFeedback();
+		if (!transfer) {
+			return;
+		}
+		startDroppedOperation(transfer, event);
+	}
+
+	function startDroppedOperation(transfer: DataTransfer, event: DragEvent) {
+		const sources = readDraggedPaths(transfer);
+		const destination = dropDestination(hoveredEntry(event), directoryPath);
+		onDropPaths(sources, destination, dropOperation(dragSourceOf(transfer), event));
+	}
+
+	function clearDragFeedback() {
+		isDragOver = false;
+		dropTargetPath = "";
+	}
+
 	// A tagged file is shown where it lives, which means moving this pane to the
 	// folder holding it.
 	function revealTaggedEntry(entry: filesystem.Entry) {
@@ -703,9 +826,16 @@
 				onpointerdown={startBand}
 				onpointermove={updateBand}
 				onpointerup={endBand}
+				ondragover={trackDragOver}
+				ondragleave={clearDragFeedback}
+				ondragend={endDrag}
+				ondrop={applyDrop}
 				onfocus={onActivate}
 				onscroll={trackScroll}
 				class="min-h-0 flex-1 overflow-y-auto rounded-lg focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-line-faint focus-visible:outline-none"
+				class:ring-1={isDragOver && dropTargetPath === ""}
+				class:ring-inset={isDragOver && dropTargetPath === ""}
+				class:ring-action={isDragOver && dropTargetPath === ""}
 			>
 				{#if viewMode === "grid"}
 					<EntryGrid
@@ -719,9 +849,11 @@
 						{gitStatuses}
 						focusIndex={selection.focusIndex}
 						{renamingPath}
+						{dropTargetPath}
 						onSelect={selectEntry}
 						onOpen={openEntry}
 						onContextMenu={openContextMenu}
+						onDragStart={startDrag}
 						onRenameCommit={commitRename}
 						onRenameCancel={cancelRename}
 						onMetrics={applyMetrics}
@@ -738,9 +870,11 @@
 						{gitStatuses}
 						focusIndex={selection.focusIndex}
 						{renamingPath}
+						{dropTargetPath}
 						onSelect={selectEntry}
 						onOpen={openEntry}
 						onContextMenu={openContextMenu}
+						onDragStart={startDrag}
 						onRenameCommit={commitRename}
 						onRenameCancel={cancelRename}
 						onMetrics={applyMetrics}

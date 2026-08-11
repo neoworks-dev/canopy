@@ -2,6 +2,7 @@
 	import { ripple } from "@neoworks-dev/ui";
 	import type { IconComponent } from "@neoworks-dev/ui";
 	import XIcon from "phosphor-svelte/lib/XIcon";
+	import { dragSourceOf, dropOperation, readDraggedPaths, type DropOperation } from "./dragDrop";
 
 	// ListRow from @neoworks-dev/ui is a content row with its own padding scale
 	// and no active state, which is a size and a behaviour a navigation rail does
@@ -15,6 +16,7 @@
 		onSelect,
 		onRemove = undefined,
 		removeLabel = "",
+		onDropPaths = undefined,
 	}: {
 		icon: IconComponent;
 		label: string;
@@ -26,7 +28,30 @@
 		/** Present on the items that can be taken out of the sidebar. */
 		onRemove?: () => void;
 		removeLabel?: string;
+		/** Present on the items a drag can be dropped on. */
+		onDropPaths?: (sources: string[], operation: DropOperation) => void;
 	} = $props();
+
+	let isDropTarget = $state(false);
+
+	function trackDragOver(event: DragEvent) {
+		if (!onDropPaths || !event.dataTransfer) {
+			return;
+		}
+		event.preventDefault();
+		isDropTarget = true;
+		event.dataTransfer.dropEffect = dropOperation(dragSourceOf(event.dataTransfer), event);
+	}
+
+	function applyDrop(event: DragEvent) {
+		isDropTarget = false;
+		if (!onDropPaths || !event.dataTransfer) {
+			return;
+		}
+		event.preventDefault();
+		const transfer = event.dataTransfer;
+		onDropPaths(readDraggedPaths(transfer), dropOperation(dragSourceOf(transfer), event));
+	}
 
 	function iconWeight(isActive: boolean): "fill" | "regular" {
 		if (isActive) {
@@ -43,7 +68,17 @@
 	}
 </script>
 
-<div class="group/item flex items-center rounded-lg" class:bg-raised={active}>
+<div
+	role="group"
+	ondragover={trackDragOver}
+	ondragleave={() => (isDropTarget = false)}
+	ondrop={applyDrop}
+	class="group/item flex items-center rounded-lg"
+	class:bg-raised={active}
+	class:ring-1={isDropTarget}
+	class:ring-inset={isDropTarget}
+	class:ring-action={isDropTarget}
+>
 	<button
 		type="button"
 		use:ripple

@@ -16,9 +16,11 @@
 		gitStatuses,
 		focusIndex,
 		renamingPath,
+		dropTargetPath,
 		onSelect,
 		onOpen,
 		onContextMenu,
+		onDragStart,
 		onRenameCommit,
 		onRenameCancel,
 		onMetrics,
@@ -107,6 +109,7 @@
 		{#each entries as entry, position (entry.path)}
 			{@const index = firstIndex + position}
 			{@const isSelected = selectedPaths.has(entry.path)}
+			{@const isDropTarget = entry.path === dropTargetPath}
 			<!--
 				Keyboard interaction belongs to the listbox container, which owns focus
 				and drives these options through aria-activedescendant.
@@ -117,16 +120,20 @@
 				data-index={index}
 				role="option"
 				tabindex="-1"
+				draggable={entry.path !== renamingPath}
 				aria-selected={isSelected}
 				onclick={(event) => onSelect(index, event)}
 				ondblclick={() => onOpen(entry)}
 				oncontextmenu={(event) => onContextMenu(index, event)}
+				ondragstart={(event) => onDragStart(index, event)}
 				class="flex min-w-0 flex-col items-center gap-2 rounded-lg p-2 transition duration-fast"
 				class:bg-raised={isSelected}
 				class:hover:bg-hover={!isSelected}
-				class:ring-2={index === focusIndex}
-				class:ring-inset={index === focusIndex}
-				class:ring-line-strong={index === focusIndex}
+				class:ring-2={index === focusIndex || isDropTarget}
+				class:ring-inset={index === focusIndex || isDropTarget}
+				class:ring-line-strong={index === focusIndex && !isDropTarget}
+				class:ring-action={isDropTarget}
+				class:bg-hover={isDropTarget}
 				class:opacity-50={cutPaths.has(entry.path)}
 				class:opacity-60={isMuted(entry.name)}
 			>

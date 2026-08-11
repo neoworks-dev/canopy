@@ -16,6 +16,7 @@
 	import PlugsConnectedIcon from "phosphor-svelte/lib/PlugsConnectedIcon";
 	import TagIcon from "phosphor-svelte/lib/TagIcon";
 	import type { bookmarks, filesystem, recents } from "../../wailsjs/go/models";
+	import type { DropOperation } from "./dragDrop";
 	import { formatFileSize } from "./format";
 	import SidebarItem from "./SidebarItem.svelte";
 	import SidebarSection from "./SidebarSection.svelte";
@@ -39,6 +40,8 @@
 		onOpenTag,
 		onRemoveBookmark,
 		onForgetTag,
+		onDropOnFolder,
+		onDropInTrash,
 	}: {
 		places: filesystem.Place[];
 		devices: filesystem.Device[];
@@ -58,6 +61,9 @@
 		onOpenTag: (name: string) => void;
 		onRemoveBookmark: (path: string) => void;
 		onForgetTag: (name: string) => void;
+		/** A drag landed on a folder in the rail: the same drop a pane would take. */
+		onDropOnFolder: (sources: string[], destination: string, operation: DropOperation) => void;
+		onDropInTrash: (sources: string[]) => void;
 	} = $props();
 
 	// The list behind this is deep enough to be a history; the sidebar offers the
@@ -126,6 +132,20 @@
 		return `${formatFileSize(device.freeBytes)} free`;
 	}
 
+	function folderDrop(destination: string) {
+		return (sources: string[], operation: DropOperation) =>
+			onDropOnFolder(sources, destination, operation);
+	}
+
+	// A recently opened file is a shortcut to that file, not a folder anything can
+	// be dropped into.
+	function recentDrop(entry: recents.Entry) {
+		if (!entry.isDir) {
+			return undefined;
+		}
+		return folderDrop(entry.path);
+	}
+
 	function capacityLabel(device: filesystem.Device): string {
 		if (device.totalBytes === 0) {
 			return device.path;
@@ -152,6 +172,7 @@
 					title={place.path}
 					active={isCurrent(place.path)}
 					onSelect={() => onNavigate(place.path)}
+					onDropPaths={folderDrop(place.path)}
 				/>
 			{/each}
 			<SidebarItem
@@ -159,6 +180,7 @@
 				label="Trash"
 				active={isTrashOpen}
 				onSelect={onOpenTrash}
+				onDropPaths={(sources) => onDropInTrash(sources)}
 			/>
 		</SidebarSection>
 
@@ -176,6 +198,7 @@
 						title={capacityLabel(device)}
 						active={isCurrent(device.path)}
 						onSelect={() => onNavigate(device.path)}
+						onDropPaths={folderDrop(device.path)}
 					/>
 				{/each}
 			</SidebarSection>
@@ -193,6 +216,7 @@
 					title={bookmark.path}
 					active={isCurrent(bookmark.path)}
 					onSelect={() => onNavigate(bookmark.path)}
+					onDropPaths={folderDrop(bookmark.path)}
 					onRemove={() => onRemoveBookmark(bookmark.path)}
 					removeLabel="Unpin {bookmark.name}"
 				/>
@@ -234,6 +258,7 @@
 					title={entry.path}
 					active={isRecentCurrent(entry)}
 					onSelect={() => onOpenRecent(entry)}
+					onDropPaths={recentDrop(entry)}
 				/>
 			{/each}
 			{#if visibleRecent.length === 0}

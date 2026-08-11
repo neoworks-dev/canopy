@@ -28,9 +28,12 @@ export type EntryViewProps = {
 	gitStatuses: Record<string, string>;
 	focusIndex: number;
 	renamingPath: string;
+	/** The folder a drag is hovering over, or "" while none is. */
+	dropTargetPath: string;
 	onSelect: (index: number, event: MouseEvent) => void;
 	onOpen: (entry: filesystem.Entry) => void;
 	onContextMenu: (index: number, event: MouseEvent) => void;
+	onDragStart: (index: number, event: DragEvent) => void;
 	onRenameCommit: (name: string) => void;
 	onRenameCancel: () => void;
 	/** Reports the view's own layout, which drives the window it is handed. */
