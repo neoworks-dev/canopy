@@ -43,7 +43,9 @@ build() {
 	bun run build
 
 	cd "$startdir/.."
-	go build -tags webkit2_41 -ldflags='-s -w' -o build/bin/canopy .
+	# desktop and production select the real application over the stub Wails
+	# compiles when neither is set; webkit2_41 is what Arch's webkit needs.
+	go build -tags 'desktop,production,webkit2_41' -ldflags='-s -w' -o build/bin/canopy .
 
 	cd "$startdir/../daemon"
 	go build -ldflags='-s -w' -o ../build/bin/canopyd ./cmd/canopyd
