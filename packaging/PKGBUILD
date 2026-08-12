@@ -21,7 +21,7 @@ depends=(
 	# and no parser for mp3, m4a, wav or flac, which takes the web process down.
 	'gst-plugins-good'
 )
-makedepends=('go' 'bun' 'wails')
+makedepends=('go' 'bun')
 optdepends=(
 	'poppler: PDF thumbnails and previews'
 	'git: working tree marks on entries and the branch in the tab strip'
@@ -33,10 +33,20 @@ optdepends=(
 provides=('canopy' 'canopyd')
 options=('!strip' '!debug')
 
+# The wails CLI is a convenience rather than a requirement: it builds the
+# frontend and then compiles the same package with the same tag. It is installed
+# with `go install` rather than by a package, so the two steps are done here
+# directly and nothing outside the repositories is needed to build Canopy.
 build() {
-	cd "$startdir/.."
+	cd "$startdir/../frontend"
 	bun install
 	bun run build
+
+	cd "$startdir/.."
+	go build -tags webkit2_41 -ldflags='-s -w' -o build/bin/canopy .
+
+	cd "$startdir/../daemon"
+	go build -ldflags='-s -w' -o ../build/bin/canopyd ./cmd/canopyd
 }
 
 package() {
