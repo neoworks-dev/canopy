@@ -8,23 +8,23 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"file-explorer-neoworks/internal/archive"
-	"file-explorer-neoworks/internal/bookmarks"
-	"file-explorer-neoworks/internal/clipboard"
-	"file-explorer-neoworks/internal/diskusage"
-	"file-explorer-neoworks/internal/duplicates"
-	"file-explorer-neoworks/internal/fileops"
-	"file-explorer-neoworks/internal/filesystem"
-	"file-explorer-neoworks/internal/git"
-	"file-explorer-neoworks/internal/launcher"
-	"file-explorer-neoworks/internal/mediaserver"
-	"file-explorer-neoworks/internal/recents"
-	"file-explorer-neoworks/internal/searches"
-	"file-explorer-neoworks/internal/settings"
-	"file-explorer-neoworks/internal/tags"
-	"file-explorer-neoworks/internal/thumbnail"
-	"file-explorer-neoworks/internal/watcher"
-	"file-explorer-neoworks/internal/zoxide"
+	"canopy/internal/archive"
+	"canopy/internal/bookmarks"
+	"canopy/internal/clipboard"
+	"canopy/internal/diskusage"
+	"canopy/internal/duplicates"
+	"canopy/internal/fileops"
+	"canopy/internal/filesystem"
+	"canopy/internal/git"
+	"canopy/internal/launcher"
+	"canopy/internal/mediaserver"
+	"canopy/internal/recents"
+	"canopy/internal/searches"
+	"canopy/internal/settings"
+	"canopy/internal/tags"
+	"canopy/internal/thumbnail"
+	"canopy/internal/watcher"
+	"canopy/internal/zoxide"
 )
 
 // Enough ranked directories to pick from without turning the prompt into a list
@@ -151,6 +151,38 @@ func (service *FileService) FindDuplicates(root string) (string, error) {
 // CancelDuplicateSearch stops a search nobody is waiting for any more.
 func (service *FileService) CancelDuplicateSearch(searchID string) error {
 	return service.duplicates.Cancel(searchID)
+}
+
+// openAt decides where the first window opens, for a folder named on the command
+// line. A file names the folder holding it, which is what makes "open the
+// containing folder" work from another application. A path that is neither is
+// ignored: the window still has the folder the last session left it on.
+func (service *FileService) openAt(path string) {
+	folder, found := folderFor(path)
+	if !found {
+		return
+	}
+	service.settingsMutex.Lock()
+	defer service.settingsMutex.Unlock()
+	service.current.LastDirectory = folder
+}
+
+func folderFor(path string) (string, bool) {
+	if path == "" {
+		return "", false
+	}
+	absolutePath, err := filesystem.ResolvePath(path)
+	if err != nil {
+		return "", false
+	}
+	info, err := os.Stat(absolutePath)
+	if err != nil {
+		return "", false
+	}
+	if info.IsDir() {
+		return absolutePath, true
+	}
+	return filepath.Dir(absolutePath), true
 }
 
 // LoadSettings reports the preferences this launch started from.

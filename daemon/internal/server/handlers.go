@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/neoworks-dev/neoworksd/internal/index"
-	"github.com/neoworks-dev/neoworksd/proto"
+	"canopy/daemon/internal/index"
+	"canopy/daemon/proto"
 )
 
 func (server *Server) buildHandlers() map[string]handler {

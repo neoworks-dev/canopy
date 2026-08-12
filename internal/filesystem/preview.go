@@ -9,9 +9,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"file-explorer-neoworks/internal/audio"
-	"file-explorer-neoworks/internal/highlight"
-	"file-explorer-neoworks/internal/thumbnail"
+	"canopy/internal/audio"
+	"canopy/internal/highlight"
+	"canopy/internal/thumbnail"
 )
 
 // Preview is what the explorer can show about a single file without handing it

@@ -1,4 +1,4 @@
-module file-explorer-neoworks
+module canopy
 
 go 1.26.5
 
@@ -12,6 +12,7 @@ require (
 require github.com/dlclark/regexp2/v2 v2.1.1 // indirect
 
 require (
+	canopy/daemon v0.0.0
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
@@ -27,7 +28,6 @@ require (
 	github.com/leaanthony/u v1.1.1 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
-	github.com/neoworks-dev/neoworksd v0.0.0
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
@@ -43,4 +43,4 @@ require (
 	golang.org/x/text v0.39.0 // indirect
 )
 
-replace github.com/neoworks-dev/neoworksd => ./daemon
+replace canopy/daemon => ./daemon

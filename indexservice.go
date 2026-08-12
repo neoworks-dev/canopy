@@ -3,10 +3,10 @@ package main
 import (
 	"os"
 
-	"file-explorer-neoworks/internal/filesystem"
-	"file-explorer-neoworks/internal/searchindex"
+	"canopy/internal/filesystem"
+	"canopy/internal/searchindex"
 
-	"github.com/neoworks-dev/neoworksd/proto"
+	"canopy/daemon/proto"
 )
 
 // IndexService is the Wails-bound bridge to the shared Neoworks daemon. Directory

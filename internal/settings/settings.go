@@ -4,7 +4,7 @@
 package settings
 
 import (
-	"file-explorer-neoworks/internal/filesystem"
+	"canopy/internal/filesystem"
 )
 
 const currentVersion = 1

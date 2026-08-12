@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"file-explorer-neoworks/internal/config"
+	"canopy/internal/config"
 )
 
 const vocabularyFileName = "tags.json"

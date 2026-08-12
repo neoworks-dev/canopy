@@ -183,7 +183,7 @@ func saveOne(t *testing.T, store *Store, search Search) {
 
 func writeSearchFile(t *testing.T, configHome string, contents string) {
 	t.Helper()
-	directory := filepath.Join(configHome, "neoworks-files")
+	directory := filepath.Join(configHome, "canopy")
 	err := os.MkdirAll(directory, 0o700)
 	if err != nil {
 		t.Fatalf("mkdir: %v", err)

@@ -18,7 +18,7 @@ import (
 
 	"github.com/alecthomas/chroma/v2"
 
-	"file-explorer-neoworks/internal/highlight"
+	"canopy/internal/highlight"
 )
 
 // The same groups the editor next door colours, so code reads alike in both.

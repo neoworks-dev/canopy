@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neoworks-dev/neoworksd/internal/index"
-	"github.com/neoworks-dev/neoworksd/proto"
+	"canopy/daemon/internal/index"
+	"canopy/daemon/proto"
 )
 
 const idleCheckInterval = 30 * time.Second

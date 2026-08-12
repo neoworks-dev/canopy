@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"file-explorer-neoworks/internal/archive"
+	"canopy/internal/archive"
 )
 
 // The name an archive of several entries takes, since no single one of them is

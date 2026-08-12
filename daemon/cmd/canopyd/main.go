@@ -1,4 +1,4 @@
-// Command neoworksd is the shared Neoworks background daemon. Every Neoworks
+// Command canopyd is the shared Neoworks background daemon. Every Neoworks
 // desktop application ships this binary and starts it on demand; the first one to
 // launch wins the daemon lock and the rest connect to it as clients.
 package main
@@ -15,10 +15,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/neoworks-dev/neoworksd/internal/index"
-	"github.com/neoworks-dev/neoworksd/internal/lockfile"
-	"github.com/neoworks-dev/neoworksd/internal/server"
-	"github.com/neoworks-dev/neoworksd/proto"
+	"canopy/daemon/internal/index"
+	"canopy/daemon/internal/lockfile"
+	"canopy/daemon/internal/server"
+	"canopy/daemon/proto"
 )
 
 // daemonVersion is compared by clients during the handshake and decides which
@@ -37,7 +37,7 @@ type configuration struct {
 
 func main() {
 	if err := run(parseConfiguration()); err != nil {
-		fmt.Fprintln(os.Stderr, "neoworksd:", err)
+		fmt.Fprintln(os.Stderr, "canopyd:", err)
 		os.Exit(1)
 	}
 }

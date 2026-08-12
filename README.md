@@ -1,8 +1,8 @@
-# file-explorer-neoworks
+# Canopy
 
 A desktop file explorer built with [Wails](https://wails.io) (Go backend,
 system webview) and a Svelte 5 frontend on the shared `@neoworks-dev/ui`
-design system.
+design system. Grove edits the files; Canopy is how you look down over them.
 
 ## Requirements
 
@@ -13,17 +13,39 @@ design system.
 - `gst-plugins-good` for playback in the details pane. WebKit plays media
   through GStreamer, and without this package there is no audio sink and no
   parser for mp3, m4a, wav or flac, which takes the web process down with it.
+- `zoxide`, optionally, for jumping to a folder by frecency
 
 ## Commands
 
 ```sh
 bun run dev       # wails dev — live reload for Go and frontend
-bun run build     # production binary at build/bin/neoworks-files
+bun run build     # production binaries at build/bin/canopy and build/bin/canopyd
 bun run bindings  # regenerate frontend/wailsjs from the bound Go methods
 bun test          # frontend logic tests
 bun run test:go   # backend tests
 bun run check     # svelte-check
 ```
+
+## Packaging
+
+`packaging/` holds everything a distribution needs: the desktop entry, the
+AppStream metainfo, the icons and a `PKGBUILD`. To build and install the Arch
+package:
+
+```sh
+cd packaging && makepkg -si
+```
+
+The package installs `canopy` and the `canopyd` daemon beside it, registers
+`inode/directory` and the archive types it can open, and pulls in the runtime
+dependencies above.
+
+## Where Canopy keeps things
+
+- `~/.config/canopy` — settings, saved searches, recent folders
+- `~/.local/share/neoworks` — the search index, which belongs to the daemon
+  rather than to Canopy: `canopyd` is shared by every Neoworks application, and
+  the first one to launch wins the daemon lock.
 
 ## Arch and the webkit build tag
 
@@ -49,6 +71,10 @@ for it:
   `node_modules`.
 - `frontend/src/app.css` adds an `@source` directive so Tailwind scans the
   package for utility classes instead of purging them.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
 
 ## frontend/dist placeholder
 

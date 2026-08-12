@@ -19,7 +19,7 @@ import (
 	"net/url"
 	"os"
 
-	"file-explorer-neoworks/internal/filesystem"
+	"canopy/internal/filesystem"
 )
 
 // mediaRoute is the path a file is asked for on, with the file's own path in the

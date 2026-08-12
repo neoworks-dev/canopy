@@ -1,4 +1,4 @@
-module github.com/neoworks-dev/neoworksd
+module canopy/daemon
 
 go 1.26.5
 

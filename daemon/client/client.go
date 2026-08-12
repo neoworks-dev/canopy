@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neoworks-dev/neoworksd/proto"
+	"canopy/daemon/proto"
 )
 
 const defaultSpawnTimeout = 10 * time.Second

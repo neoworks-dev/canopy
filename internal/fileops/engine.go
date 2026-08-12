@@ -5,7 +5,7 @@ import (
 	"os"
 	"sync"
 
-	"file-explorer-neoworks/internal/archive"
+	"canopy/internal/archive"
 )
 
 const queueCapacity = 64

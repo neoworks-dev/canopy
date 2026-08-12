@@ -1,7 +1,7 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "file-explorer-neoworks",
-  "outputfilename": "neoworks-files",
+  "name": "canopy",
+  "outputfilename": "canopy",
   "frontend:install": "bun install",
   "frontend:build": "bun run build",
   "frontend:dev:watcher": "bun run dev",

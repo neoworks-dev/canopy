@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 
-	"file-explorer-neoworks/internal/config"
+	"canopy/internal/config"
 )
 
 const fileName = "searches.json"

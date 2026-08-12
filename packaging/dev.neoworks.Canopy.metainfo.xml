@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+	<id>dev.neoworks.Canopy</id>
+	<launchable type="desktop-id">canopy.desktop</launchable>
+	<name>Canopy</name>
+	<summary>Look through your files</summary>
+	<developer id="dev.neoworks">
+		<name>Neoworks</name>
+	</developer>
+	<url type="homepage">https://neoworks.dev</url>
+
+	<metadata_license>CC0-1.0</metadata_license>
+	<project_license>MIT</project_license>
+
+	<description>
+		<p>
+			Canopy is a keyboard-driven file manager for the desktop. It shows a folder
+			as a list, a grid or a chain of columns, in tabs and in two panes side by
+			side, and it previews what is selected without opening anything.
+		</p>
+		<ul>
+			<li>Copy, move, rename and trash, with progress, pause and undo of each</li>
+			<li>Previews of images, video, PDFs, audio with a waveform, and source with highlighting</li>
+			<li>Search by name across indexed folders, saved as folders of their own</li>
+			<li>Archives opened and browsed a level at a time, packed and unpacked in place</li>
+			<li>Duplicate files found by content rather than by name</li>
+			<li>Tags, bookmarks, git status marks and a command palette over every command</li>
+		</ul>
+	</description>
+
+	<categories>
+		<category>System</category>
+		<category>Utility</category>
+	</categories>
+
+	<keywords>
+		<keyword>files</keyword>
+		<keyword>folders</keyword>
+		<keyword>explorer</keyword>
+	</keywords>
+
+	<content_rating type="oars-1.1" />
+
+	<releases>
+		<release version="0.1.0" date="2026-08-12">
+			<description>
+				<p>First packaged release.</p>
+			</description>
+		</release>
+	</releases>
+</component>

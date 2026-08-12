@@ -1,0 +1,61 @@
+# Maintainer: Moritz Utcke <moritz.utcke@ib-cornelsen.de>
+#
+# Canopy is built from the working tree this file sits in rather than from a
+# downloaded source archive, because the frontend consumes @neoworks-dev/ui
+# through `bun link`. A clean chroot has no such link and cannot resolve it, so
+# `makepkg -si` is run from here and builds what is checked out.
+
+pkgname=canopy
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="A keyboard-driven file manager for the desktop"
+arch=('x86_64')
+url="https://neoworks.dev"
+license=('MIT')
+depends=(
+	'webkit2gtk-4.1'
+	'gtk3'
+	# Thumbnails, image previews and the audio waveform are drawn by ffmpeg.
+	'ffmpeg'
+	# WebKit plays media through GStreamer. Without this there is no audio sink
+	# and no parser for mp3, m4a, wav or flac, which takes the web process down.
+	'gst-plugins-good'
+)
+makedepends=('go' 'bun' 'wails')
+optdepends=(
+	'poppler: PDF thumbnails and previews'
+	'git: working tree marks on entries and the branch in the tab strip'
+	'zoxide: jumping to a folder by frecency'
+	'wl-clipboard: copying and pasting files under Wayland'
+	'xclip: copying and pasting files under X11'
+	'xdg-utils: opening a file in the application the desktop chose for it'
+)
+provides=('canopy' 'canopyd')
+options=('!strip' '!debug')
+
+build() {
+	cd "$startdir/.."
+	bun install
+	bun run build
+}
+
+package() {
+	cd "$startdir/.."
+
+	install -Dm755 build/bin/canopy "$pkgdir/usr/bin/canopy"
+	install -Dm755 build/bin/canopyd "$pkgdir/usr/bin/canopyd"
+
+	install -Dm644 packaging/canopy.desktop \
+		"$pkgdir/usr/share/applications/canopy.desktop"
+	install -Dm644 packaging/dev.neoworks.Canopy.metainfo.xml \
+		"$pkgdir/usr/share/metainfo/dev.neoworks.Canopy.metainfo.xml"
+
+	local size
+	for size in 16 24 32 48 64 128 256 512; do
+		install -Dm644 "packaging/icons/hicolor/${size}x${size}/apps/canopy.png" \
+			"$pkgdir/usr/share/icons/hicolor/${size}x${size}/apps/canopy.png"
+	done
+
+	install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+	install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

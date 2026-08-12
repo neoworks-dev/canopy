@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"strconv"
 
-	"file-explorer-neoworks/internal/audio"
+	"canopy/internal/audio"
 )
 
 // The edge length the shared cache calls "large". Tiles are drawn well below

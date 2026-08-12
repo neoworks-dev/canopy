@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neoworks-dev/neoworksd/client"
-	"github.com/neoworks-dev/neoworksd/internal/index"
-	"github.com/neoworks-dev/neoworksd/internal/server"
-	"github.com/neoworks-dev/neoworksd/proto"
+	"canopy/daemon/client"
+	"canopy/daemon/internal/index"
+	"canopy/daemon/internal/server"
+	"canopy/daemon/proto"
 )
 
 const eventualTimeout = 20 * time.Second
@@ -213,8 +213,8 @@ func connectTestClient(t *testing.T, socketPath string) *client.Client {
 
 func buildDaemonBinary(t *testing.T) string {
 	t.Helper()
-	binaryPath := filepath.Join(t.TempDir(), "neoworksd")
-	command := exec.Command("go", "build", "-o", binaryPath, "./cmd/neoworksd")
+	binaryPath := filepath.Join(t.TempDir(), "canopyd")
+	command := exec.Command("go", "build", "-o", binaryPath, "./cmd/canopyd")
 	command.Dir = ".."
 	output, err := command.CombinedOutput()
 	if err != nil {

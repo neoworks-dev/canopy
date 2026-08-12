@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Canopy
+GenericName=File Manager
+Comment=Look through your files
+Exec=canopy %f
+Icon=canopy
+Terminal=false
+StartupNotify=true
+StartupWMClass=canopy
+Categories=System;FileTools;FileManager;
+MimeType=inode/directory;
+Keywords=files;folders;explorer;manager;browser;

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-const applicationDirectory = "neoworks-files"
+const applicationDirectory = "canopy"
 
 // Path is where the named config file belongs, honouring XDG_CONFIG_HOME and
 // falling back to ~/.config.

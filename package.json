@@ -1,11 +1,11 @@
 {
-  "name": "file-explorer-neoworks",
+  "name": "canopy",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run daemon:build && NEOWORKSD_BIN=\"$PWD/build/bin/neoworksd\" wails dev -tags webkit2_41",
+    "dev": "bun run daemon:build && CANOPYD_BIN=\"$PWD/build/bin/canopyd\" wails dev -tags webkit2_41",
     "build": "bun run daemon:build && wails build -tags webkit2_41",
-    "daemon:build": "cd daemon && go build -o ../build/bin/neoworksd ./cmd/neoworksd",
+    "daemon:build": "cd daemon && go build -o ../build/bin/canopyd ./cmd/canopyd",
     "bindings": "wails generate module -tags webkit2_41",
     "test:go": "go test ./... && cd daemon && go test ./...",
     "check": "cd frontend && bun run check"

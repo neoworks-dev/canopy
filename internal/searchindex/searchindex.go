@@ -7,11 +7,11 @@ import (
 	"os"
 	"sync"
 
-	"github.com/neoworks-dev/neoworksd/client"
-	"github.com/neoworks-dev/neoworksd/proto"
+	"canopy/daemon/client"
+	"canopy/daemon/proto"
 )
 
-const clientName = "neoworks-files"
+const clientName = "canopy"
 
 // defaultSearchLimit is what fits in the results view without paging.
 const defaultSearchLimit = 50

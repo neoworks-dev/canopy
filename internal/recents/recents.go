@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"file-explorer-neoworks/internal/config"
+	"canopy/internal/config"
 )
 
 const fileName = "recents.json"

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"file-explorer-neoworks/internal/highlight"
+	"canopy/internal/highlight"
 )
 
 func TestReadPreviewReadsText(t *testing.T) {

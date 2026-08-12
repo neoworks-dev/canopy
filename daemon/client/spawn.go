@@ -11,15 +11,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/neoworks-dev/neoworksd/internal/lockfile"
-	"github.com/neoworks-dev/neoworksd/proto"
+	"canopy/daemon/internal/lockfile"
+	"canopy/daemon/proto"
 )
 
 // BinaryPathEnvironmentVariable points at the daemon binary. Development builds
 // and test harnesses use it; a shipped application passes Options.BinaryPath.
-const BinaryPathEnvironmentVariable = "NEOWORKSD_BIN"
+const BinaryPathEnvironmentVariable = "CANOPYD_BIN"
 
-const daemonBinaryName = "neoworksd"
+const daemonBinaryName = "canopyd"
 
 const dialPollInterval = 25 * time.Millisecond
 

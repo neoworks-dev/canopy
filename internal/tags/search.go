@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"file-explorer-neoworks/internal/filesystem"
+	"canopy/internal/filesystem"
 )
 
 // Enough matches to work with. The tags live on the files rather than in an
