@@ -1,0 +1,27 @@
+[package]
+name = "canopy-files"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+base64 = "0.22"
+bzip2 = "0.6"
+canopy-model.workspace = true
+chrono.workspace = true
+filetime = "0.2"
+flate2 = "1"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp", "ico", "tiff"] }
+md-5 = "0.10"
+rustix = { version = "1", features = ["fs", "process"] }
+serde.workspace = true
+serde_json.workspace = true
+sha2 = "0.10"
+syntect = { version = "5", default-features = false, features = ["parsing", "regex-fancy"] }
+tar = "0.4"
+thiserror = "2"
+two-face = { version = "0.5", default-features = false, features = ["syntect-fancy"] }
+walkdir = "2"
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
+
+[dev-dependencies]
+tempfile = "3"
