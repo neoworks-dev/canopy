@@ -1551,6 +1551,15 @@
 		{/if}
 	</View>
 
+	<!-- Later siblings draw on top, so the progress cards come before the dialogs. -->
+	<OperationProgress
+		operations={operations.operations}
+		onPause={(id) => operations.pause(id)}
+		onResume={(id) => operations.resume(id)}
+		onCancel={(id) => operations.cancel(id)}
+		onDismiss={(id) => operations.dismiss(id)}
+	/>
+
 	{#if paletteContext}
 		<CommandPalette
 			commands={registry.all()}
@@ -1612,11 +1621,4 @@
 		<OpenWithDialog path={openWithPath} onOpen={openWithApplication} onCancel={() => (openWithPath = "")} />
 	{/if}
 
-	<OperationProgress
-		operations={operations.operations}
-		onPause={(id) => operations.pause(id)}
-		onResume={(id) => operations.resume(id)}
-		onCancel={(id) => operations.cancel(id)}
-		onDismiss={(id) => operations.dismiss(id)}
-	/>
 </View>
