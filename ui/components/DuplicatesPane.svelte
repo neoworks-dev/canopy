@@ -41,7 +41,7 @@
 		onChanged: () => void;
 	} = $props();
 
-	let report = $state<DuplicateReport | null>(null);
+	let report = $state.raw<DuplicateReport | null>(null);
 	let errorMessage = $state("");
 	let isSearching = $state(false);
 	let trashed = $state(new Set<string>());

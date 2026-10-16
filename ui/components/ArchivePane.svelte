@@ -39,7 +39,7 @@
 		onExtract: () => void;
 	} = $props();
 
-	let members = $state<ArchiveMember[]>([]);
+	let members = $state.raw<ArchiveMember[]>([]);
 	let errorMessage = $state("");
 	let isLoading = $state(false);
 

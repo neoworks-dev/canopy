@@ -19,7 +19,7 @@
 
 	let { onRestored }: { onRestored: (path: string) => void } = $props();
 
-	let items = $state<fileops.TrashedItem[]>([]);
+	let items = $state.raw<fileops.TrashedItem[]>([]);
 	let errorMessage = $state("");
 	let isLoading = $state(true);
 	let isConfirmingEmpty = $state(false);

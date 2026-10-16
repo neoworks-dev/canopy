@@ -24,7 +24,7 @@
 		onReveal: (entry: filesystem.Entry) => void;
 	} = $props();
 
-	let entries = $state<filesystem.Entry[]>([]);
+	let entries = $state.raw<filesystem.Entry[]>([]);
 	let errorMessage = $state("");
 	let isLoading = $state(true);
 

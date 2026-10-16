@@ -125,7 +125,8 @@
 		header?: Snippet;
 	} = $props();
 
-	let listing = $state<filesystem.Listing | null>(null);
+	// Raw: a listing is replaced whole, and deep proxies over thousands of entries cost memory.
+	let listing = $state.raw<filesystem.Listing | null>(null);
 	let errorMessage = $state("");
 	// Failures of one action, reported above the listing instead of replacing it.
 	let actionError = $state("");
@@ -133,7 +134,7 @@
 	let selection = $state<Selection>(emptySelection);
 	let renamingPath = $state("");
 	let isFindOpen = $state(false);
-	let gitReport = $state<git.Report | null>(null);
+	let gitReport = $state.raw<git.Report | null>(null);
 	// Set while entries dragged out of this pane are still in flight, and while
 	// files dragged in from another program are over it.
 	let isDraggingEntries = $state(false);
