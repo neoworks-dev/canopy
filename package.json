@@ -4,7 +4,7 @@
 	"type": "module",
 	"scripts": {
 		"build": "bun build.mjs && cargo build --release -p canopy -p canopy-index",
-		"dev": "bun build.mjs && (bun build.mjs --watch & cargo run --release -p canopy -- --bundle dist/canopy.js --watch)",
+		"dev": "bun build.mjs && cargo build --release -p canopy-index --bin canopyd && (bun build.mjs --watch & cargo run --release -p canopy -- --bundle dist/canopy.js --watch)",
 		"package": "bun node_modules/@neoworks/svelte-gpui/scripts/package.mjs --app . --out dist/package",
 		"check": "svelte-check --tsconfig ./tsconfig.json",
 		"test:rust": "cargo test --workspace --exclude canopy"
