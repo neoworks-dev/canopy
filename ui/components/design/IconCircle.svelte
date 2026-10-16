@@ -1,9 +1,12 @@
 <!-- The design system's icon circle: an icon on a soft square tinted by its tone. -->
+<script lang="ts" module>
+	export type Tone = "green" | "red" | "amber" | "blue" | "violet" | "neutral";
+</script>
+
 <script lang="ts">
 	import { Icon, View } from "@neoworks/svelte-gpui/ui";
 	import { colors, radius } from "../../theme";
 
-	export type Tone = "green" | "red" | "amber" | "blue" | "violet" | "neutral";
 	type Size = "sm" | "md" | "lg";
 
 	let { icon, tone = "neutral", size = "md" }: { icon: string; tone?: Tone; size?: Size } = $props();
