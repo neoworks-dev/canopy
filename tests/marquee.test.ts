@@ -2,11 +2,15 @@ import { describe, expect, test } from "bun:test";
 import {
 	clampToBounds,
 	exceedsThreshold,
+	indexAtPoint,
+	indexesInGrid,
 	indexesWithin,
 	overlaps,
 	rectangleBetween,
 	toContentPoint,
 	toViewportPoint,
+	emptyGridLayout,
+	type GridLayout,
 	type Rectangle,
 } from "../ui/lib/marquee";
 
@@ -91,5 +95,58 @@ describe("indexesWithin", () => {
 	test("a band between two entries covers neither", () => {
 		const band = { left: 10, top: 42, width: 20, height: 4 };
 		expect(indexesWithin(band, tiles)).toEqual([]);
+	});
+});
+
+describe("entries on a grid", () => {
+	// Three columns of 100x40 tiles, 10 apart, starting 20 pixels down.
+	const grid: GridLayout = {
+		columns: 3,
+		cellWidth: 110,
+		cellHeight: 50,
+		hitWidth: 100,
+		hitHeight: 40,
+		left: 0,
+		top: 20,
+	};
+
+	test("a band over one tile covers that tile", () => {
+		const band: Rectangle = { left: 10, top: 30, width: 20, height: 10 };
+
+		expect(indexesInGrid(band, 0, grid, 7)).toEqual([0]);
+	});
+
+	test("a band reaches the tiles across and down", () => {
+		const band: Rectangle = { left: 90, top: 60, width: 140, height: 20 };
+
+		expect(indexesInGrid(band, 0, grid, 7)).toEqual([0, 1, 2, 3, 4, 5]);
+	});
+
+	test("the gap between tiles is not part of either", () => {
+		const band: Rectangle = { left: 102, top: 30, width: 4, height: 4 };
+
+		expect(indexesInGrid(band, 0, grid, 7)).toEqual([]);
+	});
+
+	test("the scroll offset moves the band over the content", () => {
+		const band: Rectangle = { left: 10, top: 10, width: 20, height: 10 };
+
+		expect(indexesInGrid(band, 120, grid, 12)).toEqual([6]);
+	});
+
+	test("a tile past the last entry is not covered", () => {
+		const band: Rectangle = { left: 0, top: 70, width: 300, height: 10 };
+
+		expect(indexesInGrid(band, 0, grid, 4)).toEqual([3]);
+	});
+
+	test("a layout nothing has measured yet covers nothing", () => {
+		expect(indexesInGrid({ left: 0, top: 0, width: 50, height: 50 }, 0, emptyGridLayout, 10)).toEqual([]);
+	});
+
+	test("a point finds the tile it is over, or none", () => {
+		expect(indexAtPoint({ x: 120, y: 30 }, 0, grid, 7)).toBe(1);
+		expect(indexAtPoint({ x: 105, y: 30 }, 0, grid, 7)).toBe(-1);
+		expect(indexAtPoint({ x: 10, y: 5 }, 0, grid, 7)).toBe(-1);
 	});
 });

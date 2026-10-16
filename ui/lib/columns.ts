@@ -8,10 +8,11 @@ export type ColumnId = "kind" | "size" | "modified" | "permissions";
 export type ColumnDefinition = {
 	id: ColumnId;
 	label: string;
-	/** Fixed track width so the header and every row line up. */
-	widthClass: string;
-	/** Extra classes for the value cell, e.g. a monospace mode string. */
-	valueClass: string;
+	/** Fixed track width in pixels so the header and every row line up. */
+	width: number;
+	isRightAligned: boolean;
+	/** A monospace mode string, say. */
+	isMonospace: boolean;
 	valueOf: (entry: filesystem.Entry) => string;
 	/**
 	 * The key the Go side sorts this column by, empty where it cannot. Type is
@@ -25,32 +26,36 @@ export const availableColumns: ColumnDefinition[] = [
 	{
 		id: "kind",
 		label: "Type",
-		widthClass: "w-20",
-		valueClass: "",
+		width: 80,
+		isRightAligned: false,
+		isMonospace: false,
 		valueOf: (entry) => kindLabel(classifyEntry(entry)),
 		sortKey: "",
 	},
 	{
 		id: "size",
 		label: "Size",
-		widthClass: "w-24",
-		valueClass: "text-right tabular-nums",
+		width: 96,
+		isRightAligned: true,
+		isMonospace: false,
 		valueOf: sizeValue,
 		sortKey: "size",
 	},
 	{
 		id: "modified",
 		label: "Modified",
-		widthClass: "w-28",
-		valueClass: "",
+		width: 112,
+		isRightAligned: false,
+		isMonospace: false,
 		valueOf: (entry) => formatModifiedTime(entry.modTime),
 		sortKey: "modified",
 	},
 	{
 		id: "permissions",
 		label: "Permissions",
-		widthClass: "w-28",
-		valueClass: "font-mono",
+		width: 112,
+		isRightAligned: false,
+		isMonospace: true,
 		valueOf: permissionsValue,
 		sortKey: "permissions",
 	},

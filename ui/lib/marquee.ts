@@ -75,3 +75,96 @@ export function indexesWithin(band: Rectangle, itemRectangles: Rectangle[]): num
 	});
 	return indexes;
 }
+
+/**
+ * Where entries sit in a view that lays them out on a regular grid, which is how
+ * a click or a band is matched to an entry without asking each one. A list of
+ * rows is the same grid with one column.
+ */
+export type GridLayout = {
+	columns: number;
+	/** The distance from one cell to the next across and down, gap included. */
+	cellWidth: number;
+	cellHeight: number;
+	/** The part of a cell an entry occupies, which leaves the gap out. */
+	hitWidth: number;
+	hitHeight: number;
+	/** Where the first cell starts, in the coordinates of the view holding the entries. */
+	left: number;
+	top: number;
+};
+
+export const emptyGridLayout: GridLayout = {
+	columns: 1,
+	cellWidth: 0,
+	cellHeight: 0,
+	hitWidth: 0,
+	hitHeight: 0,
+	left: 0,
+	top: 0,
+};
+
+/**
+ * The entries a band covers. The band is in viewport coordinates; the layout is
+ * in content coordinates, so the scroll offset joins them. Only the rows the
+ * band reaches are looked at, however many entries there are.
+ */
+export function indexesInGrid(
+	band: Rectangle,
+	scrollTop: number,
+	layout: GridLayout,
+	total: number,
+): number[] {
+	if (layout.cellWidth <= 0 || layout.cellHeight <= 0 || total <= 0) {
+		return [];
+	}
+	const content = { ...band, top: band.top + scrollTop };
+	const rows = cellRange(content.top, content.height, layout.top, layout.cellHeight);
+	const columns = cellRange(content.left, content.width, layout.left, layout.cellWidth);
+	const indexes: number[] = [];
+	for (let row = rows.first; row <= rows.last; row++) {
+		for (let column = Math.max(0, columns.first); column <= Math.min(columns.last, layout.columns - 1); column++) {
+			appendIfCovered(indexes, content, layout, row, column, total);
+		}
+	}
+	return indexes;
+}
+
+function cellRange(start: number, length: number, origin: number, pitch: number) {
+	return {
+		first: Math.max(0, Math.floor((start - origin) / pitch)),
+		last: Math.floor((start + length - origin) / pitch),
+	};
+}
+
+function appendIfCovered(
+	indexes: number[],
+	content: Rectangle,
+	layout: GridLayout,
+	row: number,
+	column: number,
+	total: number,
+) {
+	const index = row * layout.columns + column;
+	if (index >= total) {
+		return;
+	}
+	const cell = {
+		left: layout.left + column * layout.cellWidth,
+		top: layout.top + row * layout.cellHeight,
+		width: layout.hitWidth,
+		height: layout.hitHeight,
+	};
+	if (overlaps(content, cell)) {
+		indexes.push(index);
+	}
+}
+
+/** The entry under a point in viewport coordinates, or -1 where there is none. */
+export function indexAtPoint(point: Point, scrollTop: number, layout: GridLayout, total: number): number {
+	const covered = indexesInGrid({ left: point.x, top: point.y, width: 0, height: 0 }, scrollTop, layout, total);
+	if (covered.length === 0) {
+		return -1;
+	}
+	return covered[0];
+}
