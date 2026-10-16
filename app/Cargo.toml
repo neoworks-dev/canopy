@@ -10,8 +10,12 @@ serde.workspace = true
 serde_json.workspace = true
 canopy-model.workspace = true
 canopy-desktop.workspace = true
+canopy-files.workspace = true
 canopy-index.workspace = true
 
 [features]
 # Set by svelte-gpui's packager: runs the bundle packed into the binary.
 package = []
+
+[dev-dependencies]
+tempfile = "3"

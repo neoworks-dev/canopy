@@ -775,11 +775,13 @@ name = "canopy"
 version = "0.1.0"
 dependencies = [
  "canopy-desktop",
+ "canopy-files",
  "canopy-index",
  "canopy-model",
  "serde",
  "serde_json",
  "svelte_gpui_host",
+ "tempfile",
 ]
 
 [[package]]
