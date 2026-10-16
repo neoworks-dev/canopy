@@ -774,6 +774,8 @@ dependencies = [
 name = "canopy"
 version = "0.1.0"
 dependencies = [
+ "canopy-desktop",
+ "canopy-index",
  "canopy-model",
  "serde",
  "serde_json",

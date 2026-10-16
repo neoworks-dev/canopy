@@ -1,11 +1,21 @@
 //! Canopy's executable: the svelte-gpui host running the UI bundle, with the
-//! commands the UI calls registered in `commands`.
+//! commands the UI calls registered from `commands`.
+
+mod commands;
+mod services;
+mod startup;
 
 use svelte_gpui::{Commands, Options};
 
 fn main() {
     let commands = Commands::new();
-    svelte_gpui::run(options().commands(commands));
+    let services = services::Services::start(commands.emitter());
+    let commands = commands::register(commands, &services);
+    let mut options = options().commands(commands);
+    startup::open_folder_argument(&mut services.current_settings.lock().unwrap());
+    startup::apply_window_size(&mut options, &services.current_settings.lock().unwrap());
+    svelte_gpui::run(options);
+    services.shut_down();
 }
 
 #[cfg(feature = "package")]

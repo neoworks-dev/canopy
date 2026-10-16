@@ -3,4 +3,5 @@
 import { start } from "@neoworks/svelte-gpui";
 import App from "./App.svelte";
 
-start(App, {}, { window: { title: "Canopy", width: 1280, height: 800, minWidth: 720, minHeight: 480 } });
+// The size comes from the settings file, which the Rust side applies before the window opens.
+start(App, {}, { window: { title: "Canopy", minWidth: 720, minHeight: 480 } });

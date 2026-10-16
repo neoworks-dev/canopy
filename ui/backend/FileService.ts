@@ -17,16 +17,16 @@ export function Bookmarks(): Promise<Array<bookmarks.Bookmark>> {
 	return invoke<Array<bookmarks.Bookmark>>("Bookmarks");
 }
 
-export function CancelDuplicateSearch(searchID: string): Promise<void> {
-	return invoke<void>("CancelDuplicateSearch", { searchID });
+export function CancelDuplicateSearch(searchId: string): Promise<void> {
+	return invoke<void>("CancelDuplicateSearch", { searchId });
 }
 
-export function CancelMeasurement(measurementID: string): Promise<void> {
-	return invoke<void>("CancelMeasurement", { measurementID });
+export function CancelMeasurement(measurementId: string): Promise<void> {
+	return invoke<void>("CancelMeasurement", { measurementId });
 }
 
-export function CancelOperation(operationID: string): Promise<void> {
-	return invoke<void>("CancelOperation", { operationID });
+export function CancelOperation(operationId: string): Promise<void> {
+	return invoke<void>("CancelOperation", { operationId });
 }
 
 export function ClearRecents(): Promise<void> {
@@ -113,12 +113,12 @@ export function OpenTerminal(directory: string): Promise<void> {
 	return invoke<void>("OpenTerminal", { directory });
 }
 
-export function OpenWith(path: string, applicationID: string): Promise<void> {
-	return invoke<void>("OpenWith", { path, applicationID });
+export function OpenWith(path: string, applicationId: string): Promise<void> {
+	return invoke<void>("OpenWith", { path, applicationId });
 }
 
-export function PauseOperation(operationID: string): Promise<void> {
-	return invoke<void>("PauseOperation", { operationID });
+export function PauseOperation(operationId: string): Promise<void> {
+	return invoke<void>("PauseOperation", { operationId });
 }
 
 export function Places(): Promise<Array<filesystem.Place>> {
@@ -161,16 +161,16 @@ export function RenameSearch(name: string, newName: string): Promise<void> {
 	return invoke<void>("RenameSearch", { name, newName });
 }
 
-export function ResolveConflict(operationID: string, resolution: string, applyToAll: boolean): Promise<void> {
-	return invoke<void>("ResolveConflict", { operationID, resolution, applyToAll });
+export function ResolveConflict(operationId: string, resolution: string, applyToAll: boolean): Promise<void> {
+	return invoke<void>("ResolveConflict", { operationId, resolution, applyToAll });
 }
 
 export function RestoreFromTrash(trashPath: string): Promise<string> {
 	return invoke<string>("RestoreFromTrash", { trashPath });
 }
 
-export function ResumeOperation(operationID: string): Promise<void> {
-	return invoke<void>("ResumeOperation", { operationID });
+export function ResumeOperation(operationId: string): Promise<void> {
+	return invoke<void>("ResumeOperation", { operationId });
 }
 
 export function SaveSearch(name: string, query: string, scope: string): Promise<void> {
@@ -185,8 +185,8 @@ export function SavedSearches(): Promise<Array<searches.Search>> {
 	return invoke<Array<searches.Search>>("SavedSearches");
 }
 
-export function SetDefaultApplication(path: string, applicationID: string): Promise<void> {
-	return invoke<void>("SetDefaultApplication", { path, applicationID });
+export function SetDefaultApplication(path: string, applicationId: string): Promise<void> {
+	return invoke<void>("SetDefaultApplication", { path, applicationId });
 }
 
 export function StartOperation(kind: string, sources: Array<string>, destination: string): Promise<string> {
