@@ -100,6 +100,21 @@ import x from "@phosphor-icons/core/regular/x.svg";
 import xBold from "@phosphor-icons/core/bold/x-bold.svg";
 import playFill from "@phosphor-icons/core/fill/play-fill.svg";
 import pauseFill from "@phosphor-icons/core/fill/pause-fill.svg";
+import houseFill from "@phosphor-icons/core/fill/house-fill.svg";
+import desktopFill from "@phosphor-icons/core/fill/desktop-fill.svg";
+import downloadSimpleFill from "@phosphor-icons/core/fill/download-simple-fill.svg";
+import fileTextFill from "@phosphor-icons/core/fill/file-text-fill.svg";
+import musicNoteFill from "@phosphor-icons/core/fill/music-note-fill.svg";
+import imageFill from "@phosphor-icons/core/fill/image-fill.svg";
+import videoCameraFill from "@phosphor-icons/core/fill/video-camera-fill.svg";
+import hardDrivesFill from "@phosphor-icons/core/fill/hard-drives-fill.svg";
+import hardDriveFill from "@phosphor-icons/core/fill/hard-drive-fill.svg";
+import folderFill from "@phosphor-icons/core/fill/folder-fill.svg";
+import trashFill from "@phosphor-icons/core/fill/trash-fill.svg";
+import bookmarkSimpleFill from "@phosphor-icons/core/fill/bookmark-simple-fill.svg";
+import plugsConnectedFill from "@phosphor-icons/core/fill/plugs-connected-fill.svg";
+import tagFill from "@phosphor-icons/core/fill/tag-fill.svg";
+import magnifyingGlassFill from "@phosphor-icons/core/fill/magnifying-glass-fill.svg";
 
 export {
 	arrowClockwise,
@@ -202,4 +217,19 @@ export {
 	xBold,
 	playFill,
 	pauseFill,
+	houseFill,
+	desktopFill,
+	downloadSimpleFill,
+	fileTextFill,
+	musicNoteFill,
+	imageFill,
+	videoCameraFill,
+	hardDrivesFill,
+	hardDriveFill,
+	folderFill,
+	trashFill,
+	bookmarkSimpleFill,
+	plugsConnectedFill,
+	tagFill,
+	magnifyingGlassFill,
 };
