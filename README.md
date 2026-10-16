@@ -1,85 +1,93 @@
 # Canopy
 
-A desktop file explorer built with [Wails](https://wails.io) (Go backend,
-system webview) and a Svelte 5 frontend on the shared `@neoworks-dev/ui`
-design system. Grove edits the files; Canopy is how you look down over them.
+A keyboard-driven file explorer for Linux. The UI is written in Svelte 5 and
+drawn natively by [svelte-gpui](https://github.com/neoworks-dev/svelte-gpui):
+there is no browser engine, only GPUI rendering Svelte components. Everything
+that touches the filesystem is Rust.
+
+Grove edits the files; Canopy is how you look down over them.
 
 ## Requirements
 
-- Go 1.25+
-- Bun
-- `webkit2gtk-4.1` and `gtk3`
-- `ffmpeg` for thumbnails, image previews and audio waveforms
-- `gst-plugins-good` for playback in the details pane. WebKit plays media
-  through GStreamer, and without this package there is no audio sink and no
-  parser for mp3, m4a, wav or flac, which takes the web process down with it.
-- `zoxide`, optionally, for jumping to a folder by frecency
+- Rust (2024 edition) and Bun
+- A checkout of svelte-gpui next to this one (`../svelte-gpui`), linked with
+  `bun link`: run `bun link` inside svelte-gpui once, then `bun install` here
+- Vulkan drivers, `libxkbcommon` and Wayland or X11, which GPUI draws with
+- `ffmpeg` for video thumbnails, audio cover art and waveforms
+- Optionally: `poppler` for PDF thumbnails, `git` for working tree marks,
+  `zoxide` for jumping by frecency, `wl-clipboard` or `xclip` for copying files
+  to other applications
 
 ## Commands
 
 ```sh
-bun run dev       # wails dev — live reload for Go and frontend
-bun run build     # production binaries at build/bin/canopy and build/bin/canopyd
-bun run bindings  # regenerate frontend/wailsjs from the bound Go methods
-bun test          # frontend logic tests
-bun run test:go   # backend tests
-bun run check     # svelte-check
+bun run dev        # build the UI, then run the app with hot reload
+bun run build      # the UI bundle and the canopy and canopyd binaries
+bun run package    # one self-contained executable in dist/package/canopy
+bun test           # UI logic tests
+bun run test:rust  # backend tests
+bun run check      # svelte-check
 ```
+
+`scripts/screenshot.sh` runs a bundle on a headless Hyprland output and saves
+a screenshot, with its settings and index in a scratch directory, so trying
+something out never touches your own files.
+
+## How it fits together
+
+```
+ui/              The Svelte app svelte-gpui runs
+  App.svelte     The window: toolbar, sidebar, panes, status strip, dialogs
+  components/    One component per part of the window
+    design/      The Neoworks design system, rebuilt on svelte-gpui primitives
+  lib/           Logic with no UI in it: selection, sorting, keymap, tabs, …
+                 Every module here has tests in tests/
+  backend/       The functions the UI calls; each one invokes a Rust command
+  theme.ts       Design tokens: colours, spacing, radii, type sizes
+  icons.ts       Phosphor icons as SVG markup
+app/             The executable: svelte-gpui's host plus Canopy's commands
+  src/commands/  One module per area; command names match ui/backend/
+crates/
+  model/         Types every crate shares: Entry, Listing, Order
+  files/         Listing, previews, thumbnails, archives, the operation
+                 engine with undo, folder sizes and duplicate search
+  desktop/       Bookmarks, clipboard, git, launching applications, recents,
+                 saved searches, settings, tags, watching and zoxide
+  index/         canopyd, the search index daemon, with its protocol and client
+tests/           Tests for ui/lib
+packaging/       Desktop entry, AppStream metainfo, icons and the PKGBUILD
+```
+
+A call from the UI goes `ui/backend/FileService.ts` → `invoke("ListDirectory",
+…)` → `app/src/commands/listing.rs` → `canopy_files::filesystem`. Work that
+takes a while (copying, measuring, searching for duplicates) answers with an
+id at once and reports progress as events, which the UI hears through
+`ui/backend/events.ts`.
+
+Styling uses svelte-gpui's style objects rather than CSS. Values come from
+`ui/theme.ts`, and the design system's components live in
+`ui/components/design/`. Look there before writing a new one.
 
 ## Packaging
 
-`packaging/` holds everything a distribution needs: the desktop entry, the
-AppStream metainfo, the icons and a `PKGBUILD`. To build and install the Arch
-package:
+`packaging/` holds the desktop entry, the AppStream metainfo, the icons and a
+`PKGBUILD`. To build and install the Arch package:
 
 ```sh
 cd packaging && makepkg -si
 ```
 
-The package installs `canopy` and the `canopyd` daemon beside it, registers
-`inode/directory` and the archive types it can open, and pulls in the runtime
-dependencies above.
+The package installs `canopy` and the `canopyd` daemon beside it, and
+registers `inode/directory` and the archive types Canopy can open.
 
 ## Where Canopy keeps things
 
-- `~/.config/canopy` — settings, saved searches, recent folders
-- `~/.local/share/neoworks` — the search index, which belongs to the daemon
-  rather than to Canopy: `canopyd` is shared by every Neoworks application, and
-  the first one to launch wins the daemon lock.
-
-## Arch and the webkit build tag
-
-Wails v2 links against `webkit2gtk-4.0` by default. Arch ships only
-`webkit2gtk-4.1`, so every Wails command needs `-tags webkit2_41`. The scripts
-above already pass it. `wails doctor` reports `libwebkit` as missing on this
-setup — that check only looks for the 4.0 package name and can be ignored.
-
-## Design system
-
-`@neoworks-dev/ui` is consumed via `bun link`, not a registry. If it goes
-missing:
-
-```sh
-cd frontend && bun link @neoworks-dev/ui
-```
-
-The package ships Svelte source rather than a build, so two things are wired up
-for it:
-
-- `frontend/svelte.config.js` forces runes mode for files under
-  `@neoworks-dev`, which would otherwise be inferred as legacy mode inside
-  `node_modules`.
-- `frontend/src/app.css` adds an `@source` directive so Tailwind scans the
-  package for utility classes instead of purging them.
+- `~/.config/canopy`: settings, saved searches and recent folders
+- `~/.local/share/neoworks`: the search index. It belongs to the daemon
+  rather than to Canopy, because `canopyd` is shared by every Neoworks
+  application, and the first one to launch wins the daemon lock.
+- `~/.cache/thumbnails`: thumbnails, in the cache every Linux desktop shares
 
 ## License
 
 MIT. See [LICENSE](LICENSE).
-
-## frontend/dist placeholder
-
-`main.go` embeds `frontend/dist`, so the directory must exist before Go will
-compile — including on a fresh clone that has never run a frontend build. A
-tracked `frontend/dist/.gitkeep` covers that. Vite empties `dist` on every
-build, so `frontend/public/.gitkeep` is copied back in to restore it and keep
-the worktree clean.
