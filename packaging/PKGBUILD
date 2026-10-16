@@ -1,9 +1,10 @@
 # Maintainer: Moritz Utcke <moritz.utcke@ib-cornelsen.de>
 #
 # Canopy is built from the working tree this file sits in rather than from a
-# downloaded source archive, because the frontend consumes @neoworks-dev/ui
-# through `bun link`. A clean chroot has no such link and cannot resolve it, so
-# `makepkg -si` is run from here and builds what is checked out.
+# downloaded source archive, because the UI is drawn by svelte-gpui, which is
+# linked from a sibling checkout (`bun link @neoworks/svelte-gpui`). A clean
+# chroot has no such link, so `makepkg -si` is run from here and builds what is
+# checked out.
 
 pkgname=canopy
 pkgver=0.1.0
@@ -13,18 +14,21 @@ arch=('x86_64')
 url="https://neoworks.dev"
 license=('MIT')
 depends=(
-	'webkit2gtk-4.1'
-	'gtk3'
-	# Thumbnails, image previews and the audio waveform are drawn by ffmpeg.
+	# GPUI draws with Vulkan and reads input through xkbcommon, on Wayland or X11.
+	'vulkan-icd-loader'
+	'libxkbcommon'
+	'libxkbcommon-x11'
+	'libxcb'
+	'wayland'
+	'fontconfig'
+	# Thumbnails of videos and audio covers, and the audio waveform, come from ffmpeg.
 	'ffmpeg'
-	# WebKit plays media through GStreamer. Without this there is no audio sink
-	# and no parser for mp3, m4a, wav or flac, which takes the web process down.
-	'gst-plugins-good'
 )
-makedepends=('go' 'bun')
+makedepends=('cargo' 'bun')
 optdepends=(
 	'poppler: PDF thumbnails and previews'
-	'git: working tree marks on entries and the branch in the tab strip'
+	'ffmpegthumbnailer: faster video thumbnails'
+	'git: working tree marks on entries and the branch in the status strip'
 	'zoxide: jumping to a folder by frecency'
 	'wl-clipboard: copying and pasting files under Wayland'
 	'xclip: copying and pasting files under X11'
@@ -33,29 +37,21 @@ optdepends=(
 provides=('canopy' 'canopyd')
 options=('!strip' '!debug')
 
-# The wails CLI is a convenience rather than a requirement: it builds the
-# frontend and then compiles the same package with the same tag. It is installed
-# with `go install` rather than by a package, so the two steps are done here
-# directly and nothing outside the repositories is needed to build Canopy.
+# svelte-gpui's packager builds the UI bundle and compiles it into the canopy
+# executable, so the program runs with nothing beside it but the daemon.
 build() {
-	cd "$startdir/../frontend"
-	bun install
-	bun run build
-
 	cd "$startdir/.."
-	# desktop and production select the real application over the stub Wails
-	# compiles when neither is set; webkit2_41 is what Arch's webkit needs.
-	go build -tags 'desktop,production,webkit2_41' -ldflags='-s -w' -o build/bin/canopy .
-
-	cd "$startdir/../daemon"
-	go build -ldflags='-s -w' -o ../build/bin/canopyd ./cmd/canopyd
+	bun install
+	bun run package -- --no-tar
+	cargo build --release --locked -p canopy-index --bin canopyd
 }
 
 package() {
 	cd "$startdir/.."
+	local target="${CARGO_TARGET_DIR:-target}"
 
-	install -Dm755 build/bin/canopy "$pkgdir/usr/bin/canopy"
-	install -Dm755 build/bin/canopyd "$pkgdir/usr/bin/canopyd"
+	install -Dm755 dist/package/canopy/canopy "$pkgdir/usr/bin/canopy"
+	install -Dm755 "$target/release/canopyd" "$pkgdir/usr/bin/canopyd"
 
 	install -Dm644 packaging/canopy.desktop \
 		"$pkgdir/usr/share/applications/canopy.desktop"
