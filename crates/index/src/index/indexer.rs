@@ -299,7 +299,7 @@ fn parent_directory(path: &str) -> String {
     }
 }
 
-/// Lexically cleaned absolute form, like Go's `filepath.Abs`.
+/// Lexically cleaned absolute form, without touching the disk.
 fn absolute_path(requested_path: &str) -> IndexResult<String> {
     let joined = std::path::absolute(requested_path)?;
     let mut cleaned = PathBuf::new();

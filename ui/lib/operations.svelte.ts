@@ -23,7 +23,7 @@ import {
 const dismissAfterMilliseconds = 4000;
 
 /**
- * Frontend half of the operation engine: mirrors the queue the Go side runs,
+ * Frontend half of the operation engine: mirrors the queue the backend runs,
  * holds the conflict prompt waiting for an answer, and keeps the undo and redo
  * labels current.
  */

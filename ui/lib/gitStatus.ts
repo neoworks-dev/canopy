@@ -1,5 +1,5 @@
 /**
- * How the states git reports are drawn. The Go side folds a folder's contents
+ * How the states git reports are drawn. The backend folds a folder's contents
  * into the folder itself, so anything here applies to a single entry.
  */
 import { colors } from "../theme";

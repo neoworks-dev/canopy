@@ -15,7 +15,7 @@ export type ColumnDefinition = {
 	isMonospace: boolean;
 	valueOf: (entry: filesystem.Entry) => string;
 	/**
-	 * The key the Go side sorts this column by, empty where it cannot. Type is
+	 * The key the backend sorts this column by, empty where it cannot. Type is
 	 * classified here from the file extension, and the backend does not have that
 	 * table, so there is nothing for it to sort by.
 	 */

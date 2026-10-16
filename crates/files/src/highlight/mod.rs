@@ -3,7 +3,7 @@
 //! syntect (with the extra syntaxes from `two-face`) owns the languages: its
 //! grammars decide what a token is, so nothing here lists a syntax. A token
 //! carries a short class name rather than a colour. The class names are the
-//! ones `frontend/src/highlight.css` colours (`hl-kn`, `hl-s2`, `hl-c1`, ...),
+//! ones `ui/lib/highlightColors.ts` colours (`hl-kn`, `hl-s2`, `hl-c1`, ...),
 //! so a preview is coloured like the rest of the window whatever theme it is in.
 //! The scope-to-class table lives in `classes.rs`.
 

@@ -1,5 +1,5 @@
 /**
- * Looking inside an archive. The Go side reports every member it holds as one
+ * Looking inside an archive. The backend reports every member it holds as one
  * flat list; a pane shows one folder at a time, which is what folding that list
  * into a level of its own is for.
  */
@@ -24,7 +24,7 @@ export type ArchiveRow = {
 	modTime: string;
 };
 
-// The suffixes the Go side knows how to open, longest first so a .tar.gz is not
+// The suffixes the backend knows how to open, longest first so a .tar.gz is not
 // read as the .gz it also ends in.
 const archiveSuffixes = [".tar.gz", ".tgz", ".tar.bz2", ".tbz2", ".tar", ".zip"];
 

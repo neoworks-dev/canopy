@@ -1,5 +1,4 @@
-/// The last element of a slash-separated path, with Go's `filepath.Base`
-/// rules: trailing slashes are ignored, an empty path is ".", and a path of
+/// The last element of a slash-separated path: trailing slashes are ignored, an empty path is ".", and a path of
 /// only slashes is "/".
 pub(crate) fn base_name(path: &str) -> String {
     if path.is_empty() {

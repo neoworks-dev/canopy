@@ -435,8 +435,8 @@
 		tagNames = await orEmpty(KnownTags());
 	}
 
-	// A Go slice with nothing in it crosses the bridge as null, so an empty group
-	// is turned back into a list rather than left as something to walk.
+	// A lookup that fails, or answers with nothing, leaves its group as an empty
+	// list rather than something that cannot be walked.
 	async function orEmpty<Item>(request: Promise<Item[]>): Promise<Item[]> {
 		try {
 			const loaded = await request;
@@ -915,7 +915,7 @@
 		visibleColumnIds = ids;
 	}
 
-	// The Go side sorts, so a new order means re-reading the directories rather
+	// The backend sorts, so a new order means re-reading the directories rather
 	// than reordering what is on screen.
 	function sortByColumn(key: SortKey) {
 		sortOrder = sortOrderAfterHeaderClick(sortOrder, key);

@@ -1,7 +1,6 @@
 /**
- * Mirrors what the Go duplicate search reports. The findings travel over Wails
- * events rather than method calls, so they are not part of the generated
- * bindings and are declared here instead.
+ * Mirrors what the duplicate search reports. The findings arrive as events
+ * rather than as a command's answer, so their types are declared here.
  */
 import { formatFileSize } from "./format";
 

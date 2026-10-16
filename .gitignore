@@ -1,10 +1,4 @@
 node_modules/
-build/bin/
-frontend/dist/*
-!frontend/dist/.gitkeep
-
-# Wails writes this next to the frontend manifest to cache dependency installs.
-frontend/package.json.md5
 
 # Rust builds and the UI bundle.
 target/

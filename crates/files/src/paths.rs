@@ -1,4 +1,4 @@
-//! Lexical path helpers that behave like Go's `path/filepath`: `clean` folds
+//! Lexical path helpers: `clean` folds
 //! `.` and `..`, `base_name` and `directory_of` never fail, and `absolute`
 //! makes a relative path absolute without touching the disk.
 

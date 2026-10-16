@@ -1,7 +1,6 @@
 /**
- * Mirrors the payloads the Go operation engine emits. These types travel over
- * Wails events rather than method calls, so they are not part of the generated
- * bindings and are declared here instead.
+ * Mirrors the payloads the operation engine emits. They arrive as events rather
+ * than as a command's answer, so their types are declared here.
  */
 export type OperationKind = "copy" | "move" | "trash" | "delete" | "extract" | "compress";
 

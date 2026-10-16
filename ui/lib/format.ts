@@ -25,7 +25,7 @@ function unitIndexFor(sizeInBytes: number): number {
 	return rawIndex;
 }
 
-/** Renders an RFC3339 timestamp from the Go backend as a short local date. */
+/** Renders an RFC3339 timestamp from the backend as a short local date. */
 export function formatModifiedTime(timestamp: string): string {
 	if (!timestamp) {
 		return "—";

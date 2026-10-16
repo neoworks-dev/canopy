@@ -117,7 +117,7 @@ const DURATION_UNITS: &[(&str, f64)] = &[
     ("h", 3600.0),
 ];
 
-/// Durations in Go's syntax: "10m", "1h30m", "250ms", or a bare "0".
+/// Durations such as "10m", "1h30m", "250ms", or a bare "0".
 pub fn parse_duration(text: &str) -> Result<Duration, String> {
     let invalid = || format!("invalid duration {text:?}");
     if text == "0" {

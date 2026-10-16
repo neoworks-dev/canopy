@@ -1,6 +1,5 @@
 /**
- * Mirrors the event the Go watcher emits when a watched directory changes. Its
- * payload is that directory's path, and it travels over a Wails event rather
- * than the generated bindings.
+ * The event the backend's watcher emits when a watched directory changes. Its
+ * payload is that directory's path.
  */
 export const directoryChangedEvent = "watch:changed";

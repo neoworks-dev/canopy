@@ -1,6 +1,6 @@
 //! Maps TextMate scopes (`string.quoted.double.python`) to the short class
-//! names `frontend/src/highlight.css` colours. A class the stylesheet does not
-//! colour is left empty, so those runs take the pane's own colour.
+//! names `ui/lib/highlightColors.ts` colours. A class the UI does not colour
+//! is left empty, so those runs take the pane's own colour.
 
 use std::collections::HashMap;
 

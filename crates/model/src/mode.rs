@@ -2,7 +2,7 @@ use std::fs::Metadata;
 use std::os::unix::fs::{FileTypeExt, PermissionsExt};
 
 /// Permissions in the `ls -l` style the UI shows: a type letter, then `rwx`
-/// for owner, group and others. Symlinks are `L`, as Go wrote them.
+/// for owner, group and others. Symlinks are `L`.
 pub fn mode_string(metadata: &Metadata) -> String {
     let mut text = String::with_capacity(10);
     text.push(type_letter(metadata));

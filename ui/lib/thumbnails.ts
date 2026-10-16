@@ -1,12 +1,12 @@
 /**
- * Preview images for the entries a listing draws. The Go side owns the shared
+ * Preview images for the entries a listing draws. The backend owns the shared
  * thumbnail cache on disk; this is the in-memory half, so scrolling back over a
  * folder does not ask for the same image again.
  */
 import { ThumbnailFor } from "../backend/FileService";
 import { classifyEntry, type FileKind } from "./fileKind";
 
-/** What the renderer on the Go side can draw. Everything else keeps its icon. */
+/** What the backend's renderer can draw. Everything else keeps its icon. */
 const renderableKinds = new Set<FileKind>(["image", "video", "pdf"]);
 
 // Data URLs are held in full, so the cache is bounded by count rather than

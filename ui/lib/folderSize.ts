@@ -1,7 +1,7 @@
 /**
- * Mirrors what the Go scanner reports while it walks a folder. The totals
- * travel over Wails events rather than method calls, so they are not part of the
- * generated bindings and are declared here instead.
+ * Mirrors what the folder scanner reports while it walks a folder. The totals
+ * arrive as events rather than as a command's answer, so their types are
+ * declared here.
  *
  * Nothing is cached between selections: a folder's own timestamp says nothing
  * about what changed deeper down, so a remembered total would go quietly stale.

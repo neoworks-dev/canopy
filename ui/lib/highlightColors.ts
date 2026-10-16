@@ -1,6 +1,6 @@
 /**
- * The colours of the classes a highlighted preview carries: the same groups
- * `frontend/src/highlight.css` coloured, with the palette's own tokens.
+ * The colours of the classes a highlighted preview carries, grouped by kind
+ * (keywords, strings, comments, …) and drawn with the palette's own tokens.
  */
 import type { Style } from "@neoworks/svelte-gpui/ui";
 import { colors } from "../theme";

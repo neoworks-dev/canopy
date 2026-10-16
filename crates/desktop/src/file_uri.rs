@@ -16,7 +16,7 @@ const ESCAPED_IN_PATH: &AsciiSet = &NON_ALPHANUMERIC
     .remove(b'=')
     .remove(b'@');
 
-/// The `file://` URI for a path, escaped the way Go's `url.URL` writes it.
+/// The `file://` URI for a path, escaped with `ESCAPED_IN_PATH`.
 pub(crate) fn from_path(path: &str) -> String {
     if path.is_empty() {
         return "file:".to_string();
