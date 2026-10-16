@@ -9,3 +9,6 @@ frontend/package.json.md5
 # Rust builds and the UI bundle.
 target/
 dist/
+
+# Scratch previews of single components while developing.
+ui/dev/
