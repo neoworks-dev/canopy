@@ -1,0 +1,23 @@
+[package]
+name = "canopy-index"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+canopy-model.workspace = true
+chrono.workspace = true
+libc = "0.2.190"
+log = "0.4.34"
+notify = "8.2.0"
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+serde.workspace = true
+serde_json.workspace = true
+signal-hook = "0.4.5"
+thiserror = "2.0.21"
+
+[dev-dependencies]
+tempfile = "3.27.0"
+
+[[bin]]
+name = "canopyd"
+path = "src/bin/canopyd.rs"

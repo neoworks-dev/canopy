@@ -1,0 +1,16 @@
+[package]
+name = "canopy-desktop"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+canopy-model.workspace = true
+chrono.workspace = true
+libc = "0.2.190"
+mime_guess = "2.0.5"
+notify = "8.2.0"
+percent-encoding = "2.3.2"
+serde.workspace = true
+serde_json.workspace = true
+tempfile = "3.27.0"
+walkdir = "2.5.0"
