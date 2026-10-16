@@ -8,7 +8,7 @@ import {
 	selectionAfterMove,
 	selectionAfterRelisting,
 	type Selection,
-} from "../frontend/src/lib/selection";
+} from "../ui/lib/selection";
 
 const paths = ["/a", "/b", "/c", "/d", "/e"];
 

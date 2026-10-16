@@ -5,7 +5,7 @@ import {
 	minimumPaneWidth,
 	paneWidthAfterDrag,
 	paneWidthFrom,
-} from "../frontend/src/lib/panes";
+} from "../ui/lib/panes";
 
 describe("clampPaneWidth", () => {
 	test("leaves a width between the limits alone", () => {

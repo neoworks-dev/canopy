@@ -4,7 +4,7 @@ import {
 	columnChain,
 	isAncestor,
 	leadingChild,
-} from "../frontend/src/lib/millerColumns";
+} from "../ui/lib/millerColumns";
 
 describe("the folders on the way to a path", () => {
 	test("a nested path is every folder above it, root first", () => {

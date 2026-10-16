@@ -5,7 +5,7 @@ import {
 	longestLine,
 	usedClasses,
 	visibleLines,
-} from "../frontend/src/lib/codeCanvas";
+} from "../ui/lib/codeCanvas";
 
 function token(text: string, className = "") {
 	return { class: className, text } as never;

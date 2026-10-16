@@ -8,7 +8,7 @@ import {
 	historyAfterForward,
 	historyAfterVisit,
 	type History,
-} from "../frontend/src/lib/history";
+} from "../ui/lib/history";
 
 function visitAll(paths: string[]): History {
 	return paths.reduce(historyAfterVisit, emptyHistory);

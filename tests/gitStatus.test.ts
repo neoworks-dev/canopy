@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { gitMarkFor } from "../frontend/src/lib/gitStatus";
+import { gitMarkFor } from "../ui/lib/gitStatus";
 
 describe("marking an entry with what git says about it", () => {
 	test("an entry git says nothing about carries no mark", () => {

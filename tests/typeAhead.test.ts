@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { typeAheadMatch } from "../frontend/src/lib/typeAhead";
+import { typeAheadMatch } from "../ui/lib/typeAhead";
 
 const names = ["Documents", "Downloads", "Music", "downloads.txt", "notes.md"];
 

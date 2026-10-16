@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { targetIndexFor, type MovementContext } from "../frontend/src/lib/movement";
+import { targetIndexFor, type MovementContext } from "../ui/lib/movement";
 
 const rows: MovementContext = { total: 10, columns: 1, pageSize: 4 };
 const grid: MovementContext = { total: 10, columns: 4, pageSize: 8 };

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { summarize } from "../frontend/src/lib/statusStrip";
+import { summarize } from "../ui/lib/statusStrip";
 
 function file(name: string, size: number) {
 	return {

@@ -5,8 +5,8 @@ import {
 	playedFraction,
 	seekFraction,
 	waveformBars,
-} from "../frontend/src/lib/audioPreview";
-import type { audio } from "../frontend/wailsjs/go/models";
+} from "../ui/lib/audioPreview";
+import type { audio } from "../ui/backend/models";
 
 function details(overrides: Partial<audio.Details> = {}): audio.Details {
 	return {

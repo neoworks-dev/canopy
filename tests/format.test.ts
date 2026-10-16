@@ -5,7 +5,7 @@ import {
 	formatModifiedUnixTime,
 	parentDirectoryOf,
 	toBreadcrumbs,
-} from "../frontend/src/lib/format";
+} from "../ui/lib/format";
 
 describe("formatFileSize", () => {
 	test("reports raw bytes below one kilobyte", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CommandRegistry, type Command } from "../frontend/src/lib/commands";
+import { CommandRegistry, type Command } from "../ui/lib/commands";
 
 function counter(id: string, when?: string) {
 	const calls: string[] = [];

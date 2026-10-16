@@ -5,3 +5,7 @@ frontend/dist/*
 
 # Wails writes this next to the frontend manifest to cache dependency installs.
 frontend/package.json.md5
+
+# Rust builds and the UI bundle.
+target/
+dist/

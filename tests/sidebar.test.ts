@@ -4,7 +4,7 @@ import {
 	sidebarSectionIds,
 	sidebarSectionsFrom,
 	type SidebarSectionId,
-} from "../frontend/src/lib/sidebar";
+} from "../ui/lib/sidebar";
 
 describe("folding sidebar groups", () => {
 	test("a group that is open folds shut", () => {

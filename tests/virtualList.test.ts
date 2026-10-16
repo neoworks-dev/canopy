@@ -8,7 +8,7 @@ import {
 	unmeasuredMetrics,
 	type ListMetrics,
 	type Viewport,
-} from "../frontend/src/lib/virtualList";
+} from "../ui/lib/virtualList";
 
 const rowMetrics: ListMetrics = { itemHeight: 20, columns: 1, leadingHeight: 16 };
 const gridMetrics: ListMetrics = { itemHeight: 100, columns: 5, leadingHeight: 0 };

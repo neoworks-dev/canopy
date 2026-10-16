@@ -6,7 +6,7 @@ import {
 	parentInside,
 	rowsInside,
 	type ArchiveMember,
-} from "../frontend/src/lib/archive";
+} from "../ui/lib/archive";
 
 function memberOf(name: string, isDir: boolean, size = 0): ArchiveMember {
 	return { name, size, isDir, modTime: "2026-01-01T00:00:00Z", mode: "-rw-r--r--" };

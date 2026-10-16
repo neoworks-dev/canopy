@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { classifyEntry } from "../frontend/src/lib/fileKind";
+import { classifyEntry } from "../ui/lib/fileKind";
 
 describe("classifyEntry", () => {
 	test("directories win over any extension in their name", () => {

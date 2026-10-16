@@ -1,16 +1,40 @@
 {
-  "name": "canopy",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "bun run daemon:build && CANOPYD_BIN=\"$PWD/build/bin/canopyd\" wails dev -tags webkit2_41",
-    "build": "bun run daemon:build && wails build -tags webkit2_41",
-    "daemon:build": "cd daemon && go build -o ../build/bin/canopyd ./cmd/canopyd",
-    "bindings": "wails generate module -tags webkit2_41",
-    "test:go": "go test ./... && cd daemon && go test ./...",
-    "check": "cd frontend && bun run check"
-  },
-  "devDependencies": {
-    "@types/bun": "^1.3.14"
-  }
+	"name": "canopy",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "bun build.mjs && cargo build --release -p canopy -p canopy-index",
+		"dev": "bun build.mjs && (bun build.mjs --watch & cargo run --release -p canopy -- --bundle dist/canopy.js --watch)",
+		"package": "bun node_modules/@neoworks/svelte-gpui/scripts/package.mjs --app .",
+		"check": "svelte-check --tsconfig ./tsconfig.json",
+		"test:rust": "cargo test --workspace --exclude canopy"
+	},
+	"devDependencies": {
+		"@phosphor-icons/core": "^2.1.1",
+		"@types/bun": "^1.3.14",
+		"svelte": "^5.57.0",
+		"svelte-check": "^4.7.7",
+		"typescript": "^5.9.3"
+	},
+	"dependencies": {
+		"@neoworks/svelte-gpui": "link:@neoworks/svelte-gpui"
+	},
+	"version": "0.1.0",
+	"svelte-gpui": {
+		"name": "Canopy",
+		"id": "dev.neoworks.Canopy",
+		"icon": "packaging/canopy.png",
+		"title": "Canopy",
+		"description": "Look through your files",
+		"categories": "System;FileTools;FileManager;",
+		"bundle": "dist/canopy.js",
+		"build": "build.mjs",
+		"executable": "canopy",
+		"crate": {
+			"manifest": "app/Cargo.toml",
+			"features": [
+				"package"
+			]
+		}
+	}
 }

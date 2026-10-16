@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { canGoBack, currentLocation } from "../frontend/src/lib/history";
+import { canGoBack, currentLocation } from "../ui/lib/history";
 import {
 	activateNeighbouringTab,
 	activateTab,
@@ -21,7 +21,7 @@ import {
 	withHistory,
 	withLocation,
 	type Layout,
-} from "../frontend/src/lib/tabs";
+} from "../ui/lib/tabs";
 
 let counter = 0;
 const nextId = () => `id-${++counter}`;

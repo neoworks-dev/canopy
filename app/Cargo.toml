@@ -1,0 +1,15 @@
+[package]
+name = "canopy"
+description = "A file explorer for Linux, drawn natively with svelte-gpui."
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+svelte_gpui_host = { path = "../../svelte-gpui/host" }
+serde.workspace = true
+serde_json.workspace = true
+canopy-model.workspace = true
+
+[features]
+# Set by svelte-gpui's packager: runs the bundle packed into the binary.
+package = []

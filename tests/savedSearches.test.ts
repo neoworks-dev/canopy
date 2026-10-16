@@ -4,7 +4,7 @@ import {
 	searchDescription,
 	suggestedName,
 	type SavedSearch,
-} from "../frontend/src/lib/savedSearches";
+} from "../ui/lib/savedSearches";
 
 function search(name: string, query: string, scope = ""): SavedSearch {
 	return { name, query, scope } as SavedSearch;

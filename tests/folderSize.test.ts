@@ -3,7 +3,7 @@ import {
 	measuredContentsLabel,
 	measuredSizeLabel,
 	type Measurement,
-} from "../frontend/src/lib/folderSize";
+} from "../ui/lib/folderSize";
 
 function measurementOf(fields: Partial<Measurement>): Measurement {
 	return {

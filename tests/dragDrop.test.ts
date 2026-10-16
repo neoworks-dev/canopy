@@ -11,7 +11,7 @@ import {
 	toUriList,
 	uriListType,
 	type DragPayload,
-} from "../frontend/src/lib/dragDrop";
+} from "../ui/lib/dragDrop";
 
 const noModifiers = { ctrlKey: false, shiftKey: false, metaKey: false };
 

@@ -6,7 +6,7 @@ import {
 	remainingGroups,
 	searchProgressLabel,
 	type DuplicateReport,
-} from "../frontend/src/lib/duplicates";
+} from "../ui/lib/duplicates";
 
 function reportOf(fields: Partial<DuplicateReport>): DuplicateReport {
 	return {

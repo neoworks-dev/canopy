@@ -4,7 +4,7 @@ import {
 	sortDirectionOf,
 	sortOrderAfterHeaderClick,
 	sortOrderWithDirectoriesFirst,
-} from "../frontend/src/lib/sorting";
+} from "../ui/lib/sorting";
 
 describe("sortOrderAfterHeaderClick", () => {
 	test("a new column sorts ascending", () => {

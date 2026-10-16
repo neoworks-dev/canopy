@@ -5,7 +5,7 @@ import {
 	parseChord,
 	parseKeySequence,
 	sequenceLabel,
-} from "../frontend/src/lib/keys";
+} from "../ui/lib/keys";
 
 function press(key: string, modifiers: Partial<Record<string, boolean>> = {}) {
 	return {

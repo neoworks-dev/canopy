@@ -1,0 +1,16 @@
+[workspace]
+resolver = "3"
+members = ["crates/model", "crates/files", "crates/desktop", "crates/index", "app"]
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+
+[workspace.dependencies]
+canopy-model = { path = "crates/model" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = "0.4"
+
+[patch.crates-io]
+xattr = { path = "../svelte-gpui/host/vendor/xattr" }

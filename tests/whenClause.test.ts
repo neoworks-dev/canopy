@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { evaluateWhen, whenClauseIsValid } from "../frontend/src/lib/whenClause";
+import { evaluateWhen, whenClauseIsValid } from "../ui/lib/whenClause";
 
 const context = {
 	listFocused: true,

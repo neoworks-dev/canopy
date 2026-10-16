@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { Command } from "../frontend/src/lib/commands";
-import { availableCommands, rankCommands, titleSegments } from "../frontend/src/lib/palette";
+import type { Command } from "../ui/lib/commands";
+import { availableCommands, rankCommands, titleSegments } from "../ui/lib/palette";
 
 function command(id: string, title: string, category: string, when?: string): Command {
 	return { id, title, category, when, run: () => {} };

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { compileKeymap, resolveChord, shortcutFor } from "../frontend/src/lib/keymap";
+import { compileKeymap, resolveChord, shortcutFor } from "../ui/lib/keymap";
 
 const context = { listFocused: true, searchOpen: false, selectionCount: 1 };
 

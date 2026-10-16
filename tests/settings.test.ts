@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { defaultViewSettings, viewSettingsFrom } from "../frontend/src/lib/settings";
+import { defaultViewSettings, viewSettingsFrom } from "../ui/lib/settings";
 
 describe("viewSettingsFrom", () => {
 	test("an empty file gives the defaults", () => {

@@ -5,9 +5,9 @@ import {
 	movementCommands,
 	selectionMenuIds,
 	staticCommandDescriptors,
-} from "../frontend/src/lib/builtinCommands";
-import { compileKeymap } from "../frontend/src/lib/keymap";
-import { whenClauseIsValid } from "../frontend/src/lib/whenClause";
+} from "../ui/lib/builtinCommands";
+import { compileKeymap } from "../ui/lib/keymap";
+import { whenClauseIsValid } from "../ui/lib/whenClause";
 
 const builtinIds = new Set([
 	...staticCommandDescriptors.map((descriptor) => descriptor.id),

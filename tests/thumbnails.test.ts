@@ -2,7 +2,7 @@ import { beforeEach, expect, mock, test } from "bun:test";
 
 let requestedPaths: string[] = [];
 
-mock.module("../frontend/wailsjs/go/main/FileService", () => ({
+mock.module("../ui/backend/FileService", () => ({
 	ThumbnailFor: async (path: string) => {
 		requestedPaths.push(path);
 		return { path, dataUrl: `data:image/png;base64,${path}` };
@@ -10,7 +10,7 @@ mock.module("../frontend/wailsjs/go/main/FileService", () => ({
 }));
 
 const { cachedThumbnail, loadThumbnail, supportsThumbnail } = await import(
-	"../frontend/src/lib/thumbnails"
+	"../ui/lib/thumbnails"
 );
 
 function entry(name: string, modTime = "2026-01-01") {

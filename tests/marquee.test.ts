@@ -8,7 +8,7 @@ import {
 	toContentPoint,
 	toViewportPoint,
 	type Rectangle,
-} from "../frontend/src/lib/marquee";
+} from "../ui/lib/marquee";
 
 const tiles: Rectangle[] = [
 	{ left: 0, top: 0, width: 100, height: 40 },
