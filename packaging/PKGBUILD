@@ -35,7 +35,8 @@ optdepends=(
 	'xdg-utils: opening a file in the application the desktop chose for it'
 )
 provides=('canopy' 'canopyd')
-options=('!strip' '!debug')
+# makepkg's LTO flags make cc compile QuickJS into GCC bytecode, which ld.lld cannot link.
+options=('!strip' '!debug' '!lto')
 
 # svelte-gpui's packager builds the UI bundle and compiles it into the canopy
 # executable, so the program runs with nothing beside it but the daemon.
