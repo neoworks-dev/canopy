@@ -328,6 +328,15 @@
 		selectedEntries.forEach(openEntry);
 	}
 
+	/** Goes into the folder under the cursor; files and archives are left alone. */
+	export function enterFocusedFolder() {
+		const entry = visibleEntries[selection.focusIndex];
+		if (!entry || !entry.isDir) {
+			return;
+		}
+		onNavigate({ kind: "directory", path: entry.path });
+	}
+
 	export function openFind(direction: FindDirection) {
 		findOrigin = selection;
 		findDirection = direction;

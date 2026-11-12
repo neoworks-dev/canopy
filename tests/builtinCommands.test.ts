@@ -70,7 +70,21 @@ describe("the default keymap", () => {
 		expect(commandFor("n")).toBe("list.findNext");
 		expect(commandFor("Z")).toBe("zoxide.jump");
 		expect(commandFor("h")).toBe("navigate.parent");
-		expect(commandFor("l")).toBe("navigate.open");
+		expect(commandFor("l")).toBe("navigate.enter");
+	});
+
+	test("l and right only enter folders, while enter and o open files too", () => {
+		expect(commandFor("l")).toBe("navigate.enter");
+		expect(commandFor("right")).toBe("navigate.enter");
+		expect(commandFor("enter")).toBe("navigate.open");
+		expect(commandFor("o")).toBe("navigate.open");
+	});
+
+	test("copy and undo answer both the Yazi letter and the desktop chord", () => {
+		expect(commandFor("y")).toBe("file.copy");
+		expect(commandFor("ctrl+c")).toBe("file.copy");
+		expect(commandFor("u")).toBe("file.undo");
+		expect(commandFor("ctrl+z")).toBe("file.undo");
 	});
 
 	test("the clipboard keys are Yazi's single letters", () => {

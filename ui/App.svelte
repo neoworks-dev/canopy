@@ -953,6 +953,7 @@
 		return {
 			"navigate.open": () => activePane()?.openSelection(),
 			"navigate.openWith": startOpenWith,
+			"navigate.enter": () => activePane()?.enterFocusedFolder(),
 			"navigate.parent": goUp,
 			"navigate.back": goBack,
 			"navigate.forward": goForward,
