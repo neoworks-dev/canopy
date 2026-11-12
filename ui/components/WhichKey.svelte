@@ -30,7 +30,7 @@
 		<View style={{ direction: "row", wrap: true, columnGap: space[4], rowGap: space[1] }}>
 			{#each rows as row (row.keys + row.command)}
 				<View style={{ direction: "row", align: "baseline", gap: space[2], width: cellWidth }}>
-					<Text style={{ width: keyWidth, shrink: 0, fontFamily: "mono", fontSize: textSize.sm, color: colors.amber }}>
+					<Text style={{ width: keyWidth, shrink: 0, fontFamily: "mono", fontSize: textSize.sm, fontWeight: "bold", color: colors.text }}>
 						{row.keys}
 					</Text>
 					<Text style={{ flex: 1, minWidth: 0, truncate: true, fontSize: textSize.sm, color: colors.muted }}>

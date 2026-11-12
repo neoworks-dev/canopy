@@ -11,13 +11,12 @@
 		entryHover,
 		entryLook,
 		entryValueColor,
-		kindColor,
+		entryNameColor,
 		markerColor,
 		markerWidth,
 		type EntryState,
 	} from "../lib/entryStyles";
 	import type { EntryViewProps } from "../lib/entryList";
-	import { classifyEntry } from "../lib/fileKind";
 	import { gitMarkFor } from "../lib/gitStatus";
 	import { colors, radius, space, textSize } from "../theme";
 	import EntryIcon from "./EntryIcon.svelte";
@@ -169,7 +168,7 @@
 										padding: space[1.5],
 										radius: radius.lg,
 									},
-									entryLook(tileState, classifyEntry(entry)),
+									entryLook(tileState),
 									{ borderLeftWidth: markerWidth, borderColor: markerColor(tileState) },
 								)}
 								hover={entryHover(tileState)}
@@ -210,7 +209,7 @@
 											textAlign: "center",
 											fontSize: textSize.xs,
 											fontWeight: "medium",
-											color: kindColor(classifyEntry(entry)),
+											color: entryNameColor(tileState),
 										}}
 									>
 										{entry.name}

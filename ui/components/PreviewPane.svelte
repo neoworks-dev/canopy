@@ -17,7 +17,7 @@
 		type Measurement,
 	} from "../lib/folderSize";
 	import { formatFileSize, formatModifiedTime } from "../lib/format";
-	import { entryRowHeight, kindColor } from "../lib/entryStyles";
+	import { entryRowHeight } from "../lib/entryStyles";
 	import type { SortOrder } from "../lib/sorting";
 	import { colors, radius, space, textSize } from "../theme";
 	import AudioPreview from "./AudioPreview.svelte";
@@ -296,7 +296,7 @@
 			<List items={entries} rowHeight={entryRowHeight} key={(entry) => entry.path} style={{ flex: 1, minHeight: 0 }}>
 				{#snippet row(entry)}
 					<View style={{ direction: "row", align: "center", gap: space[2], height: entryRowHeight }}>
-						<EntryIcon {entry} size="glyph" color={kindColor(classifyEntry(entry))} />
+						<EntryIcon {entry} size="glyph" color={colors.dim} />
 						<Text style={{ flex: 1, minWidth: 0, truncate: true, fontSize: textSize.xs, color: colors.muted }}>
 							{entry.name}
 						</Text>

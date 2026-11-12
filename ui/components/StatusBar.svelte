@@ -32,18 +32,20 @@
 		onDismissError: () => void;
 	} = $props();
 
+	// Granted permissions read clearly, missing ones fade, so the string scans without colour.
 	const tonesToColors: Record<PermissionTone, string> = {
-		type: colors.blue,
-		read: colors.amber,
-		write: colors.red,
-		execute: colors.green,
+		type: colors.muted,
+		read: colors.muted,
+		write: colors.muted,
+		execute: colors.muted,
 		none: colors.faint,
 	};
 
-	const modeColors: Record<PaneStatus["mode"], string> = {
-		normal: colors.blue,
-		select: colors.amber,
-		unset: colors.red,
+	// Normal mode is the quiet default; the sweeping modes are worth noticing.
+	const modeLooks: Record<PaneStatus["mode"], { background: string; color: string }> = {
+		normal: { background: colors.raised, color: colors.muted },
+		select: { background: colors.amberSoft, color: colors.amber },
+		unset: { background: colors.redSoft, color: colors.red },
 	};
 
 	function hoveredSize(): string {
@@ -85,8 +87,16 @@
 		fontSize: textSize.xs,
 	}}
 >
-	<View style={{ shrink: 0, paddingX: space[2], paddingY: space[0.5], radius: radius.sm, background: modeColors[status.mode] }}>
-		<Text style={{ fontSize: textSize["2xs"], fontWeight: "bold", color: colors.inverse }}>{modeLabel(status.mode)}</Text>
+	<View
+		style={{
+			shrink: 0,
+			paddingX: space[2],
+			paddingY: space[0.5],
+			radius: radius.sm,
+			background: modeLooks[status.mode].background,
+		}}
+	>
+		<Text style={{ fontSize: textSize["2xs"], color: modeLooks[status.mode].color }}>{modeLabel(status.mode)}</Text>
 	</View>
 	{#if hoveredSize()}
 		<Text style={{ shrink: 0, color: colors.muted }}>{hoveredSize()}</Text>
@@ -99,7 +109,7 @@
 			<Text style={{ minWidth: 0, truncate: true, color: colors.red }}>{errorMessage}</Text>
 		</Button>
 	{:else if summary}
-		<Text style={{ minWidth: 0, truncate: true, color: colors.amber }}>{summary}</Text>
+		<Text style={{ minWidth: 0, truncate: true, color: colors.muted }}>{summary}</Text>
 	{/if}
 
 	<View style={{ flex: 1 }} />

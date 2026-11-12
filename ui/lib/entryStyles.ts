@@ -1,11 +1,9 @@
 /**
- * How an entry in a listing is drawn, which a row, a tile and a column share.
- * The look is Yazi's: names coloured by what they are, the hovered entry as a
- * solid bar in its own colour, and a marker at the left edge for what is
- * selected, copied or cut.
+ * How an entry in a listing is drawn, which a row, a tile and a column share:
+ * a neutral highlight for the hovered entry, and a marker before the glyph for
+ * what is selected, copied or cut, the one place colour carries meaning.
  */
 import type { Style } from "@neoworks/svelte-gpui/ui";
-import type { FileKind } from "./fileKind";
 import { colors, duration } from "../theme";
 
 /** The height of one row: a line of text with room around it to aim at. */
@@ -28,39 +26,26 @@ export type EntryState = {
 	isMuted: boolean;
 };
 
-const colorsByKind: Record<FileKind, string> = {
-	folder: colors.blue,
-	image: colors.amber,
-	audio: colors.pink,
-	video: colors.pink,
-	archive: colors.red,
-	pdf: colors.cyan,
-	code: colors.text,
-	text: colors.text,
-	file: colors.text,
-};
+/** The colour of an entry's name. */
+export function entryNameColor(state: EntryState): string {
+	if (state.isFocused || state.isSelected) {
+		return colors.text;
+	}
+	return colors.muted;
+}
 
-const tintsByKind: Record<FileKind, string> = {
-	folder: colors.blueSoft,
-	image: colors.amberSoft,
-	audio: colors.pinkSoft,
-	video: colors.pinkSoft,
-	archive: colors.redSoft,
-	pdf: colors.cyanSoft,
-	code: colors.hover,
-	text: colors.hover,
-	file: colors.hover,
-};
-
-/** The colour a name is drawn in, by what kind of entry it is. */
-export function kindColor(kind: FileKind): string {
-	return colorsByKind[kind];
+/** The colour of the glyph before a name: quieter than the name, so the name leads. */
+export function entryGlyphColor(state: EntryState): string {
+	if (state.isFocused || state.isSelected) {
+		return colors.muted;
+	}
+	return colors.dim;
 }
 
 /** The paint an entry has in the state it is in, laid over the shape of the row or tile. */
-export function entryLook(state: EntryState, kind: FileKind): Style {
+export function entryLook(state: EntryState): Style {
 	return {
-		background: backgroundOf(state, kind),
+		background: backgroundOf(state),
 		opacity: opacityOf(state),
 		transition: duration.fast,
 	};
@@ -97,12 +82,9 @@ export function markerColor(state: EntryState): string {
 	return "transparent";
 }
 
-function backgroundOf(state: EntryState, kind: FileKind): string {
-	if (state.isDropOver) {
+function backgroundOf(state: EntryState): string {
+	if (state.isDropOver || state.isFocused) {
 		return colors.hover;
-	}
-	if (state.isFocused) {
-		return tintsByKind[kind];
 	}
 	if (state.isSelected) {
 		return colors.raised;

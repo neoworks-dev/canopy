@@ -1,9 +1,8 @@
 <!--
-	One entry as a line of a Yazi listing: the marker at the left edge, a glyph
-	and the name in the colour of its kind, and whatever the linemode adds on
-	the right. The hovered line is a solid bar in that colour. Rows, Miller
-	columns and the folder preview all draw entries with it, so they cannot
-	drift apart.
+	One entry as a line of a listing: the marker for what is selected, copied or
+	cut, a glyph and the name, and whatever the linemode adds on the right. Rows,
+	Miller columns and the folder preview all draw entries with it, so they
+	cannot drift apart.
 -->
 <script lang="ts">
 	import type { Snippet } from "svelte";
@@ -12,13 +11,13 @@
 	import {
 		entryHover,
 		entryLook,
-		kindColor,
+		entryGlyphColor,
+		entryNameColor,
 		markerColor,
 		markerHeight,
 		markerWidth,
 		type EntryState,
 	} from "../lib/entryStyles";
-	import { classifyEntry } from "../lib/fileKind";
 	import { radius, space, textSize } from "../theme";
 	import EntryIcon from "./EntryIcon.svelte";
 
@@ -38,20 +37,19 @@
 		trailing?: Snippet;
 	} = $props();
 
-	const kind = $derived(classifyEntry(entry));
-	const nameColor = $derived(kindColor(kind));
+	const nameColor = $derived(entryNameColor(state));
 </script>
 
 <View
 	style={merge(
 		{ flex: 1, direction: "row", align: "center", gap: space[2], paddingLeft: space[1], paddingRight: space[2], radius: radius.md },
-		entryLook(state, kind),
+		entryLook(state),
 	)}
 	hover={entryHover(state)}
 	{onpress}
 >
 	<View style={{ width: markerWidth, height: markerHeight, shrink: 0, radius: radius.full, background: markerColor(state) }} />
-	<EntryIcon {entry} size="glyph" color={nameColor} />
+	<EntryIcon {entry} size="glyph" color={entryGlyphColor(state)} />
 	{#if name}
 		{@render name()}
 	{:else}
