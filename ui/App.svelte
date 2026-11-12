@@ -41,6 +41,7 @@
 	import ConfirmDialog from "./components/ConfirmDialog.svelte";
 	import ConflictDialog from "./components/ConflictDialog.svelte";
 	import ContextMenu from "./components/ContextMenu.svelte";
+	import CreateEntryDialog from "./components/CreateEntryDialog.svelte";
 	import FilePane from "./components/FilePane.svelte";
 	import JumpField from "./components/JumpField.svelte";
 	import OpenWithDialog from "./components/OpenWithDialog.svelte";
@@ -57,9 +58,12 @@
 	import {
 		backgroundMenuIds,
 		defaultKeymap,
+		linemodeCommands,
 		movementCommands,
 		selectionMenuIds,
+		sortCommands,
 		staticCommandDescriptors,
+		tabSelectCommands,
 	} from "./lib/builtinCommands";
 	import { isArchiveName } from "./lib/archive";
 	import { iconForCommand } from "./lib/commandIcons";
@@ -99,6 +103,7 @@
 	import {
 		defaultSortOrder,
 		sortOrderAfterHeaderClick,
+		sortOrderBy,
 		sortOrderReversed,
 		sortOrderWithDirectoriesFirst,
 		type SortKey,
@@ -108,6 +113,7 @@
 	import {
 		activateNeighbouringTab,
 		activateTab,
+		activateTabAt,
 		activeGroup,
 		activeTab,
 		closeGroup,
@@ -119,6 +125,7 @@
 		maximumGroups,
 		openTab,
 		splitGroup,
+		swapActiveTab,
 		watchedPaths,
 		withActiveGroup,
 		withHistory,
@@ -181,6 +188,7 @@
 	// The tags on the selection, read when the dialog opens so it can show them.
 	let selectionTags = $state<string[]>([]);
 	let isTagDialogOpen = $state(false);
+	let isCreateDialogOpen = $state(false);
 
 	let showHidden = $state(false);
 	let viewMode = $state<ViewMode>("rows");
@@ -493,6 +501,15 @@
 	function goHome() {
 		closeSearch();
 		navigateTo(homePath);
+	}
+
+	function goDownloads() {
+		const place = places.find((candidate) => candidate.kind === "downloads");
+		if (place) {
+			openPlace(place.path);
+			return;
+		}
+		openPlace(`${homePath}/Downloads`);
 	}
 
 	function goBack() {
@@ -817,17 +834,16 @@
 	// flanking pane takes is left empty beside it.
 	function stripInset(): Style {
 		return {
-			marginLeft: insetFor(isSidebarOpen, sidebarWidth),
-			marginRight: insetFor(isDetailsOpen, detailsWidth),
+			marginLeft: sidebarInset(),
 		};
 	}
 
 	// The gutter between the panes is as wide as the resizer that sits in it.
-	function insetFor(isOpen: boolean, width: number): number {
-		if (!isOpen) {
+	function sidebarInset(): number {
+		if (!isSidebarOpen) {
 			return 0;
 		}
-		return width + paneGutterWidth;
+		return sidebarWidth + paneGutterWidth;
 	}
 
 	function selectionMenuGroups(): MenuItem[][] {
@@ -941,14 +957,23 @@
 			"navigate.back": goBack,
 			"navigate.forward": goForward,
 			"navigate.home": goHome,
+			"navigate.config": () => openPlace(`${homePath}/.config`),
+			"navigate.downloads": goDownloads,
 			"navigate.trash": openTrash,
 			"navigate.terminal": openTerminalHere,
 			"navigate.editPath": () => (isEditingPath = true),
 
 			"list.selectAll": () => activePane()?.selectEverything(),
-			"list.clearSelection": () => activePane()?.clearSelection(),
+			"list.invertSelection": () => activePane()?.invertSelection(),
+			"list.escape": () => activePane()?.escape(),
 			"list.toggleSelection": () => activePane()?.toggleFocusedEntry(),
-			"list.find": () => activePane()?.openFind(),
+			"list.visual": () => activePane()?.toggleVisual("select"),
+			"list.visualUnset": () => activePane()?.toggleVisual("unset"),
+			"list.filter": () => activePane()?.openFilter(),
+			"list.find": () => activePane()?.openFind("forward"),
+			"list.findBackward": () => activePane()?.openFind("backward"),
+			"list.findNext": () => activePane()?.findNext("forward"),
+			"list.findPrevious": () => activePane()?.findNext("backward"),
 			"zoxide.jump": () => (isJumpOpen = true),
 			"palette.open": openPalette,
 
@@ -956,6 +981,8 @@
 			"tab.close": closeActiveTab,
 			"tab.next": () => (layout = activateNeighbouringTab(layout, 1)),
 			"tab.previous": () => (layout = activateNeighbouringTab(layout, -1)),
+			"tab.swapNext": () => (layout = swapActiveTab(layout, 1)),
+			"tab.swapPrevious": () => (layout = swapActiveTab(layout, -1)),
 			"pane.split": splitPane,
 			"pane.close": closeActivePane,
 			"pane.focusOther": focusPaneBeside,
@@ -964,16 +991,16 @@
 			"view.grid": () => setViewMode("grid"),
 			"view.columns": () => setViewMode("columns"),
 			"view.toggleHidden": toggleHidden,
-			"view.sortByName": () => sortByColumn("name"),
-			"view.sortBySize": () => sortByColumn("size"),
-			"view.sortByModified": () => sortByColumn("modified"),
-			"view.sortByPermissions": () => sortByColumn("permissions"),
+			"view.toggleDetails": () => (showDetails = !showDetails),
 			"view.reverseSort": reverseSort,
 			"view.toggleDirectoriesFirst": () => setDirectoriesFirst(!sortOrder.directoriesFirst),
 
 			"file.cut": cutSelection,
 			"file.copy": copySelection,
 			"file.paste": pasteClipboard,
+			"file.pasteOverwrite": pasteOverwriting,
+			"file.cancelYank": cancelYank,
+			"file.create": () => (isCreateDialogOpen = true),
 			"file.rename": () => activePane()?.startRename(),
 			"file.trash": trashSelection,
 			"file.deletePermanently": () => (isConfirmingDelete = true),
@@ -993,7 +1020,23 @@
 			"search.global": searchEverywhere,
 			"search.close": closeSearch,
 			"search.save": startSavingSearch,
+			"app.quit": () => appWindow.close(),
+			...generatedHandlers(),
 		};
+	}
+
+	function generatedHandlers(): Record<string, () => void> {
+		const handlers: Record<string, () => void> = {};
+		for (const command of sortCommands) {
+			handlers[command.id] = () => (sortOrder = sortOrderBy(sortOrder, command.key, command.descending));
+		}
+		for (const command of linemodeCommands) {
+			handlers[command.id] = () => setColumns(command.columns);
+		}
+		for (const command of tabSelectCommands) {
+			handlers[command.id] = () => (layout = activateTabAt(layout, command.index));
+		}
+		return handlers;
 	}
 
 	function builtinCommandList(): Command[] {
@@ -1028,6 +1071,11 @@
 			throw new Error(`command ${id} has no handler`);
 		}
 		return handler;
+	}
+
+	function createNamed(kind: "file" | "folder", name: string) {
+		isCreateDialogOpen = false;
+		activePane()?.createNamed(kind, name);
 	}
 
 	function startOpenWith() {
@@ -1077,13 +1125,30 @@
 		}
 	}
 
-	async function pasteClipboard() {
+	function pasteClipboard() {
+		return paste(false);
+	}
+
+	function pasteOverwriting() {
+		return paste(true);
+	}
+
+	async function paste(replacesExisting: boolean) {
 		const sources = await pastableSources();
 		if (sources.length === 0) {
 			return;
 		}
-		await operations.start(pasteKind(), sources, currentPath);
+		if (replacesExisting) {
+			await operations.startReplacing(pasteKind(), sources, currentPath);
+		} else {
+			await operations.start(pasteKind(), sources, currentPath);
+		}
 		clearClipboardAfterMove();
+	}
+
+	function cancelYank() {
+		clipboardPaths = [];
+		isClipboardCut = false;
 	}
 
 	async function pastableSources(): Promise<string[]> {
@@ -1269,7 +1334,7 @@
 
 	/** Surfaces that take the keyboard for themselves while they are open. */
 	function ownsTheKeyboard(): boolean {
-		if (Boolean(menu) || isConfirmingDelete || isTagDialogOpen) {
+		if (Boolean(menu) || isConfirmingDelete || isTagDialogOpen || isCreateDialogOpen) {
 			return true;
 		}
 		return openWithPath !== "" || Boolean(conflict);
@@ -1496,20 +1561,20 @@
 							onSplit={splitPane}
 						/>
 					{/snippet}
+					{#snippet aside()}
+						{#if isDetailsOpen && paneGroup.id === layout.activeGroupId}
+							<PaneResizer
+								side="right"
+								width={detailsWidth}
+								label="Resize the details pane"
+								onWidth={(width) => (detailsWidth = width)}
+							/>
+							<PreviewPane entries={selectedEntries} width={detailsWidth} />
+						{/if}
+					{/snippet}
 				</FilePane>
 			</View>
 		{/each}
-
-		{#if isDetailsOpen}
-			<PaneResizer
-				side="right"
-				width={detailsWidth}
-				label="Resize the details pane"
-				onWidth={(width) => (detailsWidth = width)}
-			/>
-
-			<PreviewPane entries={selectedEntries} width={detailsWidth} />
-		{/if}
 	</View>
 
 	<!-- Status strip: floats on the canvas like the top bar, and lines up with
@@ -1593,6 +1658,10 @@
 			onConfirm={confirmPermanentDelete}
 			onCancel={() => (isConfirmingDelete = false)}
 		/>
+	{/if}
+
+	{#if isCreateDialogOpen}
+		<CreateEntryDialog onCreate={createNamed} onClose={() => (isCreateDialogOpen = false)} />
 	{/if}
 
 	{#if isTagDialogOpen}

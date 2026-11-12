@@ -42,6 +42,7 @@ import fileCode from "@phosphor-icons/core/regular/file-code.svg";
 import fileCodeBold from "@phosphor-icons/core/bold/file-code-bold.svg";
 import file from "@phosphor-icons/core/regular/file.svg";
 import fileBold from "@phosphor-icons/core/bold/file-bold.svg";
+import filePlus from "@phosphor-icons/core/regular/file-plus.svg";
 import filePdf from "@phosphor-icons/core/regular/file-pdf.svg";
 import filePdfBold from "@phosphor-icons/core/bold/file-pdf-bold.svg";
 import fileText from "@phosphor-icons/core/regular/file-text.svg";
@@ -52,6 +53,7 @@ import folder from "@phosphor-icons/core/regular/folder.svg";
 import folderBold from "@phosphor-icons/core/bold/folder-bold.svg";
 import folderPlus from "@phosphor-icons/core/regular/folder-plus.svg";
 import folderPlusBold from "@phosphor-icons/core/bold/folder-plus-bold.svg";
+import funnel from "@phosphor-icons/core/regular/funnel.svg";
 import gitBranch from "@phosphor-icons/core/regular/git-branch.svg";
 import gitBranchBold from "@phosphor-icons/core/bold/git-branch-bold.svg";
 import hardDrive from "@phosphor-icons/core/regular/hard-drive.svg";
@@ -159,6 +161,7 @@ export {
 	fileCodeBold,
 	file,
 	fileBold,
+	filePlus,
 	filePdf,
 	filePdfBold,
 	fileText,
@@ -169,6 +172,7 @@ export {
 	folderBold,
 	folderPlus,
 	folderPlusBold,
+	funnel,
 	gitBranch,
 	gitBranchBold,
 	hardDrive,

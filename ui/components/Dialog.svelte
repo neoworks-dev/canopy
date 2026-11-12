@@ -14,11 +14,14 @@
 	let {
 		title,
 		onClose,
+		onKey = undefined,
 		children,
 		footer,
 	}: {
 		title: string;
 		onClose: () => void;
+		/** Offered every key before the dialog's own Escape handling. */
+		onKey?: (event: KeyEvent) => void;
 		children: Snippet;
 		footer?: Snippet;
 	} = $props();
@@ -30,6 +33,7 @@
 	});
 
 	function handleKey(event: KeyEvent) {
+		onKey?.(event);
 		if (event.key !== "Escape") {
 			return;
 		}

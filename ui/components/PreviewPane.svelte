@@ -17,11 +17,10 @@
 		type Measurement,
 	} from "../lib/folderSize";
 	import { formatFileSize, formatModifiedTime } from "../lib/format";
-	import { colors, radius, shadow, space, textSize } from "../theme";
+	import { colors, radius, space, textSize } from "../theme";
 	import AudioPreview from "./AudioPreview.svelte";
 	import CodeCanvas from "./CodeCanvas.svelte";
 	import EntryIcon from "./EntryIcon.svelte";
-	import Card from "./design/Card.svelte";
 	import LoadingSpinner from "./design/LoadingSpinner.svelte";
 
 	let { entries, width }: { entries: filesystem.Entry[]; width: number } = $props();
@@ -196,86 +195,90 @@
 	</Text>
 {/snippet}
 
-<View style={{ width, shrink: 0 }}>
-	<Card
-		surface="elevated"
-		padding="none"
-		style={{ flex: 1, minHeight: 0, gap: space[2], padding: space[2], overflow: "hidden", shadow: shadow.lg }}
-	>
-		{#if singleEntry}
-			<View style={{ direction: "row", shrink: 0, align: "center", gap: space[2] }}>
-				<EntryIcon entry={singleEntry} size="md" />
-				<View style={{ flex: 1, minWidth: 0 }}>
-					<Text style={{ truncate: true, fontSize: textSize.sm, fontWeight: "medium", color: colors.text }}>
-						{singleEntry.name}
-					</Text>
-					<Text style={{ truncate: true, fontSize: textSize["2xs"], color: colors.faint }}>{singleEntry.path}</Text>
-				</View>
-			</View>
-
-			<View style={{ shrink: 0, gap: space[2], padding: space[2], radius: radius.lg, background: colors.raised }}>
-				{#each rows as row (row.label)}
-					<View style={{ direction: "row", align: "baseline", justify: "between", gap: space[2] }}>
-						<Text style={{ fontSize: textSize["2xs"], uppercase: true, color: colors.faint }}>{row.label}</Text>
-						<Text style={{ flex: 1, minWidth: 0, truncate: true, textAlign: "right", fontSize: textSize.xs, color: colors.muted }}>
-							{row.value}
-						</Text>
-					</View>
-				{/each}
-			</View>
-
-			{#if errorMessage}
-				<Text style={{ fontSize: textSize.xs, color: colors.red }}>{errorMessage}</Text>
-			{:else if isLoading}
-				<View style={{ align: "center", padding: space[2] }}><LoadingSpinner /></View>
-			{:else if preview?.kind === "image"}
-				<View style={{ flex: 1, minHeight: 0, padding: space[2], radius: radius.lg, background: colors.raised }}>
-					<Image src={preview.dataUrl} fit="contain" style={{ width: "full", height: "full" }} />
-				</View>
-			{:else if preview?.kind === "audio"}
-				<Scroll style={{ flex: 1, minHeight: 0 }}>
-					<AudioPreview details={preview.audio} coverUrl={preview.dataUrl} />
-				</Scroll>
-			{:else if preview?.kind === "text" && hasTokens(preview)}
-				{#key preview.path}
-					<CodeCanvas tokens={preview.tokens} />
-				{/key}
-				{#if preview.truncated}
-					{@render truncationNote()}
-				{/if}
-			{:else if preview?.kind === "text"}
-				{#key preview.path}
-					<CodeCanvas tokens={plainTokens(preview.text)} isWrapped />
-				{/key}
-				{#if preview.truncated}
-					{@render truncationNote()}
-				{/if}
-			{:else if preview?.kind === "unsupported"}
-				<Text style={{ fontSize: textSize.xs, color: colors.dim }}>No preview for this file type.</Text>
-			{/if}
-		{:else if entries.length === 0}
-			<View style={{ flex: 1, align: "center", justify: "center", paddingX: space[2] }}>
-				<Text style={{ textAlign: "center", fontSize: textSize.xs, color: colors.faint }}>
-					Select an item to see its details
+<View
+	style={{
+		width,
+		shrink: 0,
+		gap: space[2],
+		padding: space[2],
+		overflow: "hidden",
+		borderLeftWidth: 1,
+		borderColor: colors.lineFaint,
+	}}
+>
+	{#if singleEntry}
+		<View style={{ direction: "row", shrink: 0, align: "center", gap: space[2] }}>
+			<EntryIcon entry={singleEntry} size="md" />
+			<View style={{ flex: 1, minWidth: 0 }}>
+				<Text style={{ truncate: true, fontSize: textSize.sm, fontWeight: "medium", color: colors.text }}>
+					{singleEntry.name}
 				</Text>
+				<Text style={{ truncate: true, fontSize: textSize["2xs"], color: colors.faint }}>{singleEntry.path}</Text>
 			</View>
-		{:else}
-			<Text style={{ shrink: 0, fontSize: textSize.sm, fontWeight: "medium", color: colors.text }}>
-				{entries.length} items selected
-			</Text>
-			<Text style={{ shrink: 0, fontSize: textSize.xs, color: colors.dim }}>
-				{formatFileSize(totalSize)} in total
-			</Text>
-			<List items={entries} rowHeight={40} key={(entry) => entry.path} style={{ flex: 1, minHeight: 0 }}>
-				{#snippet row(entry)}
-					<View style={{ direction: "row", align: "center", gap: space[2], height: 40 }}>
-						<EntryIcon {entry} />
-						<Text style={{ flex: 1, minWidth: 0, truncate: true, fontSize: textSize.xs, color: colors.muted }}>
-							{entry.name}
-						</Text>
-					</View>
-				{/snippet}
-			</List>
+		</View>
+
+		<View style={{ shrink: 0, gap: space[2], padding: space[2], radius: radius.lg, background: colors.raised }}>
+			{#each rows as row (row.label)}
+				<View style={{ direction: "row", align: "baseline", justify: "between", gap: space[2] }}>
+					<Text style={{ fontSize: textSize["2xs"], uppercase: true, color: colors.faint }}>{row.label}</Text>
+					<Text style={{ flex: 1, minWidth: 0, truncate: true, textAlign: "right", fontSize: textSize.xs, color: colors.muted }}>
+						{row.value}
+					</Text>
+				</View>
+			{/each}
+		</View>
+
+		{#if errorMessage}
+			<Text style={{ fontSize: textSize.xs, color: colors.red }}>{errorMessage}</Text>
+		{:else if isLoading}
+			<View style={{ align: "center", padding: space[2] }}><LoadingSpinner /></View>
+		{:else if preview?.kind === "image"}
+			<View style={{ flex: 1, minHeight: 0, padding: space[2], radius: radius.lg, background: colors.raised }}>
+				<Image src={preview.dataUrl} fit="contain" style={{ width: "full", height: "full" }} />
+			</View>
+		{:else if preview?.kind === "audio"}
+			<Scroll style={{ flex: 1, minHeight: 0 }}>
+				<AudioPreview details={preview.audio} coverUrl={preview.dataUrl} />
+			</Scroll>
+		{:else if preview?.kind === "text" && hasTokens(preview)}
+			{#key preview.path}
+				<CodeCanvas tokens={preview.tokens} />
+			{/key}
+			{#if preview.truncated}
+				{@render truncationNote()}
+			{/if}
+		{:else if preview?.kind === "text"}
+			{#key preview.path}
+				<CodeCanvas tokens={plainTokens(preview.text)} isWrapped />
+			{/key}
+			{#if preview.truncated}
+				{@render truncationNote()}
+			{/if}
+		{:else if preview?.kind === "unsupported"}
+			<Text style={{ fontSize: textSize.xs, color: colors.dim }}>No preview for this file type.</Text>
 		{/if}
-	</Card>
+	{:else if entries.length === 0}
+		<View style={{ flex: 1, align: "center", justify: "center", paddingX: space[2] }}>
+			<Text style={{ textAlign: "center", fontSize: textSize.xs, color: colors.faint }}>
+				Select an item to see its details
+			</Text>
+		</View>
+	{:else}
+		<Text style={{ shrink: 0, fontSize: textSize.sm, fontWeight: "medium", color: colors.text }}>
+			{entries.length} items selected
+		</Text>
+		<Text style={{ shrink: 0, fontSize: textSize.xs, color: colors.dim }}>
+			{formatFileSize(totalSize)} in total
+		</Text>
+		<List items={entries} rowHeight={40} key={(entry) => entry.path} style={{ flex: 1, minHeight: 0 }}>
+			{#snippet row(entry)}
+				<View style={{ direction: "row", align: "center", gap: space[2], height: 40 }}>
+					<EntryIcon {entry} />
+					<Text style={{ flex: 1, minWidth: 0, truncate: true, fontSize: textSize.xs, color: colors.muted }}>
+						{entry.name}
+					</Text>
+				</View>
+			{/snippet}
+		</List>
+	{/if}
 </View>

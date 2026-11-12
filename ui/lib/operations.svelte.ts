@@ -35,6 +35,9 @@ export class OperationQueue {
 	errorMessage = $state("");
 
 	private onFinished: () => void;
+	// Set for a paste that was asked to replace whatever is in the way, so no
+	// conflict is put to the user.
+	private replacesConflicts = false;
 
 	constructor(onFinished: () => void) {
 		this.onFinished = onFinished;
@@ -44,22 +47,34 @@ export class OperationQueue {
 	listen(): () => void {
 		const stops = [
 			EventsOn(operationEvents.progress, (progress: OperationProgress) => this.apply(progress)),
-			EventsOn(operationEvents.conflict, (prompt: ConflictPrompt) => (this.conflict = prompt)),
+			EventsOn(operationEvents.conflict, (prompt: ConflictPrompt) => this.receiveConflict(prompt)),
 			EventsOn(operationEvents.finished, (progress: OperationProgress) => this.complete(progress)),
 		];
 		this.refreshHistoryLabels();
 		return () => stops.forEach((stop) => stop());
 	}
 
-	async start(kind: OperationKind, sources: string[], destination: string) {
+	/** Reports whether the engine took the operation on. */
+	async start(kind: OperationKind, sources: string[], destination: string): Promise<boolean> {
 		if (sources.length === 0) {
-			return;
+			return false;
 		}
 		this.errorMessage = "";
 		try {
 			await StartOperation(kind, sources, destination);
 		} catch (error) {
 			this.errorMessage = describeError(error);
+			return false;
+		}
+		return true;
+	}
+
+	/** Like `start`, but a destination that already exists is replaced without asking. */
+	async startReplacing(kind: OperationKind, sources: string[], destination: string) {
+		this.replacesConflicts = true;
+		const started = await this.start(kind, sources, destination);
+		if (!started) {
+			this.replacesConflicts = false;
 		}
 	}
 
@@ -121,7 +136,16 @@ export class OperationQueue {
 		this.operations = this.operations.map((operation) => replaceMatching(operation, progress));
 	}
 
+	private receiveConflict(prompt: ConflictPrompt) {
+		if (this.replacesConflicts) {
+			ResolveConflict(prompt.operationId, "replace", true);
+			return;
+		}
+		this.conflict = prompt;
+	}
+
 	private complete(progress: OperationProgress) {
+		this.replacesConflicts = false;
 		this.apply(progress);
 		this.dropStalePrompt(progress.id);
 		this.refreshHistoryLabels();

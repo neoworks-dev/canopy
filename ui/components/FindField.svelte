@@ -1,37 +1,42 @@
 <!--
-	Finding an entry by typing its name used to happen on the listing itself,
-	which meant every letter key belonged to it. Behind a prompt the letters are
-	free to be commands, and the query is visible while it is being typed.
+	Finding an entry by typing part of its name. The cursor jumps to the nearest
+	match in the chosen direction as the query is typed, and the query stays
+	available afterwards so the listing can step through the other matches. Behind
+	a prompt the letters are free to be commands, and the query is visible while
+	it is being typed.
 -->
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { Icon, Text, View, type KeyEvent } from "@neoworks/svelte-gpui/ui";
 	import { magnifyingGlass } from "../icons";
-	import { typeAheadMatch } from "../lib/typeAhead";
+	import { nextMatchIndex, type FindDirection } from "../lib/finder";
 	import { colors, radius, space, textSize } from "../theme";
 	import BareInput from "./BareInput.svelte";
 
 	let {
+		query = $bindable(""),
 		names,
 		focusIndex,
+		direction,
 		onMatch,
 		onClose,
 	}: {
+		query?: string;
 		names: string[];
 		focusIndex: number;
+		direction: FindDirection;
 		onMatch: (index: number) => void;
 		onClose: (accepted: boolean) => void;
 	} = $props();
 
-	let query = $state("");
 	let input = $state<BareInput>();
 	let hasMatch = $state(true);
 
 	onMount(() => input?.focus());
 
 	function jumpToMatch() {
-		const match = typeAheadMatch(names, query.trim().toLowerCase(), focusIndex);
-		hasMatch = match >= 0 || query.trim() === "";
+		const match = nextMatchIndex(names, query, focusIndex, direction, true);
+		hasMatch = match >= 0 || query === "";
 		if (match < 0) {
 			return;
 		}
@@ -48,6 +53,13 @@
 			event.preventDefault();
 			onClose(true);
 		}
+	}
+
+	function placeholder(): string {
+		if (direction === "backward") {
+			return "Find backwards in this folder";
+		}
+		return "Find in this folder";
 	}
 
 	function borderColor(): string {
@@ -76,7 +88,7 @@
 	<BareInput
 		bind:this={input}
 		bind:value={query}
-		placeholder="Find in this folder"
+		placeholder={placeholder()}
 		oninput={jumpToMatch}
 		onkey={handleKey}
 		onblur={() => onClose(true)}

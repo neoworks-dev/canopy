@@ -22,7 +22,7 @@
 	import { CreateFile, CreateFolder, GitReport, ListDirectory, RenameEntry, SuggestName } from "../backend/FileService";
 	import { EventsOn } from "../backend/events";
 	import type { filesystem, git } from "../backend/models";
-	import { warning } from "../icons";
+	import { funnel, warning } from "../icons";
 	import { isArchiveName } from "../lib/archive";
 	import { columnsFor, type ColumnId } from "../lib/columns";
 	import {
@@ -46,13 +46,24 @@
 		type Point,
 		type Rectangle,
 	} from "../lib/marquee";
+	import { nameMatches, nextMatchIndex, type FindDirection } from "../lib/finder";
+	import {
+		allMarked,
+		cursorMoved,
+		markToggled,
+		marksInverted,
+		visualMoved,
+		visualStarted,
+		type MarkState,
+		type Visual,
+		type VisualMode,
+	} from "../lib/marks";
 	import { targetIndexFor, type Movement } from "../lib/movement";
 	import type { PaneStatus } from "../lib/paneStatus";
 	import type { SavedSearch } from "../lib/savedSearches";
 	import {
 		emptySelection,
 		pruneSelection,
-		selectAll,
 		selectionAfterClick,
 		selectionAfterJump,
 		selectionAfterRelisting,
@@ -61,7 +72,7 @@
 	} from "../lib/selection";
 	import type { ViewMode } from "../lib/settings";
 	import type { SortKey, SortOrder } from "../lib/sorting";
-	import { directoryPathOf, type TabLocation } from "../lib/tabs";
+	import { directoryPathOf, locationKey, type TabLocation } from "../lib/tabs";
 	import { pageSize } from "../lib/virtualList";
 	import { directoryChangedEvent } from "../lib/watch";
 	import { colors, duration, radius, shadow, space, textSize } from "../theme";
@@ -69,6 +80,7 @@
 	import DuplicatesPane from "./DuplicatesPane.svelte";
 	import EntryGrid from "./EntryGrid.svelte";
 	import EntryRows from "./EntryRows.svelte";
+	import FilterField from "./FilterField.svelte";
 	import FindField from "./FindField.svelte";
 	import MillerColumns from "./MillerColumns.svelte";
 	import SearchPane from "./SearchPane.svelte";
@@ -98,6 +110,7 @@
 		onDropPaths,
 		onExtractArchive,
 		header,
+		aside,
 	}: {
 		location: TabLocation;
 		viewMode: ViewMode;
@@ -123,6 +136,8 @@
 		onExtractArchive: (archivePath: string) => void;
 		/** Rendered flush against the top edge of the pane, above the listing. */
 		header?: Snippet;
+		/** Rendered beside the listing, below the header, inside the same card. */
+		aside?: Snippet;
 	} = $props();
 
 	// Raw: a listing is replaced whole, and deep proxies over thousands of entries cost memory.
@@ -134,6 +149,15 @@
 	let selection = $state<Selection>(emptySelection);
 	let renamingPath = $state("");
 	let isFindOpen = $state(false);
+	// Whether the selection is marks the cursor has left behind rather than just
+	// the entry under it.
+	let isMarking = $state(false);
+	let visual = $state.raw<Visual | null>(null);
+	let isFilterOpen = $state(false);
+	let filterQuery = $state("");
+	let findQuery = $state("");
+	let findDirection = $state<FindDirection>("forward");
+	let loadedLocationKey = "";
 	let gitReport = $state.raw<git.Report | null>(null);
 	// Set while entries dragged out of this pane are still in flight, and while
 	// files dragged in from another program are over it.
@@ -185,12 +209,18 @@
 	$effect(() => {
 		const wanted = location;
 		const order = sortOrder;
-		untrack(() => load(wanted, order));
+		untrack(() => {
+			forgetFilterOnNewLocation(wanted);
+			load(wanted, order);
+		});
 	});
 
 	// Hiding dotfiles must not leave invisible entries selected.
 	$effect(() => {
 		selection = pruneSelection(selection, visiblePaths);
+		if (selection.paths.length === 0) {
+			isMarking = false;
+		}
 	});
 
 	// Keyboard movement is useless if the entry it lands on is off screen. Only
@@ -218,21 +248,50 @@
 	}
 
 	export function selectEverything() {
-		selection = selectAll(visiblePaths);
+		visual = null;
+		applyMarks(allMarked(markState(), visiblePaths));
 	}
 
-	export function clearSelection() {
-		selection = emptySelection;
+	export function invertSelection() {
+		visual = null;
+		applyMarks(marksInverted(markState(), visiblePaths));
 	}
 
+	/** Leaves visual mode, else clears the marks, else the filter, else the find. */
+	export function escape() {
+		if (visual) {
+			visual = null;
+			return;
+		}
+		if (isMarking) {
+			setSelection(selectionAfterJump(emptySelection, visiblePaths, selection.focusIndex, false));
+			return;
+		}
+		if (filterQuery !== "") {
+			filterQuery = "";
+			return;
+		}
+		findQuery = "";
+	}
+
+	/** Marks or unmarks the entry under the cursor, then moves to the next one. */
 	export function toggleFocusedEntry() {
+		visual = null;
+		const toggled = markToggled(markState(), visiblePaths);
+		applyMarks(cursorMoved(toggled, visiblePaths, toggled.selection.focusIndex + 1));
+	}
+
+	/** Starts sweeping a range at the cursor; leaves the sweep if one is under way. */
+	export function toggleVisual(mode: VisualMode) {
+		if (visual) {
+			visual = null;
+			return;
+		}
 		if (selection.focusIndex < 0) {
 			return;
 		}
-		selection = selectionAfterClick(selection, visiblePaths, selection.focusIndex, {
-			toggle: true,
-			range: false,
-		});
+		visual = visualStarted(markState(), mode);
+		applyMarks(visualMoved(visual, visiblePaths, selection.focusIndex));
 	}
 
 	export function moveSelection(movement: Movement, extend: boolean) {
@@ -240,15 +299,38 @@
 		if (target < 0) {
 			return;
 		}
-		selection = selectionAfterJump(selection, visiblePaths, target, extend);
+		if (extend) {
+			setSelection(selectionAfterJump(selection, visiblePaths, target, true), true);
+			return;
+		}
+		moveCursorTo(target);
+	}
+
+	export function openFilter() {
+		isFilterOpen = true;
+	}
+
+	export function findNext(direction: FindDirection) {
+		const target = nextMatchIndex(
+			visibleEntries.map((entry) => entry.name),
+			findQuery,
+			selection.focusIndex,
+			direction,
+			false,
+		);
+		if (target < 0) {
+			return;
+		}
+		moveCursorTo(target);
 	}
 
 	export function openSelection() {
 		selectedEntries.forEach(openEntry);
 	}
 
-	export function openFind() {
+	export function openFind(direction: FindDirection) {
 		findOrigin = selection;
+		findDirection = direction;
 		isFindOpen = true;
 	}
 
@@ -265,7 +347,7 @@
 		if (index < 0) {
 			return;
 		}
-		selection = selectionAfterJump(emptySelection, visiblePaths, index, false);
+		setSelection(selectionAfterJump(emptySelection, visiblePaths, index, false));
 		focusList();
 	}
 
@@ -277,8 +359,21 @@
 		actionError = "";
 		try {
 			const created = await createAndReveal(kind);
-			selection = selectionAfterJump(emptySelection, [created], 0, false);
+			setSelection(selectionAfterJump(emptySelection, [created], 0, false));
 			renamingPath = created;
+		} catch (error) {
+			actionError = describeError(error);
+		}
+		onChanged();
+	}
+
+	/** Creates an entry under the given name and puts the cursor on it. */
+	export async function createNamed(kind: "folder" | "file", name: string) {
+		actionError = "";
+		try {
+			const created = await createOfKind(kind, name);
+			await reloadListing();
+			revealPath(created);
 		} catch (error) {
 			actionError = describeError(error);
 		}
@@ -293,7 +388,7 @@
 	// goes with them. A cancelled drag clears it too.
 	export function endDrag() {
 		isDraggingEntries = false;
-		selection = emptySelection;
+		setSelection(emptySelection);
 	}
 
 	function currentStatus(): PaneStatus {
@@ -368,7 +463,7 @@
 	}
 
 	async function load(wanted: TabLocation, order: SortOrder) {
-		selection = emptySelection;
+		setSelection(emptySelection);
 		errorMessage = "";
 		listing = null;
 		if (wanted.kind !== "directory") {
@@ -397,6 +492,9 @@
 			return;
 		}
 		selection = selectionAfterRelisting(selection, previousPaths, visiblePaths);
+		if (selection.paths.length === 0) {
+			isMarking = false;
+		}
 		refreshGitReport(directoryPath);
 	}
 
@@ -413,10 +511,50 @@
 		if (!listing) {
 			return [];
 		}
-		if (showHidden) {
-			return listing.entries;
+		return listing.entries.filter(isShown);
+	}
+
+	function isShown(entry: filesystem.Entry): boolean {
+		if (!showHidden && entry.name.startsWith(".")) {
+			return false;
 		}
-		return listing.entries.filter((entry) => !entry.name.startsWith("."));
+		return nameMatches(entry.name, filterQuery);
+	}
+
+	// A filter or a find belongs to the folder it was typed in.
+	function forgetFilterOnNewLocation(wanted: TabLocation) {
+		const key = locationKey(wanted);
+		if (key === loadedLocationKey) {
+			return;
+		}
+		loadedLocationKey = key;
+		filterQuery = "";
+		findQuery = "";
+		isFilterOpen = false;
+		isFindOpen = false;
+	}
+
+	function markState(): MarkState {
+		return { selection, isMarking };
+	}
+
+	function applyMarks(next: MarkState) {
+		selection = next.selection;
+		isMarking = next.isMarking;
+	}
+
+	function setSelection(next: Selection, marking = false) {
+		selection = next;
+		isMarking = marking;
+		visual = null;
+	}
+
+	function moveCursorTo(index: number) {
+		if (visual) {
+			applyMarks(visualMoved(visual, visiblePaths, index));
+			return;
+		}
+		applyMarks(cursorMoved(markState(), visiblePaths, index));
 	}
 
 	// A press selects the entry, and a second press in quick succession opens it.
@@ -427,10 +565,14 @@
 			openEntry(visibleEntries[index]);
 			return;
 		}
-		selection = selectionAfterClick(selection, visiblePaths, index, {
-			toggle: event.ctrl || event.meta,
-			range: event.shift,
-		});
+		const isAdding = event.ctrl || event.meta || event.shift;
+		setSelection(
+			selectionAfterClick(selection, visiblePaths, index, {
+				toggle: event.ctrl || event.meta,
+				range: event.shift,
+			}),
+			isAdding,
+		);
 	}
 
 	// An archive opens as a pane of what it holds rather than in whatever
@@ -479,12 +621,21 @@
 		isFindOpen = false;
 		if (!accepted) {
 			selection = findOrigin;
+			findQuery = "";
 		}
 		focusList();
 	}
 
 	function jumpToFound(index: number) {
-		selection = selectionAfterJump(selection, visiblePaths, index, false);
+		moveCursorTo(index);
+	}
+
+	function closeFilter(accepted: boolean) {
+		isFilterOpen = false;
+		if (!accepted) {
+			filterQuery = "";
+		}
+		focusList();
 	}
 
 	async function commitRename(name: string) {
@@ -538,7 +689,7 @@
 		if (selectedPaths.has(visiblePaths[index])) {
 			return;
 		}
-		selection = selectionAfterJump(selection, visiblePaths, index, false);
+		setSelection(selectionAfterJump(selection, visiblePaths, index, false));
 	}
 
 	// svelte-gpui: a Draggable takes every button that goes down on it, so an entry
@@ -579,7 +730,7 @@
 		bandPointer = pointerWithinList(event);
 		bandAnchor = toContentPoint(bandPointer, listBounds(), scrollTop);
 		bandKeep = keptDuringBand(event);
-		selection = bandSelection([]);
+		setSelection(bandSelection([]), bandKeep.length > 0);
 		band = rectangleBetween(bandPointer, bandPointer);
 	}
 
@@ -601,7 +752,8 @@
 	function redrawBand() {
 		const current = rectangleBetween(anchorOnScreen(), bandPointer);
 		band = current;
-		selection = bandSelection(indexesInGrid(current, scrollTop, gridLayout, visibleEntries.length));
+		const swept = bandSelection(indexesInGrid(current, scrollTop, gridLayout, visibleEntries.length));
+		setSelection(swept, swept.paths.length > 1);
 	}
 
 	function anchorOnScreen(): Point {
@@ -633,7 +785,7 @@
 		if (band && exceedsThreshold(band)) {
 			return;
 		}
-		selection = emptySelection;
+		setSelection(emptySelection);
 	}
 
 	function bandSelection(indexes: number[]): Selection {
@@ -666,7 +818,7 @@
 		if (selectedPaths.has(visiblePaths[index])) {
 			return;
 		}
-		selection = selectionAfterJump(selection, visiblePaths, index, false);
+		setSelection(selectionAfterJump(selection, visiblePaths, index, false));
 	}
 
 	function dragPathsFor(entry: filesystem.Entry): string[] {
@@ -730,190 +882,207 @@
 >
 	{@render header?.()}
 
-	<View style={{ flex: 1, minHeight: 0, gap: space[2], padding: space[2] }}>
-		{#if location.kind === "trash"}
-			<TrashPane onRestored={() => onChanged()} />
-		{:else if location.kind === "search"}
-			{@const search = savedSearchNamed(location.name)}
-			{#if search}
-				<SearchPane {search} onOpen={openEntry} onReveal={revealTaggedEntry} />
-			{:else}
-				<Text style={{ fontSize: textSize.sm, color: colors.dim }}>This search is no longer saved.</Text>
-			{/if}
-		{:else if location.kind === "archive"}
-			{@const archive = location}
-			<ArchivePane
-				path={archive.path}
-				inside={archive.inside}
-				onDescend={(inside) => onNavigate({ kind: "archive", path: archive.path, inside })}
-				onExtract={() => onExtractArchive(archive.path)}
-			/>
-		{:else if location.kind === "duplicates"}
-			<DuplicatesPane
-				path={location.path}
-				onOpen={onLaunch}
-				onReveal={revealPathInFolder}
-				onChanged={() => onChanged()}
-			/>
-		{:else if location.kind === "tag"}
-			<TagPane name={location.name} onOpen={openEntry} onReveal={revealTaggedEntry} />
-		{:else if errorMessage}
-			<Card
-				surface="raised"
-				padding="none"
-				style={{ direction: "row", shrink: 0, align: "center", gap: space[2], padding: space[2] }}
-			>
-				<Icon svg={warning} size={20} color={colors.red} style={{ shrink: 0 }} />
-				<View style={{ flex: 1, minWidth: 0 }}>
-					<Text style={{ fontSize: textSize.sm, fontWeight: "medium", color: colors.text }}>
-						Could not open this folder
-					</Text>
-					<Text style={{ truncate: true, fontSize: textSize.xs, color: colors.dim }}>{errorMessage}</Text>
-				</View>
-			</Card>
-		{:else if isLoading}
-			<View style={{ align: "center", padding: space[2] }}><LoadingSpinner /></View>
-		{:else}
-			{#if actionError}
-				<PlainButton
-					style={{
-						direction: "row",
-						shrink: 0,
-						align: "center",
-						gap: space[2],
-						padding: space[2],
-						radius: radius.lg,
-						background: colors.raised,
-					}}
-					onpress={dismissActionError}
-				>
-					<Icon svg={warning} size={16} color={colors.red} style={{ shrink: 0 }} />
-					<Text style={{ flex: 1, minWidth: 0, truncate: true, fontSize: textSize.xs, color: colors.dim }}>
-						{actionError}
-					</Text>
-				</PlainButton>
-			{/if}
-			{#if isFindOpen}
-				<FindField
-					names={visibleEntries.map((entry) => entry.name)}
-					focusIndex={selection.focusIndex}
-					onMatch={jumpToFound}
-					onClose={closeFind}
+	<View style={{ direction: "row", flex: 1, minHeight: 0 }}>
+		<View style={{ flex: 1, minWidth: 0, minHeight: 0, gap: space[2], padding: space[2] }}>
+			{#if location.kind === "trash"}
+				<TrashPane onRestored={() => onChanged()} />
+			{:else if location.kind === "search"}
+				{@const search = savedSearchNamed(location.name)}
+				{#if search}
+					<SearchPane {search} onOpen={openEntry} onReveal={revealTaggedEntry} />
+				{:else}
+					<Text style={{ fontSize: textSize.sm, color: colors.dim }}>This search is no longer saved.</Text>
+				{/if}
+			{:else if location.kind === "archive"}
+				{@const archive = location}
+				<ArchivePane
+					path={archive.path}
+					inside={archive.inside}
+					onDescend={(inside) => onNavigate({ kind: "archive", path: archive.path, inside })}
+					onExtract={() => onExtractArchive(archive.path)}
 				/>
-			{/if}
-			<DropTarget
-				accept={acceptsPaths}
-				ondrop={({ data }) => dropIntoThisFolder(data)}
-				style={{ flex: 1, minHeight: 0, radius: radius.lg, borderWidth: 1, borderColor: "transparent" }}
-				over={wholeFolderRing()}
-			>
-				<View
-					bind:this={listContainer}
-					focusable
-					style={{
-						flex: 1,
-						minHeight: 0,
-						radius: radius.lg,
-						overflow: "hidden",
-						borderWidth: 1,
-						borderColor: outsideDragRing(),
-						transition: duration.fast,
-					}}
-					focus={{ borderColor: colors.lineFaint }}
-					onlayout={(layout: Layout) => (container = layout)}
-					onfocus={onActivate}
-					ondown={pressBackground}
-					onmove={updateBand}
-					onup={endBand}
-					ondragenter={() => (isOutsideDragOver = true)}
-					ondragover={() => (isOutsideDragOver = true)}
-					ondragleave={() => (isOutsideDragOver = false)}
-					ondrop={dropFromOutside}
+			{:else if location.kind === "duplicates"}
+				<DuplicatesPane
+					path={location.path}
+					onOpen={onLaunch}
+					onReveal={revealPathInFolder}
+					onChanged={() => onChanged()}
+				/>
+			{:else if location.kind === "tag"}
+				<TagPane name={location.name} onOpen={openEntry} onReveal={revealTaggedEntry} />
+			{:else if errorMessage}
+				<Card
+					surface="raised"
+					padding="none"
+					style={{ direction: "row", shrink: 0, align: "center", gap: space[2], padding: space[2] }}
 				>
-					{#if viewMode === "columns"}
-						<MillerColumns
-							bind:this={columnsView}
-							currentPath={directoryPath}
-							entries={visibleEntries}
-							{selectedPaths}
-							focusIndex={selection.focusIndex}
-							{sortOrder}
-							{showHidden}
-							onPress={pressEntry}
-							onOpen={openEntry}
-							{dragPathsFor}
-							onDragStart={startDrag}
-							onDragEnd={endDrag}
-							onDropOnFolder={dropOntoFolder}
-							onLayout={(layout) => (gridLayout = layout)}
-							onScroll={trackScroll}
-							onNavigate={(path) => onNavigate({ kind: "directory", path })}
-						/>
-					{:else if viewMode === "grid"}
-						<EntryGrid
-							bind:this={gridView}
-							entries={visibleEntries}
-							columns={activeColumns}
-							{selectedPaths}
-							{cutPaths}
-							{gitStatuses}
-							focusIndex={selection.focusIndex}
-							{renamingPath}
-							onPress={pressEntry}
-							{dragPathsFor}
-							onDragStart={startDrag}
-							onDragEnd={endDrag}
-							onDropOnFolder={dropOntoFolder}
-							onRenameCommit={commitRename}
-							onRenameCancel={cancelRename}
-							onLayout={(layout) => (gridLayout = layout)}
-							onScroll={trackScroll}
-						/>
-					{:else}
-						<EntryRows
-							bind:this={rowsView}
-							entries={visibleEntries}
-							columns={activeColumns}
-							{selectedPaths}
-							{cutPaths}
-							{gitStatuses}
-							focusIndex={selection.focusIndex}
-							{renamingPath}
-							onPress={pressEntry}
-							{dragPathsFor}
-							onDragStart={startDrag}
-							onDragEnd={endDrag}
-							onDropOnFolder={dropOntoFolder}
-							onRenameCommit={commitRename}
-							onRenameCancel={cancelRename}
-							onLayout={(layout) => (gridLayout = layout)}
-							onScroll={trackScroll}
-							order={sortOrder}
-							{onSort}
-						/>
-					{/if}
+					<Icon svg={warning} size={20} color={colors.red} style={{ shrink: 0 }} />
+					<View style={{ flex: 1, minWidth: 0 }}>
+						<Text style={{ fontSize: textSize.sm, fontWeight: "medium", color: colors.text }}>
+							Could not open this folder
+						</Text>
+						<Text style={{ truncate: true, fontSize: textSize.xs, color: colors.dim }}>{errorMessage}</Text>
+					</View>
+				</Card>
+			{:else if isLoading}
+				<View style={{ align: "center", padding: space[2] }}><LoadingSpinner /></View>
+			{:else}
+				{#if actionError}
+					<PlainButton
+						style={{
+							direction: "row",
+							shrink: 0,
+							align: "center",
+							gap: space[2],
+							padding: space[2],
+							radius: radius.lg,
+							background: colors.raised,
+						}}
+						onpress={dismissActionError}
+					>
+						<Icon svg={warning} size={16} color={colors.red} style={{ shrink: 0 }} />
+						<Text style={{ flex: 1, minWidth: 0, truncate: true, fontSize: textSize.xs, color: colors.dim }}>
+							{actionError}
+						</Text>
+					</PlainButton>
+				{/if}
+				{#if isFilterOpen}
+					<FilterField bind:query={filterQuery} onClose={closeFilter} />
+				{/if}
+				{#if filterQuery !== "" && !isFilterOpen}
+					<View style={{ direction: "row", shrink: 0, align: "center", gap: space[2], paddingX: space[1] }}>
+						<Icon svg={funnel} size={12} color={colors.faint} />
+						<Text style={{ minWidth: 0, truncate: true, fontSize: textSize.xs, color: colors.muted }}>
+							{filterQuery}
+						</Text>
+						<Text style={{ shrink: 0, fontSize: textSize["2xs"], color: colors.faint }}>Esc to clear</Text>
+					</View>
+				{/if}
+				{#if isFindOpen}
+					<FindField
+						bind:query={findQuery}
+						names={visibleEntries.map((entry) => entry.name)}
+						focusIndex={selection.focusIndex}
+						direction={findDirection}
+						onMatch={jumpToFound}
+						onClose={closeFind}
+					/>
+				{/if}
+				<DropTarget
+					accept={acceptsPaths}
+					ondrop={({ data }) => dropIntoThisFolder(data)}
+					style={{ flex: 1, minHeight: 0, radius: radius.lg, borderWidth: 1, borderColor: "transparent" }}
+					over={wholeFolderRing()}
+				>
+					<View
+						bind:this={listContainer}
+						focusable
+						style={{
+							flex: 1,
+							minHeight: 0,
+							radius: radius.lg,
+							overflow: "hidden",
+							borderWidth: 1,
+							borderColor: outsideDragRing(),
+							transition: duration.fast,
+						}}
+						focus={{ borderColor: colors.lineFaint }}
+						onlayout={(layout: Layout) => (container = layout)}
+						onfocus={onActivate}
+						ondown={pressBackground}
+						onmove={updateBand}
+						onup={endBand}
+						ondragenter={() => (isOutsideDragOver = true)}
+						ondragover={() => (isOutsideDragOver = true)}
+						ondragleave={() => (isOutsideDragOver = false)}
+						ondrop={dropFromOutside}
+					>
+						{#if viewMode === "columns"}
+							<MillerColumns
+								bind:this={columnsView}
+								currentPath={directoryPath}
+								entries={visibleEntries}
+								{selectedPaths}
+								focusIndex={selection.focusIndex}
+								{sortOrder}
+								{showHidden}
+								onPress={pressEntry}
+								onOpen={openEntry}
+								{dragPathsFor}
+								onDragStart={startDrag}
+								onDragEnd={endDrag}
+								onDropOnFolder={dropOntoFolder}
+								onLayout={(layout) => (gridLayout = layout)}
+								onScroll={trackScroll}
+								onNavigate={(path) => onNavigate({ kind: "directory", path })}
+							/>
+						{:else if viewMode === "grid"}
+							<EntryGrid
+								bind:this={gridView}
+								entries={visibleEntries}
+								columns={activeColumns}
+								{selectedPaths}
+								{cutPaths}
+								{gitStatuses}
+								focusIndex={selection.focusIndex}
+								{renamingPath}
+								onPress={pressEntry}
+								{dragPathsFor}
+								onDragStart={startDrag}
+								onDragEnd={endDrag}
+								onDropOnFolder={dropOntoFolder}
+								onRenameCommit={commitRename}
+								onRenameCancel={cancelRename}
+								onLayout={(layout) => (gridLayout = layout)}
+								onScroll={trackScroll}
+							/>
+						{:else}
+							<EntryRows
+								bind:this={rowsView}
+								entries={visibleEntries}
+								columns={activeColumns}
+								{selectedPaths}
+								{cutPaths}
+								{gitStatuses}
+								focusIndex={selection.focusIndex}
+								{renamingPath}
+								onPress={pressEntry}
+								{dragPathsFor}
+								onDragStart={startDrag}
+								onDragEnd={endDrag}
+								onDropOnFolder={dropOntoFolder}
+								onRenameCommit={commitRename}
+								onRenameCancel={cancelRename}
+								onLayout={(layout) => (gridLayout = layout)}
+								onScroll={trackScroll}
+								order={sortOrder}
+								{onSort}
+							/>
+						{/if}
 
-					{#if band}
-						<View
-							style={{
-								position: "absolute",
-								left: band.left,
-								top: band.top,
-								width: band.width,
-								height: band.height,
-								radius: radius.xs,
-								borderWidth: 1,
-								borderColor: colors.lineStrong,
-								background: "rgba(46, 46, 49, 0.4)",
-							}}
-						/>
-					{/if}
+						{#if band}
+							<View
+								style={{
+									position: "absolute",
+									left: band.left,
+									top: band.top,
+									width: band.width,
+									height: band.height,
+									radius: radius.xs,
+									borderWidth: 1,
+									borderColor: colors.lineStrong,
+									background: "rgba(46, 46, 49, 0.4)",
+								}}
+							/>
+						{/if}
 
-					<Overlay passthrough onoutside={openContextMenuForPress}>
-						<View style={{ size: 0 }} />
-					</Overlay>
-				</View>
-			</DropTarget>
-		{/if}
+						<Overlay passthrough onoutside={openContextMenuForPress}>
+							<View style={{ size: 0 }} />
+						</Overlay>
+					</View>
+				</DropTarget>
+			{/if}
+		</View>
+		{@render aside?.()}
 	</View>
 </Card>

@@ -13,6 +13,8 @@ export type Movement =
 	| "right"
 	| "pageDown"
 	| "pageUp"
+	| "halfPageDown"
+	| "halfPageUp"
 	| "first"
 	| "last";
 
@@ -59,6 +61,17 @@ function pageStepFor(movement: Movement, context: MovementContext): number {
 	}
 	if (movement === "pageUp") {
 		return -Math.max(1, context.pageSize);
+	}
+	return halfPageStepFor(movement, context);
+}
+
+function halfPageStepFor(movement: Movement, context: MovementContext): number {
+	const half = Math.max(1, Math.floor(context.pageSize / 2));
+	if (movement === "halfPageDown") {
+		return half;
+	}
+	if (movement === "halfPageUp") {
+		return -half;
 	}
 	return horizontalStepFor(movement, context);
 }

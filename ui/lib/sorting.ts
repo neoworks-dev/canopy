@@ -28,6 +28,11 @@ export function sortOrderAfterHeaderClick(current: SortOrder, key: SortKey): Sor
 	return { ...current, descending: !current.descending };
 }
 
+/** Sorts by one key in a given direction, whatever the order was before. */
+export function sortOrderBy(current: SortOrder, key: SortKey, descending: boolean): SortOrder {
+	return { ...current, key, descending };
+}
+
 /** Flips the direction without changing which column the listing is sorted by. */
 export function sortOrderReversed(current: SortOrder): SortOrder {
 	return { ...current, descending: !current.descending };

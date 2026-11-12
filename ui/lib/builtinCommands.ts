@@ -16,9 +16,11 @@
  *   paletteOpen    the command palette is on screen
  *   tabCount paneCount canSplit
  */
+import type { ColumnId } from "./columns";
 import type { CommandDescriptor } from "./commands";
 import type { Keybinding } from "./keymap";
 import type { Movement } from "./movement";
+import type { SortKey } from "./sorting";
 
 export type MovementCommand = {
 	id: string;
@@ -35,23 +37,76 @@ const movementTitles: Array<[Movement, string]> = [
 	["right", "right"],
 	["pageDown", "down a page"],
 	["pageUp", "up a page"],
+	["halfPageDown", "down half a page"],
+	["halfPageUp", "up half a page"],
 	["first", "to the first entry"],
 	["last", "to the last entry"],
 ];
 
-/** Each movement's plain keys and the keys that extend the selection with it. */
-const movementKeys: Array<[Movement, string[], string[]]> = [
-	["down", ["down", "j"], ["shift+down", "J"]],
-	["up", ["up", "k"], ["shift+up", "K"]],
-	["left", ["left"], ["shift+left"]],
-	["right", ["right"], ["shift+right"]],
-	["pageDown", ["pagedown", "ctrl+d"], ["shift+pagedown"]],
-	["pageUp", ["pageup", "ctrl+u"], ["shift+pageup"]],
-	["first", ["home", "g g"], ["shift+home"]],
-	["last", ["end", "G"], ["shift+end"]],
+type MovementKeys = {
+	movement: Movement;
+	/** Keys that move the cursor. */
+	plain: string[];
+	/** Keys that carry the selection along with the move. */
+	extending: string[];
+	when: string;
+};
+
+// Left and right only move the cursor where a row holds several entries; in the
+// other views they go up a folder and into one.
+const movementKeys: MovementKeys[] = [
+	{ movement: "down", plain: ["down", "j"], extending: ["shift+down"], when: "listActive" },
+	{ movement: "up", plain: ["up", "k"], extending: ["shift+up"], when: "listActive" },
+	{ movement: "left", plain: ["left"], extending: ["shift+left"], when: "listActive && viewMode == grid" },
+	{ movement: "right", plain: ["right"], extending: ["shift+right"], when: "listActive && viewMode == grid" },
+	{ movement: "pageDown", plain: ["pagedown", "ctrl+f"], extending: [], when: "listActive" },
+	{ movement: "pageUp", plain: ["pageup", "ctrl+b"], extending: [], when: "listActive" },
+	{ movement: "halfPageDown", plain: ["ctrl+d", "shift+pagedown"], extending: [], when: "listActive" },
+	{ movement: "halfPageUp", plain: ["ctrl+u", "shift+pageup"], extending: [], when: "listActive" },
+	{ movement: "first", plain: ["home", "g g"], extending: ["shift+home"], when: "listActive" },
+	{ movement: "last", plain: ["end", "G"], extending: ["shift+end"], when: "listActive" },
 ];
 
 export const movementCommands: MovementCommand[] = buildMovementCommands();
+
+export type SortCommand = {
+	id: string;
+	title: string;
+	key: SortKey;
+	descending: boolean;
+	/** Bound to the lower case key for ascending and the capital for descending. */
+	binding: string;
+};
+
+const sortKeyTable: Array<{ key: SortKey; label: string; letter: string }> = [
+	{ key: "name", label: "name", letter: "a" },
+	{ key: "modified", label: "date modified", letter: "m" },
+	{ key: "size", label: "size", letter: "s" },
+	{ key: "permissions", label: "permissions", letter: "" },
+];
+
+export const sortCommands: SortCommand[] = buildSortCommands();
+
+export type LinemodeCommand = {
+	id: string;
+	title: string;
+	columns: ColumnId[];
+	binding: string;
+};
+
+export const linemodeCommands: LinemodeCommand[] = [
+	{ id: "view.linemode.size", title: "Show only the size", columns: ["size"], binding: "m s" },
+	{
+		id: "view.linemode.permissions",
+		title: "Show only the permissions",
+		columns: ["permissions"],
+		binding: "m p",
+	},
+	{ id: "view.linemode.modified", title: "Show only the date modified", columns: ["modified"], binding: "m m" },
+	{ id: "view.linemode.none", title: "Show no details", columns: [], binding: "m n" },
+];
+
+export const tabSelectCommands: Array<{ id: string; title: string; index: number }> = buildTabSelectCommands();
 
 /** Commands whose behaviour does not vary along an axis, listed by hand. */
 export const staticCommandDescriptors: CommandDescriptor[] = [
@@ -66,6 +121,8 @@ export const staticCommandDescriptors: CommandDescriptor[] = [
 	{ id: "navigate.back", title: "Back", category: "Navigation", when: "canGoBack" },
 	{ id: "navigate.forward", title: "Forward", category: "Navigation", when: "canGoForward" },
 	{ id: "navigate.home", title: "Go to home folder", category: "Navigation" },
+	{ id: "navigate.config", title: "Go to ~/.config", category: "Navigation" },
+	{ id: "navigate.downloads", title: "Go to the downloads folder", category: "Navigation" },
 	{ id: "navigate.trash", title: "Open trash", category: "Navigation" },
 	{
 		id: "navigate.terminal",
@@ -76,19 +133,45 @@ export const staticCommandDescriptors: CommandDescriptor[] = [
 	{ id: "navigate.editPath", title: "Edit location", category: "Navigation" },
 
 	{ id: "list.selectAll", title: "Select all", category: "Listing", when: "listActive" },
-	{ id: "list.clearSelection", title: "Clear selection", category: "Listing" },
+	{ id: "list.invertSelection", title: "Invert selection", category: "Listing", when: "listActive" },
+	{
+		id: "list.escape",
+		title: "Leave visual mode, or clear the selection, filter and find",
+		category: "Listing",
+	},
 	{
 		id: "list.toggleSelection",
-		title: "Add entry to selection",
+		title: "Select entry and move down",
 		category: "Listing",
 		when: "listActive && entryCount > 0",
 	},
 	{
-		id: "list.find",
-		title: "Find by name",
+		id: "list.visual",
+		title: "Select a range as the cursor moves",
 		category: "Listing",
 		when: "listActive && entryCount > 0",
 	},
+	{
+		id: "list.visualUnset",
+		title: "Deselect a range as the cursor moves",
+		category: "Listing",
+		when: "listActive && entryCount > 0",
+	},
+	{ id: "list.filter", title: "Filter entries by name", category: "Listing", when: "listActive" },
+	{
+		id: "list.find",
+		title: "Find forwards by name",
+		category: "Listing",
+		when: "listActive && entryCount > 0",
+	},
+	{
+		id: "list.findBackward",
+		title: "Find backwards by name",
+		category: "Listing",
+		when: "listActive && entryCount > 0",
+	},
+	{ id: "list.findNext", title: "Next match", category: "Listing", when: "listActive" },
+	{ id: "list.findPrevious", title: "Previous match", category: "Listing", when: "listActive" },
 
 	{ id: "tab.new", title: "New tab", category: "Tabs" },
 	{
@@ -99,6 +182,14 @@ export const staticCommandDescriptors: CommandDescriptor[] = [
 	},
 	{ id: "tab.next", title: "Next tab", category: "Tabs", when: "tabCount > 1" },
 	{ id: "tab.previous", title: "Previous tab", category: "Tabs", when: "tabCount > 1" },
+	{ id: "tab.swapNext", title: "Move tab right", category: "Tabs", when: "tabCount > 1" },
+	{ id: "tab.swapPrevious", title: "Move tab left", category: "Tabs", when: "tabCount > 1" },
+	...tabSelectCommands.map((command) => ({
+		id: command.id,
+		title: command.title,
+		category: "Tabs",
+		when: `tabCount > ${command.index}`,
+	})),
 	{ id: "pane.split", title: "Split the view", category: "Tabs", when: "canSplit" },
 	{ id: "pane.close", title: "Close this pane", category: "Tabs", when: "paneCount > 1" },
 	{
@@ -112,16 +203,23 @@ export const staticCommandDescriptors: CommandDescriptor[] = [
 	{ id: "view.grid", title: "Show as grid", category: "View" },
 	{ id: "view.columns", title: "Show as columns", category: "View" },
 	{ id: "view.toggleHidden", title: "Show hidden files", category: "View" },
-	{ id: "view.sortByName", title: "Sort by name", category: "View" },
-	{ id: "view.sortBySize", title: "Sort by size", category: "View" },
-	{ id: "view.sortByModified", title: "Sort by date modified", category: "View" },
-	{ id: "view.sortByPermissions", title: "Sort by permissions", category: "View" },
+	{ id: "view.toggleDetails", title: "Show the details pane", category: "View" },
 	{ id: "view.reverseSort", title: "Reverse the sort order", category: "View" },
+	...sortCommands.map((command) => ({ id: command.id, title: command.title, category: "View" })),
+	...linemodeCommands.map((command) => ({ id: command.id, title: command.title, category: "View" })),
 	{ id: "view.toggleDirectoriesFirst", title: "Keep folders first", category: "View" },
 
 	{ id: "file.cut", title: "Cut", category: "File", when: "selectionCount > 0" },
 	{ id: "file.copy", title: "Copy", category: "File", when: "selectionCount > 0" },
 	{ id: "file.paste", title: "Paste", category: "File", when: "clipboardCount > 0" },
+	{
+		id: "file.pasteOverwrite",
+		title: "Paste, replacing what is there",
+		category: "File",
+		when: "clipboardCount > 0",
+	},
+	{ id: "file.cancelYank", title: "Forget what was copied or cut", category: "File", when: "clipboardCount > 0" },
+	{ id: "file.create", title: "Create a file or folder…", category: "File", when: "directoryOpen" },
 	{ id: "file.rename", title: "Rename", category: "File", when: "selectionCount == 1" },
 	{ id: "file.trash", title: "Move to Trash", category: "File", when: "selectionCount > 0" },
 	{
@@ -173,6 +271,7 @@ export const staticCommandDescriptors: CommandDescriptor[] = [
 		category: "General",
 		when: "!paletteOpen",
 	},
+	{ id: "app.quit", title: "Quit", category: "General" },
 ];
 
 /** Context menu layout: each inner array is one group, rendered with a rule. */
@@ -194,61 +293,85 @@ export const backgroundMenuIds: string[][] = [
 
 /**
  * The listing is modal: with nothing focused for typing, a bare letter is a
- * command rather than the start of a name. Finding an entry by typing lives
- * behind "/" instead, which is what frees the letters up.
+ * command rather than the start of a name.
  *
- * The layout follows ranger, since that is the reference a keyboard-driven file
- * manager is measured against: hjkl to move and enter, HL for history, and the
- * doubled yy/dd/pp for the clipboard.
+ * The layout is Yazi's, key for key, so the same hands work in both: hjkl to
+ * move, `y x p d` for the clipboard, `f` to filter, `/` to find, `g …` to go
+ * somewhere, `, …` to sort and `m …` to choose what is shown beside each name.
+ * Chords with a modifier that Yazi leaves free keep the usual desktop meaning
+ * (ctrl+c copies, ctrl+z undoes), because a window has no terminal to interrupt.
  */
 export const defaultKeymap: Keybinding[] = [
 	...movementBindings(),
 
 	{ key: "space", command: "list.toggleSelection", when: "listActive" },
 	{ key: "ctrl+a", command: "list.selectAll", when: "listActive" },
-	{ key: "escape", command: "list.clearSelection", when: "listActive" },
+	{ key: "ctrl+r", command: "list.invertSelection", when: "listActive" },
+	{ key: "v", command: "list.visual", when: "listActive" },
+	{ key: "V", command: "list.visualUnset", when: "listActive" },
+	{ key: "escape", command: "list.escape", when: "listActive" },
+	{ key: "ctrl+[", command: "list.escape", when: "listActive" },
+	{ key: "f", command: "list.filter", when: "listActive" },
 	{ key: "/", command: "list.find", when: "listActive" },
+	{ key: "?", command: "list.findBackward", when: "listActive" },
+	{ key: "n", command: "list.findNext", when: "listActive" },
+	{ key: "N", command: "list.findPrevious", when: "listActive" },
 
 	{ key: "enter", command: "navigate.open" },
+	{ key: "o", command: "navigate.open", when: "listActive" },
+	{ key: "O", command: "navigate.openWith", when: "listActive" },
 	{ key: "l", command: "navigate.open", when: "listActive" },
-	{ key: "i", command: "navigate.open", when: "listActive" },
-	{ key: "o", command: "navigate.openWith", when: "listActive" },
+	{ key: "right", command: "navigate.open", when: "listActive && viewMode != grid" },
 	{ key: "h", command: "navigate.parent", when: "listActive" },
+	{ key: "left", command: "navigate.parent", when: "listActive && viewMode != grid" },
 	{ key: "backspace", command: "navigate.parent" },
 	{ key: "H", command: "navigate.back", when: "listActive" },
 	{ key: "L", command: "navigate.forward", when: "listActive" },
 	{ key: "alt+left", command: "navigate.back" },
 	{ key: "alt+right", command: "navigate.forward" },
 	{ key: "g h", command: "navigate.home" },
+	{ key: "g c", command: "navigate.config" },
+	{ key: "g d", command: "navigate.downloads" },
 	{ key: "g t", command: "navigate.trash" },
+	{ key: "g space", command: "zoxide.jump" },
 	{ key: "g s", command: "navigate.terminal", when: "listActive" },
 	{ key: "ctrl+alt+t", command: "navigate.terminal" },
 	{ key: "ctrl+l", command: "navigate.editPath" },
+	{ key: "tab", command: "view.toggleDetails", when: "listActive" },
 
-	{ key: "y y", command: "file.copy", when: "listActive" },
-	{ key: "d d", command: "file.cut", when: "listActive" },
-	{ key: "p p", command: "file.paste", when: "listActive" },
+	{ key: "y", command: "file.copy", when: "listActive" },
+	{ key: "x", command: "file.cut", when: "listActive" },
+	{ key: "p", command: "file.paste", when: "listActive" },
+	{ key: "P", command: "file.pasteOverwrite", when: "listActive" },
+	{ key: "Y", command: "file.cancelYank", when: "listActive" },
+	{ key: "X", command: "file.cancelYank", when: "listActive" },
 	{ key: "ctrl+c", command: "file.copy" },
 	{ key: "ctrl+x", command: "file.cut" },
 	{ key: "ctrl+v", command: "file.paste" },
+	{ key: "d", command: "file.trash", when: "listActive" },
+	{ key: "D", command: "file.deletePermanently", when: "listActive" },
+	{ key: "delete", command: "file.trash" },
+	{ key: "shift+delete", command: "file.deletePermanently" },
+	{ key: "a", command: "file.create", when: "listActive" },
 	{ key: "r", command: "file.rename", when: "listActive" },
 	{ key: "f2", command: "file.rename" },
-	{ key: "delete", command: "file.trash" },
-	{ key: "d D", command: "file.trash", when: "listActive" },
-	{ key: "shift+delete", command: "file.deletePermanently" },
-	{ key: "n d", command: "file.newFolder", when: "listActive" },
-	{ key: "n f", command: "file.newFile", when: "listActive" },
 	{ key: "ctrl+shift+n", command: "file.newFolder" },
-	{ key: "t", command: "tags.edit", when: "listActive" },
+	{ key: "T", command: "tags.edit", when: "listActive" },
 	{ key: "b", command: "bookmark.pin", when: "listActive" },
 	{ key: "u", command: "file.undo", when: "listActive" },
-	{ key: "ctrl+z", command: "file.undo" },
 	{ key: "U", command: "file.redo", when: "listActive" },
+	{ key: "ctrl+z", command: "file.undo" },
 	{ key: "ctrl+shift+z", command: "file.redo" },
 	{ key: "ctrl+y", command: "file.redo" },
 
+	{ key: "t t", command: "tab.new", when: "listActive" },
 	{ key: "ctrl+t", command: "tab.new" },
 	{ key: "ctrl+w", command: "tab.close" },
+	{ key: "[", command: "tab.previous", when: "listActive" },
+	{ key: "]", command: "tab.next", when: "listActive" },
+	{ key: "{", command: "tab.swapPrevious", when: "listActive" },
+	{ key: "}", command: "tab.swapNext", when: "listActive" },
+	...tabSelectBindings(),
 	{ key: "ctrl+tab", command: "tab.next" },
 	{ key: "ctrl+shift+tab", command: "tab.previous" },
 	{ key: "ctrl+\\", command: "pane.split" },
@@ -260,25 +383,82 @@ export const defaultKeymap: Keybinding[] = [
 	{ key: "ctrl+3", command: "view.columns" },
 	{ key: ".", command: "view.toggleHidden", when: "listActive" },
 	{ key: "ctrl+h", command: "view.toggleHidden" },
-	{ key: "s n", command: "view.sortByName", when: "listActive" },
-	{ key: "s s", command: "view.sortBySize", when: "listActive" },
-	{ key: "s m", command: "view.sortByModified", when: "listActive" },
-	{ key: "s p", command: "view.sortByPermissions", when: "listActive" },
-	{ key: "s r", command: "view.reverseSort", when: "listActive" },
-	{ key: "s d", command: "view.toggleDirectoriesFirst", when: "listActive" },
+	...sortBindings(),
+	...linemodeBindings(),
 
-	{ key: "f", command: "search.here", when: "listActive" },
+	{ key: "s", command: "search.here", when: "listActive" },
 	{ key: "z", command: "search.global", when: "listActive" },
-	{ key: "ctrl+f", command: "search.here" },
-	{ key: "g d", command: "search.duplicates", when: "listActive" },
 	{ key: "Z", command: "zoxide.jump", when: "listActive" },
 	{ key: "ctrl+j", command: "zoxide.jump" },
+	{ key: "ctrl+s", command: "search.close", when: "searchOpen" },
 	{ key: "escape", command: "search.close", when: "searchOpen" },
-	{ key: "ctrl+s", command: "search.save", when: "searchOpen" },
+	{ key: "ctrl+shift+s", command: "search.save", when: "searchOpen" },
 
 	{ key: "ctrl+shift+p", command: "palette.open" },
 	{ key: ":", command: "palette.open", when: "listActive" },
+	{ key: ";", command: "palette.open", when: "listActive" },
+	{ key: "~", command: "palette.open", when: "listActive" },
+	{ key: "f1", command: "palette.open" },
+	{ key: "q", command: "app.quit", when: "listActive" },
+	{ key: "Q", command: "app.quit", when: "listActive" },
 ];
+
+function sortBindings(): Keybinding[] {
+	return sortCommands
+		.filter((command) => command.binding !== "")
+		.map((command) => ({ key: command.binding, command: command.id, when: "listActive" }));
+}
+
+function linemodeBindings(): Keybinding[] {
+	return linemodeCommands.map((command) => ({
+		key: command.binding,
+		command: command.id,
+		when: "listActive",
+	}));
+}
+
+function tabSelectBindings(): Keybinding[] {
+	return tabSelectCommands.map((command) => ({
+		key: String(command.index + 1),
+		command: command.id,
+		when: "listActive",
+	}));
+}
+
+function buildSortCommands(): SortCommand[] {
+	const commands: SortCommand[] = [];
+	for (const { key, label, letter } of sortKeyTable) {
+		commands.push(sortCommand(key, label, false, letter));
+		commands.push(sortCommand(key, label, true, letter.toUpperCase()));
+	}
+	return commands;
+}
+
+function sortCommand(key: SortKey, label: string, descending: boolean, letter: string): SortCommand {
+	let direction = "ascending";
+	if (descending) {
+		direction = "descending";
+	}
+	let binding = "";
+	if (letter !== "") {
+		binding = `, ${letter}`;
+	}
+	return {
+		id: `view.sort.${key}.${direction}`,
+		title: `Sort by ${label}, ${direction}`,
+		key,
+		descending,
+		binding,
+	};
+}
+
+function buildTabSelectCommands(): Array<{ id: string; title: string; index: number }> {
+	const commands = [];
+	for (let number = 1; number <= 9; number++) {
+		commands.push({ id: `tab.select.${number}`, title: `Go to tab ${number}`, index: number - 1 });
+	}
+	return commands;
+}
 
 function buildMovementCommands(): MovementCommand[] {
 	const commands: MovementCommand[] = [];
@@ -296,15 +476,15 @@ function buildMovementCommands(): MovementCommand[] {
 
 function movementBindings(): Keybinding[] {
 	const bindings: Keybinding[] = [];
-	for (const [movement, plain, extending] of movementKeys) {
-		appendBindings(bindings, plain, `list.move.${movement}`);
-		appendBindings(bindings, extending, `list.extend.${movement}`);
+	for (const { movement, plain, extending, when } of movementKeys) {
+		appendBindings(bindings, plain, `list.move.${movement}`, when);
+		appendBindings(bindings, extending, `list.extend.${movement}`, when);
 	}
 	return bindings;
 }
 
-function appendBindings(bindings: Keybinding[], keys: string[], command: string) {
+function appendBindings(bindings: Keybinding[], keys: string[], command: string, when: string) {
 	for (const key of keys) {
-		bindings.push({ key, command, when: "listActive" });
+		bindings.push({ key, command, when });
 	}
 }

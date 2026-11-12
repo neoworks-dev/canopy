@@ -21,6 +21,18 @@ describe("targetIndexFor in the row view", () => {
 	});
 });
 
+describe("targetIndexFor by half pages", () => {
+	test("moves half the page size", () => {
+		expect(targetIndexFor("halfPageDown", 1, rows)).toBe(3);
+		expect(targetIndexFor("halfPageUp", 5, rows)).toBe(3);
+	});
+
+	test("stops at the ends", () => {
+		expect(targetIndexFor("halfPageDown", 9, rows)).toBe(9);
+		expect(targetIndexFor("halfPageUp", 0, rows)).toBe(0);
+	});
+});
+
 describe("targetIndexFor in the grid view", () => {
 	test("down and up step by the number of rendered columns", () => {
 		expect(targetIndexFor("down", 1, grid)).toBe(5);

@@ -42,8 +42,7 @@
 	import { formatFileSize } from "../lib/format";
 	import { searchDescription, type SavedSearch } from "../lib/savedSearches";
 	import type { SidebarSectionId } from "../lib/sidebar";
-	import { colors, shadow, space, textSize } from "../theme";
-	import Card from "./design/Card.svelte";
+	import { colors, space, textSize } from "../theme";
 	import SidebarItem from "./SidebarItem.svelte";
 	import SidebarSection from "./SidebarSection.svelte";
 
@@ -206,145 +205,143 @@
 {/snippet}
 
 <View style={{ width, shrink: 0 }}>
-	<Card surface="elevated" padding="none" style={{ flex: 1, minHeight: 0, shadow: shadow.lg }}>
-		<Scroll style={{ flex: 1, minHeight: 0 }}>
-			<View style={{ gap: space[3], padding: space[2] }}>
-				<SidebarSection
-					title="Places"
-					isCollapsed={isCollapsed("places")}
-					onToggle={() => onToggleSection("places")}
-				>
-					{#each places as place (place.path)}
-						<SidebarItem
-							icon={iconFor(place).regular}
-							activeIcon={iconFor(place).filled}
-							label={place.name}
-							title={place.path}
-							active={isCurrent(place.path)}
-							onSelect={() => onNavigate(place.path)}
-							onDropPaths={folderDrop(place.path)}
-						/>
-					{/each}
+	<Scroll style={{ flex: 1, minHeight: 0 }}>
+		<View style={{ gap: space[3], padding: space[2] }}>
+			<SidebarSection
+				title="Places"
+				isCollapsed={isCollapsed("places")}
+				onToggle={() => onToggleSection("places")}
+			>
+				{#each places as place (place.path)}
 					<SidebarItem
-						icon={trashIcons.regular}
-						activeIcon={trashIcons.filled}
-						label="Trash"
-						active={isTrashOpen}
-						onSelect={onOpenTrash}
-						onDropPaths={(sources) => onDropInTrash(sources)}
+						icon={iconFor(place).regular}
+						activeIcon={iconFor(place).filled}
+						label={place.name}
+						title={place.path}
+						active={isCurrent(place.path)}
+						onSelect={() => onNavigate(place.path)}
+						onDropPaths={folderDrop(place.path)}
 					/>
-				</SidebarSection>
+				{/each}
+				<SidebarItem
+					icon={trashIcons.regular}
+					activeIcon={trashIcons.filled}
+					label="Trash"
+					active={isTrashOpen}
+					onSelect={onOpenTrash}
+					onDropPaths={(sources) => onDropInTrash(sources)}
+				/>
+			</SidebarSection>
 
-				{#if devices.length > 0}
-					<SidebarSection
-						title="Devices"
-						isCollapsed={isCollapsed("devices")}
-						onToggle={() => onToggleSection("devices")}
-					>
-						{#each devices as device (device.path)}
-							<SidebarItem
-								icon={deviceIcon(device).regular}
-								activeIcon={deviceIcon(device).filled}
-								label={device.name}
-								detail={freeSpaceLabel(device)}
-								title={capacityLabel(device)}
-								active={isCurrent(device.path)}
-								onSelect={() => onNavigate(device.path)}
-								onDropPaths={folderDrop(device.path)}
-							/>
-						{/each}
-					</SidebarSection>
+			{#if devices.length > 0}
+				<SidebarSection
+					title="Devices"
+					isCollapsed={isCollapsed("devices")}
+					onToggle={() => onToggleSection("devices")}
+				>
+					{#each devices as device (device.path)}
+						<SidebarItem
+							icon={deviceIcon(device).regular}
+							activeIcon={deviceIcon(device).filled}
+							label={device.name}
+							detail={freeSpaceLabel(device)}
+							title={capacityLabel(device)}
+							active={isCurrent(device.path)}
+							onSelect={() => onNavigate(device.path)}
+							onDropPaths={folderDrop(device.path)}
+						/>
+					{/each}
+				</SidebarSection>
+			{/if}
+
+			<SidebarSection
+				title="Bookmarks"
+				isCollapsed={isCollapsed("bookmarks")}
+				onToggle={() => onToggleSection("bookmarks")}
+			>
+				{#each pinned as bookmark (bookmark.path)}
+					<SidebarItem
+						icon={bookmarkIcons.regular}
+						activeIcon={bookmarkIcons.filled}
+						label={bookmark.name}
+						title={bookmark.path}
+						active={isCurrent(bookmark.path)}
+						onSelect={() => onNavigate(bookmark.path)}
+						onDropPaths={folderDrop(bookmark.path)}
+						onRemove={() => onRemoveBookmark(bookmark.path)}
+						removeLabel="Unpin {bookmark.name}"
+					/>
+				{/each}
+				{#if pinned.length === 0}
+					{@render hint("Pin a folder to keep it here")}
 				{/if}
+			</SidebarSection>
 
-				<SidebarSection
-					title="Bookmarks"
-					isCollapsed={isCollapsed("bookmarks")}
-					onToggle={() => onToggleSection("bookmarks")}
-				>
-					{#each pinned as bookmark (bookmark.path)}
-						<SidebarItem
-							icon={bookmarkIcons.regular}
-							activeIcon={bookmarkIcons.filled}
-							label={bookmark.name}
-							title={bookmark.path}
-							active={isCurrent(bookmark.path)}
-							onSelect={() => onNavigate(bookmark.path)}
-							onDropPaths={folderDrop(bookmark.path)}
-							onRemove={() => onRemoveBookmark(bookmark.path)}
-							removeLabel="Unpin {bookmark.name}"
-						/>
-					{/each}
-					{#if pinned.length === 0}
-						{@render hint("Pin a folder to keep it here")}
-					{/if}
-				</SidebarSection>
+			<SidebarSection
+				title="Searches"
+				isCollapsed={isCollapsed("searches")}
+				onToggle={() => onToggleSection("searches")}
+			>
+				{#each savedSearches as search (search.name)}
+					<SidebarItem
+						icon={searchIcons.regular}
+						activeIcon={searchIcons.filled}
+						label={search.name}
+						title={searchDescription(search)}
+						active={openSearchName === search.name}
+						onSelect={() => onOpenSearch(search)}
+						onEdit={() => onRenameSearch(search)}
+						editLabel="Rename {search.name}"
+						onRemove={() => onForgetSearch(search.name)}
+						removeLabel="Remove {search.name} from the sidebar"
+					/>
+				{/each}
+				{#if savedSearches.length === 0}
+					{@render hint("Save a search to keep it here")}
+				{/if}
+			</SidebarSection>
 
-				<SidebarSection
-					title="Searches"
-					isCollapsed={isCollapsed("searches")}
-					onToggle={() => onToggleSection("searches")}
-				>
-					{#each savedSearches as search (search.name)}
-						<SidebarItem
-							icon={searchIcons.regular}
-							activeIcon={searchIcons.filled}
-							label={search.name}
-							title={searchDescription(search)}
-							active={openSearchName === search.name}
-							onSelect={() => onOpenSearch(search)}
-							onEdit={() => onRenameSearch(search)}
-							editLabel="Rename {search.name}"
-							onRemove={() => onForgetSearch(search.name)}
-							removeLabel="Remove {search.name} from the sidebar"
-						/>
-					{/each}
-					{#if savedSearches.length === 0}
-						{@render hint("Save a search to keep it here")}
-					{/if}
-				</SidebarSection>
+			<SidebarSection
+				title="Tags"
+				isCollapsed={isCollapsed("tags")}
+				onToggle={() => onToggleSection("tags")}
+			>
+				{#each tagNames as name (name)}
+					<SidebarItem
+						icon={tagIcons.regular}
+						activeIcon={tagIcons.filled}
+						label={name}
+						active={openTag === name}
+						onSelect={() => onOpenTag(name)}
+						onRemove={() => onForgetTag(name)}
+						removeLabel="Remove {name} from the sidebar"
+					/>
+				{/each}
+				{#if tagNames.length === 0}
+					{@render hint("Tag a file to keep it here")}
+				{/if}
+			</SidebarSection>
 
-				<SidebarSection
-					title="Tags"
-					isCollapsed={isCollapsed("tags")}
-					onToggle={() => onToggleSection("tags")}
-				>
-					{#each tagNames as name (name)}
-						<SidebarItem
-							icon={tagIcons.regular}
-							activeIcon={tagIcons.filled}
-							label={name}
-							active={openTag === name}
-							onSelect={() => onOpenTag(name)}
-							onRemove={() => onForgetTag(name)}
-							removeLabel="Remove {name} from the sidebar"
-						/>
-					{/each}
-					{#if tagNames.length === 0}
-						{@render hint("Tag a file to keep it here")}
-					{/if}
-				</SidebarSection>
-
-				<SidebarSection
-					title="Recent"
-					isCollapsed={isCollapsed("recent")}
-					onToggle={() => onToggleSection("recent")}
-				>
-					{#each visibleRecent as entry (entry.path)}
-						<SidebarItem
-							icon={recentIcon(entry).regular}
-							activeIcon={recentIcon(entry).filled}
-							label={entry.name}
-							title={entry.path}
-							active={isRecentCurrent(entry)}
-							onSelect={() => onOpenRecent(entry)}
-							onDropPaths={recentDrop(entry)}
-						/>
-					{/each}
-					{#if visibleRecent.length === 0}
-						{@render hint("Nothing opened yet")}
-					{/if}
-				</SidebarSection>
-			</View>
-		</Scroll>
-	</Card>
+			<SidebarSection
+				title="Recent"
+				isCollapsed={isCollapsed("recent")}
+				onToggle={() => onToggleSection("recent")}
+			>
+				{#each visibleRecent as entry (entry.path)}
+					<SidebarItem
+						icon={recentIcon(entry).regular}
+						activeIcon={recentIcon(entry).filled}
+						label={entry.name}
+						title={entry.path}
+						active={isRecentCurrent(entry)}
+						onSelect={() => onOpenRecent(entry)}
+						onDropPaths={recentDrop(entry)}
+					/>
+				{/each}
+				{#if visibleRecent.length === 0}
+					{@render hint("Nothing opened yet")}
+				{/if}
+			</SidebarSection>
+		</View>
+	</Scroll>
 </View>

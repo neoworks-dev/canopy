@@ -31,8 +31,8 @@ describe("the built-in command set", () => {
 	});
 
 	test("both a plain and an extending command exist for every movement", () => {
-		expect(movementCommands.filter((command) => command.extend)).toHaveLength(8);
-		expect(movementCommands.filter((command) => !command.extend)).toHaveLength(8);
+		expect(movementCommands.filter((command) => command.extend)).toHaveLength(10);
+		expect(movementCommands.filter((command) => !command.extend)).toHaveLength(10);
 	});
 });
 
@@ -64,12 +64,43 @@ describe("the default keymap", () => {
 	});
 
 	test("the letters the modal layout promises are bound", () => {
-		expect(commandFor("f")).toBe("search.here");
-		expect(commandFor("z")).toBe("search.global");
+		expect(commandFor("f")).toBe("list.filter");
+		expect(commandFor("s")).toBe("search.here");
 		expect(commandFor("/")).toBe("list.find");
+		expect(commandFor("n")).toBe("list.findNext");
 		expect(commandFor("Z")).toBe("zoxide.jump");
 		expect(commandFor("h")).toBe("navigate.parent");
 		expect(commandFor("l")).toBe("navigate.open");
+	});
+
+	test("the clipboard keys are Yazi's single letters", () => {
+		expect(commandFor("y")).toBe("file.copy");
+		expect(commandFor("x")).toBe("file.cut");
+		expect(commandFor("p")).toBe("file.paste");
+		expect(commandFor("d")).toBe("file.trash");
+		expect(commandFor("D")).toBe("file.deletePermanently");
+	});
+
+	test("sequences are reachable: no key is both a command and the start of a sequence", () => {
+		const compiled = compileKeymap(defaultKeymap);
+		const unreachable: string[] = [];
+		for (const binding of compiled) {
+			collectShadowedSequences(compiled, binding, unreachable);
+		}
+		expect(unreachable).toEqual([]);
+	});
+
+	test("every digit selects its tab", () => {
+		for (let number = 1; number <= 9; number++) {
+			expect(commandFor(String(number))).toBe(`tab.select.${number}`);
+		}
+	});
+
+	test("each sort key has an ascending lower case and a descending capital", () => {
+		expect(commandFor(", a")).toBe("view.sort.name.ascending");
+		expect(commandFor(", A")).toBe("view.sort.name.descending");
+		expect(commandFor(", s")).toBe("view.sort.size.ascending");
+		expect(commandFor(", M")).toBe("view.sort.modified.descending");
 	});
 });
 
@@ -80,6 +111,26 @@ describe("the context menus", () => {
 		expect(menuIds.filter((id) => !builtinIds.has(id))).toEqual([]);
 	});
 });
+
+function collectShadowedSequences(
+	compiled: ReturnType<typeof compileKeymap>,
+	binding: ReturnType<typeof compileKeymap>[number],
+	unreachable: string[],
+) {
+	if (binding.chords.length < 2) {
+		return;
+	}
+	const prefix = binding.chords.slice(0, -1);
+	const shadow = compiled.find(
+		(candidate) =>
+			candidate.chords.length === prefix.length &&
+			candidate.chords.every((chord, index) => chord === prefix[index]) &&
+			candidate.when === binding.when,
+	);
+	if (shadow) {
+		unreachable.push(`${binding.chords.join(" ")} is shadowed by ${prefix.join(" ")}`);
+	}
+}
 
 function commandFor(key: string): string {
 	const bound = defaultKeymap.filter((binding) => binding.key === key);

@@ -25,8 +25,9 @@ export function maximumWidthFor(side: PaneSide): number {
 	return maximumPaneWidth[side];
 }
 
+/** Whole pixels: a drag reports fractional positions, and the settings file stores widths as integers. */
 export function clampPaneWidth(side: PaneSide, width: number): number {
-	return Math.min(maximumPaneWidth[side], Math.max(minimumPaneWidth, width));
+	return Math.min(maximumPaneWidth[side], Math.max(minimumPaneWidth, Math.round(width)));
 }
 
 /**

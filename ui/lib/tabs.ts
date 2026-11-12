@@ -226,6 +226,27 @@ export function activateNeighbouringTab(layout: Layout, step: number): Layout {
 	return activateTab(layout, group.id, group.tabs[(index + step + count) % count].id);
 }
 
+/** Swaps the active tab with its neighbour; at either end it stays put. */
+export function swapActiveTab(layout: Layout, step: number): Layout {
+	const group = activeGroup(layout);
+	const index = group.tabs.findIndex((tab) => tab.id === group.activeTabId);
+	const target = index + step;
+	if (target < 0 || target >= group.tabs.length) {
+		return layout;
+	}
+	const tabs = [...group.tabs];
+	[tabs[index], tabs[target]] = [tabs[target], tabs[index]];
+	return {
+		...layout,
+		groups: layout.groups.map((candidate) => {
+			if (candidate.id !== group.id) {
+				return candidate;
+			}
+			return { ...candidate, tabs };
+		}),
+	};
+}
+
 function newTab(location: TabLocation, nextId: () => string): Tab {
 	return {
 		id: nextId(),

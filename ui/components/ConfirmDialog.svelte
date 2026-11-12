@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Text } from "@neoworks/svelte-gpui/ui";
+	import { Text, type KeyEvent } from "@neoworks/svelte-gpui/ui";
 	import Button from "./design/Button.svelte";
 	import Dialog from "./Dialog.svelte";
 	import { colors, textSize } from "../theme";
@@ -17,9 +17,22 @@
 		onConfirm: () => void;
 		onCancel: () => void;
 	} = $props();
+
+	// y and Enter confirm, n cancels; Escape is the dialog's own.
+	function answerWithKey(event: KeyEvent) {
+		if (event.key === "y" || event.key === "Enter") {
+			event.stopPropagation();
+			onConfirm();
+			return;
+		}
+		if (event.key === "n") {
+			event.stopPropagation();
+			onCancel();
+		}
+	}
 </script>
 
-<Dialog {title} onClose={onCancel}>
+<Dialog {title} onClose={onCancel} onKey={answerWithKey}>
 	<Text style={{ fontSize: textSize.sm, color: colors.muted }}>{message}</Text>
 
 	{#snippet footer()}

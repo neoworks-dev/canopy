@@ -9,6 +9,7 @@ import {
 	closeGroup,
 	closeTab,
 	directoryLocation,
+	directoryOf,
 	focusOtherGroup,
 	initialLayout,
 	locationFromKey,
@@ -16,6 +17,7 @@ import {
 	maximumGroups,
 	openTab,
 	splitGroup,
+	swapActiveTab,
 	tabTitle,
 	watchedPaths,
 	withHistory,
@@ -295,5 +297,30 @@ describe("recording a location in history", () => {
 			kind: "tag",
 			name: "/etc",
 		});
+	});
+});
+
+describe("swapping tabs", () => {
+	function tabPaths(layout: ReturnType<typeof layoutAt>): string[] {
+		return activeGroup(layout).tabs.map((tab) => directoryOf(tab));
+	}
+
+	test("the active tab trades places with its neighbour and stays active", () => {
+		let layout = layoutAt("/a");
+		layout = openTab(layout, directoryLocation("/b"), nextId);
+		layout = openTab(layout, directoryLocation("/c"), nextId);
+		layout = activateTabAt(layout, 1);
+
+		const swapped = swapActiveTab(layout, 1);
+
+		expect(tabPaths(swapped)).toEqual(["/a", "/c", "/b"]);
+		expect(directoryOf(activeTab(activeGroup(swapped)))).toBe("/b");
+	});
+
+	test("at either end it stays where it is", () => {
+		let layout = layoutAt("/a");
+		layout = openTab(layout, directoryLocation("/b"), nextId);
+		expect(swapActiveTab(layout, 1)).toBe(layout);
+		expect(swapActiveTab(activateTabAt(layout, 0), -1)).toEqual(activateTabAt(layout, 0));
 	});
 });
