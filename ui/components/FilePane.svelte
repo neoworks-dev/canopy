@@ -99,6 +99,7 @@
 		sortOrder,
 		showHidden,
 		cutPaths,
+		copiedPaths,
 		savedSearches,
 		onStatus,
 		onNavigate,
@@ -119,6 +120,7 @@
 		sortOrder: SortOrder;
 		showHidden: boolean;
 		cutPaths: Set<string>;
+		copiedPaths: Set<string>;
 		/** Looked up by name when this pane is showing one as a folder. */
 		savedSearches: SavedSearch[];
 		onStatus: (status: PaneStatus) => void;
@@ -196,6 +198,8 @@
 	const visibleEntries = $derived.by(collectVisibleEntries);
 	const visiblePaths = $derived(visibleEntries.map((entry) => entry.path));
 	const selectedPaths = $derived(new Set(selection.paths));
+	// What the views mark as selected: an entry the cursor merely rests on is hovered, not marked.
+	const markedPaths = $derived(markedOnly(selectedPaths, isMarking));
 	const selectedEntries = $derived(visibleEntries.filter((entry) => selectedPaths.has(entry.path)));
 	const activeColumns = $derived(columnsFor(visibleColumnIds));
 	const gitStatuses = $derived(reportedStatuses());
@@ -329,6 +333,20 @@
 		selectedEntries.forEach(openEntry);
 	}
 
+	function markedOnly(selected: Set<string>, marking: boolean): Set<string> {
+		if (!marking && selected.size <= 1) {
+			return new Set();
+		}
+		return selected;
+	}
+
+	function currentMode(): PaneStatus["mode"] {
+		if (!visual) {
+			return "normal";
+		}
+		return visual.mode;
+	}
+
 	function hoveredEntry(): filesystem.Entry | null {
 		const entry = visibleEntries[selection.focusIndex];
 		if (!entry) {
@@ -457,6 +475,8 @@
 			hiddenCount: hiddenEntryCount(),
 			selected: selectedEntries,
 			hovered: hoveredEntry(),
+			cursorIndex: selection.focusIndex,
+			mode: currentMode(),
 			isListActive: isListActive(),
 			branch: reportedBranch(),
 		};
@@ -927,6 +947,14 @@
 		revealPathInFolder(entry.path);
 	}
 
+	// Yazi's 1:4:3 — the listing holds the 1 and the 4, the preview beside it the 3.
+	function listShare(mode: ViewMode): number {
+		if (mode === "columns") {
+			return 5;
+		}
+		return 1;
+	}
+
 	function revealPathInFolder(path: string) {
 		onNavigate({ kind: "directory", path: parentDirectoryOf(path) });
 	}
@@ -934,15 +962,11 @@
 
 <svelte:window onkeydown={rememberModifiers} onkeyup={rememberModifiers} />
 
-<Card
-	surface="elevated"
-	padding="none"
-	style={{ flex: 1, minWidth: 0, minHeight: 0, overflow: "hidden", shadow: shadow.lg }}
->
+<View style={{ flex: 1, minWidth: 0, minHeight: 0, overflow: "hidden" }}>
 	{@render header?.()}
 
 	<View style={{ direction: "row", flex: 1, minHeight: 0 }}>
-		<View style={{ flex: 1, minWidth: 0, minHeight: 0, gap: space[2], padding: space[2] }}>
+		<View style={{ flex: listShare(viewMode), minWidth: 0, minHeight: 0 }}>
 			{#if location.kind === "trash"}
 				<TrashPane onRestored={() => onChanged()} />
 			{:else if location.kind === "search"}
@@ -1030,7 +1054,7 @@
 				<DropTarget
 					accept={acceptsPaths}
 					ondrop={({ data }) => dropIntoThisFolder(data)}
-					style={{ flex: 1, minHeight: 0, radius: radius.lg, borderWidth: 1, borderColor: "transparent" }}
+					style={{ flex: 1, minHeight: 0, borderWidth: 1, borderColor: "transparent" }}
 					over={wholeFolderRing()}
 				>
 					<View
@@ -1039,13 +1063,11 @@
 						style={{
 							flex: 1,
 							minHeight: 0,
-							radius: radius.lg,
 							overflow: "hidden",
 							borderWidth: 1,
 							borderColor: outsideDragRing(),
 							transition: duration.fast,
 						}}
-						focus={{ borderColor: colors.lineFaint }}
 						onlayout={(layout: Layout) => (container = layout)}
 						onfocus={onActivate}
 						ondown={pressBackground}
@@ -1061,12 +1083,14 @@
 								bind:this={columnsView}
 								currentPath={directoryPath}
 								entries={visibleEntries}
-								{selectedPaths}
+								columns={activeColumns}
+								selectedPaths={markedPaths}
+								{cutPaths}
+								{copiedPaths}
 								focusIndex={selection.focusIndex}
 								{sortOrder}
 								{showHidden}
 								onPress={pressEntry}
-								onOpen={openEntry}
 								{dragPathsFor}
 								onDragStart={startDrag}
 								onDragEnd={endDrag}
@@ -1080,8 +1104,9 @@
 								bind:this={gridView}
 								entries={visibleEntries}
 								columns={activeColumns}
-								{selectedPaths}
+								selectedPaths={markedPaths}
 								{cutPaths}
+								{copiedPaths}
 								{gitStatuses}
 								focusIndex={selection.focusIndex}
 								{renamingPath}
@@ -1100,8 +1125,9 @@
 								bind:this={rowsView}
 								entries={visibleEntries}
 								columns={activeColumns}
-								{selectedPaths}
+								selectedPaths={markedPaths}
 								{cutPaths}
+								{copiedPaths}
 								{gitStatuses}
 								focusIndex={selection.focusIndex}
 								{renamingPath}
@@ -1144,4 +1170,4 @@
 		</View>
 		{@render aside?.()}
 	</View>
-</Card>
+</View>

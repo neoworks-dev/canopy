@@ -13,7 +13,7 @@ export type PaneWidths = {
 export const paneResizeStep = 16;
 
 /** The width of the gutter a resizer sits in, in pixels. */
-export const paneGutterWidth = 8;
+export const paneGutterWidth = 5;
 
 export const minimumPaneWidth = 160;
 // The places rail stays compact; the details pane holds previews, so it may grow.

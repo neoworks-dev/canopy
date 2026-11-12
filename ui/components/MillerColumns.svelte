@@ -1,34 +1,35 @@
 <!--
-	The folder on screen and every folder on the way to it, side by side.
+	Yazi's layout: the parent folder on the left and the folder on screen beside
+	it, four times as wide. The preview of the hovered entry is the pane's aside,
+	which takes the remaining three parts.
 
-	Only the deepest column is the pane's own listing, so it is the one that
+	Only the folder on screen is the pane's own listing, so it is the one that
 	carries the selection, answers to the keyboard and can be dragged from; the
-	columns behind it are read separately and are there to be walked back
-	through.
+	parent is read separately and is there to step back into.
 -->
 <script lang="ts">
-	import { List, Scroll, Text, View, merge, type Layout } from "@neoworks/svelte-gpui/ui";
+	import { List, Text, View, type Layout } from "@neoworks/svelte-gpui/ui";
 	import type { filesystem } from "../backend/models";
-	import { entryHover, entryLook, entryRowHeight } from "../lib/entryStyles";
+	import type { ColumnDefinition } from "../lib/columns";
+	import { entryRowHeight, entryValueColor, type EntryState } from "../lib/entryStyles";
 	import type { EntryViewProps } from "../lib/entryList";
 	import { columnChain } from "../lib/millerColumns";
 	import type { SortOrder } from "../lib/sorting";
-	import { colors, radius, space, textSize } from "../theme";
-	import EntryIcon from "./EntryIcon.svelte";
+	import { colors, textSize } from "../theme";
+	import EntryLine from "./EntryLine.svelte";
 	import EntrySlot from "./EntrySlot.svelte";
 	import MillerColumn from "./MillerColumn.svelte";
 
-	const deepestColumnWidth = 256;
-	// A column and the gap after it, which is how far each one pushes the deepest along.
-	const columnPitch = 224 + space[2];
-
-	// Enough history to walk back through without the folder on screen being
-	// pushed off the far edge of a narrow pane.
-	const visibleColumnLimit = 4;
+	// Yazi's default ratio is 1:4:3; the 3 is the preview beside this pair.
+	const parentShare = 1;
+	const currentShare = 4;
 
 	let {
 		entries,
+		columns,
 		selectedPaths,
+		cutPaths,
+		copiedPaths,
 		focusIndex,
 		onPress,
 		dragPathsFor,
@@ -37,7 +38,6 @@
 		onDropOnFolder,
 		onLayout,
 		onScroll,
-		onOpen,
 		currentPath,
 		sortOrder,
 		showHidden,
@@ -45,7 +45,10 @@
 	}: Pick<
 		EntryViewProps,
 		| "entries"
+		| "columns"
 		| "selectedPaths"
+		| "cutPaths"
+		| "copiedPaths"
 		| "focusIndex"
 		| "onPress"
 		| "dragPathsFor"
@@ -55,7 +58,6 @@
 		| "onLayout"
 		| "onScroll"
 	> & {
-		onOpen: (entry: filesystem.Entry) => void;
 		currentPath: string;
 		sortOrder: SortOrder;
 		showHidden: boolean;
@@ -63,131 +65,110 @@
 	} = $props();
 
 	let list = $state<ReturnType<typeof List<filesystem.Entry>>>();
-	let scroller = $state<ReturnType<typeof Scroll>>();
-	// The columns need a height to fill, which the scrolling row around them cannot give.
-	let height = $state(0);
-	// Where the pane and its deepest column sit in the window, which says how far in
-	// the entries start once the columns behind have scrolled.
+	// Where the pane and the current column sit in the window, which says how far
+	// in the entries start.
 	let paneX = $state(0);
-	let paneWidth = $state(0);
-	let deepestX = $state(0);
+	let currentX = $state(0);
+	let currentWidth = $state(0);
 
-	// The chain leaves out the folder on screen: that one is drawn from the
-	// entries the pane already holds rather than read a second time.
-	const ancestors = $derived(columnChain(currentPath, visibleColumnLimit).slice(0, -1));
-	const chainWidth = $derived(ancestors.length * columnPitch + deepestColumnWidth);
+	// The chain of two is the parent and the folder on screen; the folder on
+	// screen is drawn from the entries the pane already holds.
+	const parentPath = $derived(columnChain(currentPath, 2).slice(0, -1)[0]);
 
 	/** Brings an entry into view, moving the list only as far as it takes. */
 	export function scrollToIndex(index: number) {
 		list?.scrollToIndex(index, { align: "nearest" });
 	}
 
-	// The folder on screen is the deepest column, so the chain is scrolled to show it.
-	$effect(() => {
-		scrollToDeepest(chainWidth, paneWidth);
-	});
-
 	$effect(() => {
 		onLayout({
 			columns: 1,
-			cellWidth: deepestColumnWidth,
+			cellWidth: currentWidth,
 			cellHeight: entryRowHeight,
-			hitWidth: deepestColumnWidth,
+			hitWidth: currentWidth,
 			hitHeight: entryRowHeight,
-			left: deepestX - paneX,
+			left: currentX - paneX,
 			top: 0,
 		});
 	});
 
-	// The scroll only reaches as far as the chain has been laid out, which is
-	// after the frame that changed it.
-	function scrollToDeepest(widthOfChain: number, widthOfPane: number) {
-		requestAnimationFrame(() => scroller?.scrollTo(Math.max(0, widthOfChain - widthOfPane)));
-	}
-
-	function openFromColumn(entry: filesystem.Entry) {
-		if (entry.isDir) {
-			onNavigate(entry.path);
+	function openFromParent(entry: filesystem.Entry) {
+		if (!entry.isDir) {
 			return;
 		}
-		onOpen(entry);
+		onNavigate(entry.path);
 	}
 
-	function stateOf(entry: filesystem.Entry, index: number, isDropOver: boolean) {
+	function stateOf(entry: filesystem.Entry, index: number, isDropOver: boolean): EntryState {
 		return {
 			isSelected: selectedPaths.has(entry.path),
 			isFocused: index === focusIndex,
 			isDropOver,
-			isCut: false,
+			isCut: cutPaths.has(entry.path),
+			isCopied: copiedPaths.has(entry.path),
 			isMuted: false,
 		};
 	}
+
+	function linemodeText(entry: filesystem.Entry, shown: ColumnDefinition[]): string {
+		return shown.map((column) => column.valueOf(entry)).join("  ");
+	}
 </script>
 
-<View
-	style={{ flex: 1, minHeight: 0 }}
-	onresize={(layout: Layout) => {
-		height = layout.height;
-		paneWidth = layout.width;
-	}}
-	onlayout={(layout: Layout) => (paneX = layout.x)}
->
-	<Scroll bind:this={scroller} horizontal style={{ flex: 1, minHeight: 0 }}>
-		<View style={{ direction: "row", gap: space[2], height, width: chainWidth }}>
-			{#each ancestors as columnPath (columnPath)}
-				<MillerColumn path={columnPath} {currentPath} {sortOrder} {showHidden} onOpen={openFromColumn} />
-			{/each}
+<View style={{ flex: 1, minHeight: 0, direction: "row" }} onlayout={(layout: Layout) => (paneX = layout.x)}>
+	{#if parentPath}
+		<MillerColumn
+			path={parentPath}
+			{currentPath}
+			{sortOrder}
+			{showHidden}
+			share={parentShare}
+			onOpen={openFromParent}
+		/>
+	{/if}
 
-			<View
-				style={{ width: deepestColumnWidth, shrink: 0 }}
-				onlayout={(layout: Layout) => (deepestX = layout.x)}
-			>
-				<List
-					bind:this={list}
-					items={entries}
-					rowHeight={entryRowHeight}
-					key={(entry) => entry.path}
-					style={{ flex: 1, minHeight: 0 }}
-					onscroll={(position) => onScroll(position.y)}
+	<View
+		style={{ flex: currentShare, minWidth: 0 }}
+		onlayout={(layout: Layout) => (currentX = layout.x)}
+		onresize={(layout: Layout) => (currentWidth = layout.width)}
+	>
+		{#if entries.length === 0}
+			<Text style={{ padding: 8, fontSize: textSize.xs, color: colors.faint }}>No items</Text>
+		{/if}
+		<List
+			bind:this={list}
+			items={entries}
+			rowHeight={entryRowHeight}
+			key={(entry) => entry.path}
+			style={{ flex: 1, minHeight: 0 }}
+			onscroll={(position) => onScroll(position.y)}
+		>
+			{#snippet row(entry, index)}
+				<EntrySlot
+					{entry}
+					dragPaths={dragPathsFor(entry)}
+					onDragStart={() => onDragStart(index)}
+					{onDragEnd}
+					{onDropOnFolder}
 				>
-					{#snippet row(entry, index)}
-						<EntrySlot
-							{entry}
-							dragPaths={dragPathsFor(entry)}
-							onDragStart={() => onDragStart(index)}
-							{onDragEnd}
-							{onDropOnFolder}
-						>
-							{#snippet children(isDropOver)}
-								{@const entryState = stateOf(entry, index, isDropOver)}
-								<View
-									style={merge(
-										{
-											flex: 1,
-											direction: "row",
-											align: "center",
-											gap: space[2],
-											paddingX: space[1.5],
-											radius: radius.md,
-										},
-										entryLook(entryState),
-									)}
-									hover={entryHover(entryState)}
-									onpress={(event) => onPress(index, event)}
+					{#snippet children(isDropOver)}
+						{@const rowState = stateOf(entry, index, isDropOver)}
+						<EntryLine {entry} state={rowState} onpress={(event) => onPress(index, event)}>
+							{#snippet trailing()}
+								<Text
+									style={{
+										shrink: 0,
+										fontSize: textSize.xs,
+										color: entryValueColor(rowState),
+									}}
 								>
-									<EntryIcon {entry} />
-									<Text style={{ flex: 1, minWidth: 0, truncate: true, fontSize: textSize.sm, color: colors.text }}>
-										{entry.name}
-									</Text>
-									{#if entry.isDir}
-										<Text style={{ shrink: 0, fontSize: textSize["2xs"], color: colors.faint }}>›</Text>
-									{/if}
-								</View>
+									{linemodeText(entry, columns)}
+								</Text>
 							{/snippet}
-						</EntrySlot>
+						</EntryLine>
 					{/snippet}
-				</List>
-			</View>
-		</View>
-	</Scroll>
+				</EntrySlot>
+			{/snippet}
+		</List>
+	</View>
 </View>

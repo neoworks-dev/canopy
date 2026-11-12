@@ -4,21 +4,27 @@
 	either way, which is what the list's row height counts on.
 -->
 <script lang="ts">
-	import { Image, View } from "@neoworks/svelte-gpui/ui";
+	import { Icon, Image, View } from "@neoworks/svelte-gpui/ui";
 	import IconCircle, { type Tone } from "./design/IconCircle.svelte";
 	import { file, fileCode, filePdf, fileText, fileZip, folder, image, musicNote, videoCamera } from "../icons";
 	import { classifyEntry, type FileKind } from "../lib/fileKind";
 	import { cachedThumbnail, loadThumbnail, supportsThumbnail, type ThumbnailSource } from "../lib/thumbnails";
 	import { radius } from "../theme";
 
-	type IconSize = "sm" | "md" | "lg" | "xl";
+	type IconSize = "glyph" | "sm" | "md" | "lg" | "xl";
+
+	const glyphSize = 14;
 
 	let {
 		entry,
 		size = "sm",
+		color = "",
 	}: {
 		entry: ThumbnailSource;
+		/** "glyph" is a bare icon the height of a line of text, as a terminal draws one. */
 		size?: IconSize;
+		/** The glyph's colour; the circles bring their own. */
+		color?: string;
 	} = $props();
 
 	const iconsByKind: Record<FileKind, string> = {
@@ -47,7 +53,7 @@
 
 	// IconCircle stops at 48px and holds an icon rather than an image, so the box a
 	// preview fills is sized here and the circle is kept inside it.
-	const boxes: Record<IconSize, { size: number; radius: number }> = {
+	const boxes: Record<Exclude<IconSize, "glyph">, { size: number; radius: number }> = {
 		sm: { size: 32, radius: radius.md },
 		md: { size: 40, radius: radius.md },
 		lg: { size: 48, radius: radius.lg },
@@ -70,7 +76,7 @@
 		const source = entry;
 		const request = ++latestRequest;
 		loadedURL = "";
-		if (!supportsThumbnail(source)) {
+		if (size === "glyph" || !supportsThumbnail(source)) {
 			return;
 		}
 		loadThumbnail(source).then((dataURL) => applyThumbnail(request, dataURL));
@@ -94,11 +100,16 @@
 		if (requested === "xl") {
 			return "lg";
 		}
+		if (requested === "glyph") {
+			return "sm";
+		}
 		return requested;
 	}
 </script>
 
-{#if thumbnailURL}
+{#if size === "glyph"}
+	<Icon svg={iconsByKind[kind]} size={glyphSize} {color} style={{ shrink: 0 }} />
+{:else if thumbnailURL}
 	<Image src={thumbnailURL} fit="contain" style={{ ...boxes[size], shrink: 0 }} />
 {:else}
 	<View style={{ ...boxes[size], shrink: 0, align: "center", justify: "center" }}>

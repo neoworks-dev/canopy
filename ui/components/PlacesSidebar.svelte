@@ -204,9 +204,9 @@
 	</Text>
 {/snippet}
 
-<View style={{ width, shrink: 0 }}>
+<View style={{ width, shrink: 0, background: colors.surface }}>
 	<Scroll style={{ flex: 1, minHeight: 0 }}>
-		<View style={{ gap: space[3], padding: space[2] }}>
+		<View style={{ gap: space[2], paddingY: space[1.5] }}>
 			<SidebarSection
 				title="Places"
 				isCollapsed={isCollapsed("places")}

@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { onMount, tick } from "svelte";
-	import { Button as PlainButton, Icon, Text, View, type PointerEvent, type Style } from "@neoworks/svelte-gpui/ui";
+	import { View, type PointerEvent } from "@neoworks/svelte-gpui/ui";
 	import { clipboard, window as appWindow } from "@neoworks/svelte-gpui";
-	import Button from "./components/design/Button.svelte";
-	import { caretLeft, caretRight, eye, eyeSlash, gitBranch, house, terminalWindow, textT, warning } from "./icons";
-	import { colors, root, space, textSize } from "./theme";
+	import { terminalWindow, textT } from "./icons";
+	import { colors, root, space } from "./theme";
 	import {
 		AddBookmark,
 		AddTag,
@@ -59,6 +58,7 @@
 	import SearchField from "./components/SearchField.svelte";
 	import TabStrip from "./components/TabStrip.svelte";
 	import SpotDialog from "./components/SpotDialog.svelte";
+	import StatusBar from "./components/StatusBar.svelte";
 	import TagDialog from "./components/TagDialog.svelte";
 	import TaskManager from "./components/TaskManager.svelte";
 	import WhichKey from "./components/WhichKey.svelte";
@@ -107,7 +107,7 @@
 	} from "./lib/history";
 	import type { Movement } from "./lib/movement";
 	import { emptyPaneStatus, type PaneStatus } from "./lib/paneStatus";
-	import { defaultPaneWidths, paneGutterWidth } from "./lib/panes";
+	import { defaultPaneWidths } from "./lib/panes";
 	import {
 		searchDescription,
 		suggestedName,
@@ -158,6 +158,7 @@
 	// written once the drag settles instead of once per frame.
 	const settingsSaveDebounceMilliseconds = 300;
 	const statusPollMilliseconds = 3000;
+	const headerHeight = 36;
 	// Yazi's K and J seek five units of the preview at a time.
 	const previewSeekLines = 5;
 
@@ -281,6 +282,7 @@
 	const conflict = $derived(operations.conflict);
 	// Only a cut marks entries as pending; a copy leaves them as they are.
 	const cutPaths = $derived(new Set(pathsHeldByCut()));
+	const copiedPaths = $derived(new Set(pathsHeldByCopy()));
 	// The saved search whose folder is on screen, which is where the pane is
 	// rather than something to be kept in step with it.
 	const openSearchName = $derived(searchNameOf(tab.location));
@@ -821,6 +823,13 @@
 		return clipboardPaths;
 	}
 
+	function pathsHeldByCopy(): string[] {
+		if (isClipboardCut) {
+			return [];
+		}
+		return clipboardPaths;
+	}
+
 	function currentCommandContext(): WhenContext {
 		return {
 			listActive: status.isListActive,
@@ -874,20 +883,28 @@
 		};
 	}
 
-	// The strip lines up with the listing rather than the window, so the space a
-	// flanking pane takes is left empty beside it.
-	function stripInset(): Style {
-		return {
-			marginLeft: sidebarInset(),
-		};
+	// Yazi always shows the preview; the other views show it when asked to.
+	function isPreviewShown(paneGroupId: string): boolean {
+		if (paneGroupId !== layout.activeGroupId) {
+			return false;
+		}
+		return showDetails || viewMode === "columns";
 	}
 
-	// The gutter between the panes is as wide as the resizer that sits in it.
-	function sidebarInset(): number {
-		if (!isSidebarOpen) {
-			return 0;
+	// In Yazi's layout the preview is the 3 of 1:4:3; elsewhere it keeps the width it was dragged to.
+	function previewShare(): number {
+		if (viewMode === "columns") {
+			return 3;
 		}
-		return sidebarWidth + paneGutterWidth;
+		return 0;
+	}
+
+	// The bar names the hovered entry itself, so it only adds a summary for a selection of several.
+	function selectionSummary(): string {
+		if (selectedEntries.length < 2) {
+			return "";
+		}
+		return [strip.primary, strip.secondary].filter(Boolean).join(" · ");
 	}
 
 	function selectionMenuGroups(): MenuItem[][] {
@@ -1572,13 +1589,6 @@
 		return name;
 	}
 
-	function hiddenToggleIcon(): string {
-		if (showHidden) {
-			return eye;
-		}
-		return eyeSlash;
-	}
-
 	function indexingLabel(reported: proto.StatusResult): string {
 		return `Indexing ${reported.filesIndexed.toLocaleString()} entries so far`;
 	}
@@ -1609,31 +1619,60 @@
 	function deleteMessage(): string {
 		return `${itemCount(selectedEntries.length)} will be deleted permanently. This cannot be undone.`;
 	}
-
-	// A split outlines the half that has focus.
-	function paneFrame(paneGroupId: string): Style {
-		const outlined = layout.groups.length > 1 && paneGroupId === layout.activeGroupId;
-		if (!outlined) {
-			return {};
-		}
-		return { borderWidth: 1, borderColor: colors.lineFaint };
-	}
 </script>
 
 <svelte:window onkeydown={handleWindowKeydown} />
 
-<View style={{ ...root, gap: space[2], padding: space[2] }}>
-	<View style={{ direction: "row", shrink: 0, align: "center", gap: space[2], paddingX: space[1] }}>
-		<Button size="sm" variant="ghost" icon={caretLeft} disabled={!canGoBack(tab.history)} onpress={goBack} />
-		<Button
-			size="sm"
-			variant="ghost"
-			icon={caretRight}
-			disabled={!canGoForward(tab.history)}
-			onpress={goForward}
+{#snippet sidebar()}
+	{#if isSidebarOpen}
+		<PlacesSidebar
+			{places}
+			{devices}
+			{pinned}
+			{recent}
+			{tagNames}
+			{savedSearches}
+			{openSearchName}
+			{currentPath}
+			isTrashOpen={tab.location.kind === "trash"}
+			openTag={openTagName()}
+			{collapsedSections}
+			width={sidebarWidth}
+			onToggleSection={toggleSection}
+			onNavigate={openPlace}
+			onOpenRecent={openRecent}
+			onOpenTrash={openTrash}
+			onOpenTag={openTagPane}
+			onRemoveBookmark={unpinFolder}
+			onForgetTag={forgetTag}
+			onOpenSearch={openSavedSearch}
+			onRenameSearch={startRenamingSearch}
+			onForgetSearch={forgetSavedSearch}
+			onDropOnFolder={dropOntoFolder}
+			onDropInTrash={dropIntoTrash}
 		/>
-		<Button size="sm" variant="ghost" icon={house} onpress={goHome} />
+		<PaneResizer
+			side="left"
+			width={sidebarWidth}
+			label="Resize the places sidebar"
+			onWidth={(width) => (sidebarWidth = width)}
+		/>
+	{/if}
+{/snippet}
 
+{#snippet locationBar()}
+	<View
+		style={{
+			direction: "row",
+			height: headerHeight,
+			shrink: 0,
+			align: "center",
+			gap: space[1],
+			paddingX: space[1],
+			borderBottomWidth: 1,
+			borderColor: colors.line,
+		}}
+	>
 		{#if isSearchOpen}
 			<SearchField
 				bind:this={searchField}
@@ -1669,51 +1708,16 @@
 			{showDetails}
 			onShowDetailsChange={(shown) => (showDetails = shown)}
 		/>
-
-		<Button size="sm" variant="ghost" icon={hiddenToggleIcon()} onpress={toggleHidden} />
 	</View>
+{/snippet}
 
+{#snippet paneGroups()}
 	<View style={{ direction: "row", flex: 1, minHeight: 0 }}>
-		{#if isSidebarOpen}
-			<PlacesSidebar
-				{places}
-				{devices}
-				{pinned}
-				{recent}
-				{tagNames}
-				{savedSearches}
-				{openSearchName}
-				{currentPath}
-				isTrashOpen={tab.location.kind === "trash"}
-				openTag={openTagName()}
-				{collapsedSections}
-				width={sidebarWidth}
-				onToggleSection={toggleSection}
-				onNavigate={openPlace}
-				onOpenRecent={openRecent}
-				onOpenTrash={openTrash}
-				onOpenTag={openTagPane}
-				onRemoveBookmark={unpinFolder}
-				onForgetTag={forgetTag}
-				onOpenSearch={openSavedSearch}
-				onRenameSearch={startRenamingSearch}
-				onForgetSearch={forgetSavedSearch}
-				onDropOnFolder={dropOntoFolder}
-				onDropInTrash={dropIntoTrash}
-			/>
-			<PaneResizer
-				side="left"
-				width={sidebarWidth}
-				label="Resize the places sidebar"
-				onWidth={(width) => (sidebarWidth = width)}
-			/>
-		{/if}
-
 		{#each layout.groups as paneGroup, index (paneGroup.id)}
 			{#if index > 0}
-				<View style={{ width: space[2], shrink: 0 }} />
+				<View style={{ width: 1, shrink: 0, background: colors.line }} />
 			{/if}
-			<View style={{ flex: 1, minWidth: 0, radius: 12, ...paneFrame(paneGroup.id) }}>
+			<View style={{ flex: 1, minWidth: 0 }}>
 				<FilePane
 					bind:this={panes[paneGroup.id]}
 					location={activeTab(paneGroup).location}
@@ -1722,6 +1726,7 @@
 					{sortOrder}
 					{showHidden}
 					{cutPaths}
+					{copiedPaths}
 					{savedSearches}
 					onStatus={(reported) => reportStatus(paneGroup.id, reported)}
 					onNavigate={(location) => {
@@ -1752,59 +1757,45 @@
 						/>
 					{/snippet}
 					{#snippet aside()}
-						{#if isDetailsOpen && paneGroup.id === layout.activeGroupId}
-							<PaneResizer
-								side="right"
+						{#if isPreviewShown(paneGroup.id)}
+							{#if viewMode === "columns"}
+								<View style={{ width: 1, shrink: 0, background: colors.line }} />
+							{:else}
+								<PaneResizer
+									side="right"
+									width={detailsWidth}
+									label="Resize the details pane"
+									onWidth={(width) => (detailsWidth = width)}
+								/>
+							{/if}
+							<PreviewPane
+								bind:this={previewPane}
+								entries={selectedEntries}
 								width={detailsWidth}
-								label="Resize the details pane"
-								onWidth={(width) => (detailsWidth = width)}
+								share={previewShare()}
+								{sortOrder}
+								{showHidden}
+								onOpenFolder={navigateTo}
 							/>
-							<PreviewPane bind:this={previewPane} entries={selectedEntries} width={detailsWidth} />
 						{/if}
 					{/snippet}
 				</FilePane>
 			</View>
 		{/each}
 	</View>
+{/snippet}
 
-	<!-- Status strip: floats on the canvas like the top bar, and lines up with
-	     the listing rather than the window. -->
-	<View
-		style={{
-			direction: "row",
-			height: 32,
-			shrink: 0,
-			align: "center",
-			gap: space[2],
-			paddingX: space[1],
-			fontSize: textSize.xs,
-			...stripInset(),
-		}}
-	>
-		{#if status.branch}
-			<View style={{ direction: "row", shrink: 0, align: "center", gap: space[1], color: colors.dim }}>
-				<Icon svg={gitBranch} size={12} />
-				<Text style={{ maxWidth: 160, truncate: true }}>{status.branch}</Text>
-			</View>
-			<Text style={{ shrink: 0, color: colors.faint }}>·</Text>
-		{/if}
-		{#if reportedError()}
-			<PlainButton
-				style={{ direction: "row", minWidth: 0, align: "center", gap: space[2], radius: 6, paddingX: space[1] }}
-				onpress={dismissReportedError}
-			>
-				<Icon svg={warning} size={14} color={colors.red} />
-				<Text style={{ minWidth: 0, truncate: true, color: colors.dim }}>{reportedError()}</Text>
-			</PlainButton>
-		{:else}
-			{#if strip.primary}
-				<Text style={{ minWidth: 0, truncate: true, color: colors.muted }}>{strip.primary}</Text>
-			{/if}
-			{#if strip.secondary}
-				<Text style={{ shrink: 0, color: colors.faint }}>{strip.secondary}</Text>
-			{/if}
-		{/if}
+<!-- Everything sits flush against the window's edges, divided by hairlines. -->
+<View style={root}>
+	<View style={{ direction: "row", flex: 1, minHeight: 0 }}>
+		{@render sidebar()}
+		<View style={{ flex: 1, minWidth: 0, minHeight: 0 }}>
+			{@render locationBar()}
+			{@render paneGroups()}
+		</View>
 	</View>
+
+	<StatusBar {status} summary={selectionSummary()} errorMessage={reportedError()} onDismissError={dismissReportedError} />
 
 	<!-- Later siblings draw on top, so the progress cards come before the dialogs. -->
 	<OperationProgress

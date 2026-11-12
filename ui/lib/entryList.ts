@@ -16,6 +16,8 @@ export type EntryViewProps = {
 	selectedPaths: Set<string>;
 	/** Entries a cut is holding: dimmed until the paste lands. */
 	cutPaths: Set<string>;
+	/** Entries a copy is holding: marked until something else is copied. */
+	copiedPaths: Set<string>;
 	/** What the working tree says about each entry, keyed by name. */
 	gitStatuses: Record<string, string>;
 	focusIndex: number;

@@ -4,7 +4,7 @@
 	With several entries selected it lists them and adds their sizes up.
 -->
 <script lang="ts">
-	import { Image, List, Scroll, Text, View } from "@neoworks/svelte-gpui/ui";
+	import { Image, List, Scroll, Text, View, type Style } from "@neoworks/svelte-gpui/ui";
 	import { CancelMeasurement, MeasureFolder, PreviewFile } from "../backend/FileService";
 	import { EventsOn } from "../backend/events";
 	import type { filesystem } from "../backend/models";
@@ -17,13 +17,32 @@
 		type Measurement,
 	} from "../lib/folderSize";
 	import { formatFileSize, formatModifiedTime } from "../lib/format";
+	import { entryRowHeight, kindColor } from "../lib/entryStyles";
+	import type { SortOrder } from "../lib/sorting";
 	import { colors, radius, space, textSize } from "../theme";
 	import AudioPreview from "./AudioPreview.svelte";
 	import CodeCanvas from "./CodeCanvas.svelte";
 	import EntryIcon from "./EntryIcon.svelte";
+	import MillerColumn from "./MillerColumn.svelte";
 	import LoadingSpinner from "./design/LoadingSpinner.svelte";
 
-	let { entries, width }: { entries: filesystem.Entry[]; width: number } = $props();
+	let {
+		entries,
+		width,
+		share = 0,
+		sortOrder,
+		showHidden,
+		onOpenFolder,
+	}: {
+		entries: filesystem.Entry[];
+		/** The width it was dragged to, used while it has no share. */
+		width: number;
+		/** Its part of the row's width against the listing's, as Yazi's 3 of 1:4:3; 0 keeps `width`. */
+		share?: number;
+		sortOrder: SortOrder;
+		showHidden: boolean;
+		onOpenFolder: (path: string) => void;
+	} = $props();
 
 	let preview = $state<filesystem.Preview | null>(null);
 	let errorMessage = $state("");
@@ -48,11 +67,12 @@
 
 	const singleEntry = $derived(onlyEntry(entries));
 	const totalSize = $derived(entries.reduce((sum, entry) => sum + entry.size, 0));
-	const rows = $derived(metadataRows(singleEntry, measurement, isCounting));
+	const footer = $derived(footerLine(singleEntry, measurement, isCounting));
 
+	// A folder previews as its listing, which the column reads for itself.
 	$effect(() => {
 		const entry = singleEntry;
-		if (!entry) {
+		if (!entry || entry.isDir) {
 			resetPreview();
 			return;
 		}
@@ -154,26 +174,31 @@
 		return selected[0];
 	}
 
-	type MetadataRow = { label: string; value: string };
-
-	function metadataRows(entry: filesystem.Entry | null, measured: Measurement | null, counting: boolean): MetadataRow[] {
+	/** One line under the preview: what it is, how big, and when it last changed. */
+	function footerLine(entry: filesystem.Entry | null, measured: Measurement | null, counting: boolean): string {
 		if (!entry) {
-			return [];
+			return "";
 		}
 		return [
-			{ label: "Type", value: kindLabel(classifyEntry(entry)) },
-			{ label: "Size", value: sizeLabel(entry, measured, counting) },
-			...contentsRows(entry, measured),
-			{ label: "Modified", value: formatModifiedTime(entry.modTime) },
-			{ label: "Permissions", value: entry.mode },
-		];
+			kindLabel(classifyEntry(entry)),
+			sizeLabel(entry, measured, counting),
+			...contentsParts(entry, measured),
+			formatModifiedTime(entry.modTime),
+		].join(" · ");
 	}
 
-	function contentsRows(entry: filesystem.Entry, measured: Measurement | null): MetadataRow[] {
+	function contentsParts(entry: filesystem.Entry, measured: Measurement | null): string[] {
 		if (!entry.isDir) {
 			return [];
 		}
-		return [{ label: "Contents", value: measuredContentsLabel(measured) }];
+		return [measuredContentsLabel(measured)];
+	}
+
+	function paneSize(): Style {
+		if (share > 0) {
+			return { flex: share, minWidth: 0 };
+		}
+		return { width, shrink: 0 };
 	}
 
 	// A folder's own size says nothing about what it holds, so the row follows the
@@ -201,45 +226,24 @@
 	</Text>
 {/snippet}
 
-<View
-	style={{
-		width,
-		shrink: 0,
-		gap: space[2],
-		padding: space[2],
-		overflow: "hidden",
-		borderLeftWidth: 1,
-		borderColor: colors.lineFaint,
-	}}
->
-	{#if singleEntry}
-		<View style={{ direction: "row", shrink: 0, align: "center", gap: space[2] }}>
-			<EntryIcon entry={singleEntry} size="md" />
-			<View style={{ flex: 1, minWidth: 0 }}>
-				<Text style={{ truncate: true, fontSize: textSize.sm, fontWeight: "medium", color: colors.text }}>
-					{singleEntry.name}
-				</Text>
-				<Text style={{ truncate: true, fontSize: textSize["2xs"], color: colors.faint }}>{singleEntry.path}</Text>
-			</View>
-		</View>
-
-		<View style={{ shrink: 0, gap: space[2], padding: space[2], radius: radius.lg, background: colors.raised }}>
-			{#each rows as row (row.label)}
-				<View style={{ direction: "row", align: "baseline", justify: "between", gap: space[2] }}>
-					<Text style={{ fontSize: textSize["2xs"], uppercase: true, color: colors.faint }}>{row.label}</Text>
-					<Text style={{ flex: 1, minWidth: 0, truncate: true, textAlign: "right", fontSize: textSize.xs, color: colors.muted }}>
-						{row.value}
-					</Text>
-				</View>
-			{/each}
-		</View>
-
+<View style={{ ...paneSize(), overflow: "hidden" }}>
+	{#if singleEntry?.isDir}
+		{#key singleEntry.path}
+			<MillerColumn
+				path={singleEntry.path}
+				{sortOrder}
+				{showHidden}
+				onOpen={(entry) => onOpenFolder(entry.path)}
+			/>
+		{/key}
+	{:else if singleEntry}
+		<View style={{ flex: 1, minHeight: 0, gap: space[2], padding: space[2] }}>
 		{#if errorMessage}
 			<Text style={{ fontSize: textSize.xs, color: colors.red }}>{errorMessage}</Text>
 		{:else if isLoading}
 			<View style={{ align: "center", padding: space[2] }}><LoadingSpinner /></View>
 		{:else if preview?.kind === "image"}
-			<View style={{ flex: 1, minHeight: 0, padding: space[2], radius: radius.lg, background: colors.raised }}>
+			<View style={{ flex: 1, minHeight: 0 }}>
 				<Image src={preview.dataUrl} fit="contain" style={{ width: "full", height: "full" }} />
 			</View>
 		{:else if preview?.kind === "audio"}
@@ -263,6 +267,7 @@
 		{:else if preview?.kind === "unsupported"}
 			<Text style={{ fontSize: textSize.xs, color: colors.dim }}>No preview for this file type.</Text>
 		{/if}
+		</View>
 	{:else if entries.length === 0}
 		<View style={{ flex: 1, align: "center", justify: "center", paddingX: space[2] }}>
 			<Text style={{ textAlign: "center", fontSize: textSize.xs, color: colors.faint }}>
@@ -270,21 +275,40 @@
 			</Text>
 		</View>
 	{:else}
-		<Text style={{ shrink: 0, fontSize: textSize.sm, fontWeight: "medium", color: colors.text }}>
-			{entries.length} items selected
+		<View style={{ flex: 1, minHeight: 0, gap: space[1], padding: space[2] }}>
+			<Text style={{ shrink: 0, fontSize: textSize.sm, fontWeight: "medium", color: colors.text }}>
+				{entries.length} items selected
+			</Text>
+			<Text style={{ shrink: 0, fontSize: textSize.xs, color: colors.dim }}>
+				{formatFileSize(totalSize)} in total
+			</Text>
+			<List items={entries} rowHeight={entryRowHeight} key={(entry) => entry.path} style={{ flex: 1, minHeight: 0 }}>
+				{#snippet row(entry)}
+					<View style={{ direction: "row", align: "center", gap: space[2], height: entryRowHeight }}>
+						<EntryIcon {entry} size="glyph" color={kindColor(classifyEntry(entry))} />
+						<Text style={{ flex: 1, minWidth: 0, truncate: true, fontSize: textSize.xs, color: colors.muted }}>
+							{entry.name}
+						</Text>
+					</View>
+				{/snippet}
+			</List>
+		</View>
+	{/if}
+
+	{#if footer}
+		<Text
+			style={{
+				shrink: 0,
+				truncate: true,
+				paddingX: space[2],
+				paddingY: space[1],
+				borderTopWidth: 1,
+				borderColor: colors.line,
+				fontSize: textSize["2xs"],
+				color: colors.dim,
+			}}
+		>
+			{footer}
 		</Text>
-		<Text style={{ shrink: 0, fontSize: textSize.xs, color: colors.dim }}>
-			{formatFileSize(totalSize)} in total
-		</Text>
-		<List items={entries} rowHeight={40} key={(entry) => entry.path} style={{ flex: 1, minHeight: 0 }}>
-			{#snippet row(entry)}
-				<View style={{ direction: "row", align: "center", gap: space[2], height: 40 }}>
-					<EntryIcon {entry} />
-					<Text style={{ flex: 1, minWidth: 0, truncate: true, fontSize: textSize.xs, color: colors.muted }}>
-						{entry.name}
-					</Text>
-				</View>
-			{/snippet}
-		</List>
 	{/if}
 </View>

@@ -7,7 +7,7 @@
 	import type { Snippet } from "svelte";
 	import { Button, Icon, Text, View } from "@neoworks/svelte-gpui/ui";
 	import { caretDownBold, caretRightBold } from "../icons";
-	import { colors, duration, radius, space, textSize } from "../theme";
+	import { colors, duration, space, textSize } from "../theme";
 
 	let {
 		title,
@@ -36,12 +36,11 @@
 			direction: "row",
 			align: "center",
 			gap: space[1],
-			radius: radius.sm,
 			paddingX: space[2],
-			paddingY: space[1],
-			fontSize: textSize["2xs"],
-			uppercase: true,
-			color: colors.faint,
+			paddingY: space[0.5],
+			fontSize: textSize.xs,
+			fontWeight: "bold",
+			color: colors.text,
 			transition: duration.fast,
 		}}
 		hover={{ color: colors.muted }}

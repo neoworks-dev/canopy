@@ -76,7 +76,7 @@
 		if (isHovered || isFocused) {
 			return colors.lineStrong;
 		}
-		return "transparent";
+		return colors.line;
 	}
 </script>
 
@@ -101,9 +101,7 @@
 		<View
 			style={{
 				flex: 1,
-				width: 2,
-				marginY: space[1.5],
-				radius: radius.full,
+				width: 1,
 				background: barColor(),
 				transition: duration.fast,
 			}}

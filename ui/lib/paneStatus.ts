@@ -13,6 +13,10 @@ export type PaneStatus = {
 	selected: filesystem.Entry[];
 	/** The entry under the cursor, whatever is marked; null in an empty listing. */
 	hovered: filesystem.Entry | null;
+	/** Where the cursor is among the entries shown, -1 when there is none. */
+	cursorIndex: number;
+	/** Yazi's mode: normal, or sweeping a range that selects or unsets. */
+	mode: "normal" | "select" | "unset";
 	/** The listing is what the pane is showing, rather than trash, tags or an error. */
 	isListActive: boolean;
 	/** The branch the folder is on, empty outside a working tree. */
@@ -26,6 +30,8 @@ export const emptyPaneStatus: PaneStatus = {
 	hiddenCount: 0,
 	selected: [],
 	hovered: null,
+	cursorIndex: -1,
+	mode: "normal",
 	isListActive: false,
 	branch: "",
 };

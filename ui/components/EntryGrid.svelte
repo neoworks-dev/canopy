@@ -7,8 +7,17 @@
 	import { List, Text, View, merge, type Layout } from "@neoworks/svelte-gpui/ui";
 	import type { filesystem } from "../backend/models";
 	import { columnSummary } from "../lib/columns";
-	import { entryHover, entryLook } from "../lib/entryStyles";
+	import {
+		entryHover,
+		entryLook,
+		entryValueColor,
+		kindColor,
+		markerColor,
+		markerWidth,
+		type EntryState,
+	} from "../lib/entryStyles";
 	import type { EntryViewProps } from "../lib/entryList";
+	import { classifyEntry } from "../lib/fileKind";
 	import { gitMarkFor } from "../lib/gitStatus";
 	import { colors, radius, space, textSize } from "../theme";
 	import EntryIcon from "./EntryIcon.svelte";
@@ -29,6 +38,7 @@
 		columns,
 		selectedPaths,
 		cutPaths,
+		copiedPaths,
 		gitStatuses,
 		focusIndex,
 		renamingPath,
@@ -111,15 +121,17 @@
 		return mark.isMuted;
 	}
 
-	function stateOf(entry: filesystem.Entry, index: number, isDropOver: boolean) {
+	function stateOf(entry: filesystem.Entry, index: number, isDropOver: boolean): EntryState {
 		return {
 			isSelected: selectedPaths.has(entry.path),
 			isFocused: index === focusIndex,
 			isDropOver,
 			isCut: cutPaths.has(entry.path),
+			isCopied: copiedPaths.has(entry.path),
 			isMuted: isMuted(entry),
 		};
 	}
+
 
 	function emptySlots(row: TileRow): number[] {
 		return Array.from({ length: tilesPerRow - row.entries.length }, (_, slot) => slot);
@@ -157,7 +169,8 @@
 										padding: space[1.5],
 										radius: radius.lg,
 									},
-									entryLook(tileState),
+									entryLook(tileState, classifyEntry(entry)),
+									{ borderLeftWidth: markerWidth, borderColor: markerColor(tileState) },
 								)}
 								hover={entryHover(tileState)}
 								onpress={(event) => onPress(index, event)}
@@ -197,7 +210,7 @@
 											textAlign: "center",
 											fontSize: textSize.xs,
 											fontWeight: "medium",
-											color: colors.text,
+											color: kindColor(classifyEntry(entry)),
 										}}
 									>
 										{entry.name}
@@ -209,7 +222,7 @@
 											truncate: true,
 											textAlign: "center",
 											fontSize: textSize["2xs"],
-											color: colors.dim,
+											color: entryValueColor(tileState),
 										}}
 									>
 										{columnSummary(entry, columns)}
