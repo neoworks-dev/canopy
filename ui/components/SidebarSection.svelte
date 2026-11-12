@@ -37,17 +37,17 @@
 			align: "center",
 			gap: space[1],
 			paddingX: space[2],
-			paddingY: space[0.5],
+			paddingY: space[1],
 			fontSize: textSize.xs,
-			fontWeight: "bold",
-			color: colors.text,
+			fontWeight: "medium",
+			color: colors.dim,
 			transition: duration.fast,
 		}}
-		hover={{ color: colors.muted }}
+		hover={{ color: colors.text }}
 		onpress={onToggle}
 	>
 		<Icon svg={caret()} size={10} />
-		<Text style={{ truncate: true }}>{title}</Text>
+		<Text style={{ shrink: 0 }}>{title}</Text>
 	</Button>
 
 	{#if !isCollapsed}

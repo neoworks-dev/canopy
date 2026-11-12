@@ -137,7 +137,7 @@
 			color: colors.faint,
 		}}
 	>
-		<View style={{ width: markerWidth + glyphColumnWidth, shrink: 0 }} />
+		<View style={{ width: space[1] + markerWidth + space[2] + glyphColumnWidth, shrink: 0 }} />
 		<SortHeader label="Name" sortKey="name" width={0} isRightAligned={false} {order} {onSort} />
 		<View style={{ width: markColumnWidth, shrink: 0 }} />
 		{#each columns as column (column.id)}

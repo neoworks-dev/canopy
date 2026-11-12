@@ -9,9 +9,17 @@
 	import type { Snippet } from "svelte";
 	import { Text, View, merge, type PointerEvent } from "@neoworks/svelte-gpui/ui";
 	import type { filesystem } from "../backend/models";
-	import { entryHover, entryLook, kindColor, markerColor, markerWidth, type EntryState } from "../lib/entryStyles";
+	import {
+		entryHover,
+		entryLook,
+		kindColor,
+		markerColor,
+		markerHeight,
+		markerWidth,
+		type EntryState,
+	} from "../lib/entryStyles";
 	import { classifyEntry } from "../lib/fileKind";
-	import { space, textSize } from "../theme";
+	import { radius, space, textSize } from "../theme";
 	import EntryIcon from "./EntryIcon.svelte";
 
 	let {
@@ -43,11 +51,14 @@
 </script>
 
 <View
-	style={merge({ flex: 1, direction: "row", align: "center", gap: space[2], paddingRight: space[2] }, entryLook(state, kind))}
+	style={merge(
+		{ flex: 1, direction: "row", align: "center", gap: space[2], paddingLeft: space[1], paddingRight: space[2], radius: radius.md },
+		entryLook(state, kind),
+	)}
 	hover={entryHover(state)}
 	{onpress}
 >
-	<View style={{ width: markerWidth, height: "full", shrink: 0, background: markerColor(state) }} />
+	<View style={{ width: markerWidth, height: markerHeight, shrink: 0, radius: radius.full, background: markerColor(state) }} />
 	<EntryIcon {entry} size="glyph" color={nameColor} />
 	{#if name}
 		{@render name()}

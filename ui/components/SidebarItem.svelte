@@ -100,6 +100,7 @@
 			{
 				direction: "row",
 				align: "center",
+				radius: radius.md,
 				borderWidth: 1,
 				borderColor: "transparent",
 			},
@@ -132,8 +133,9 @@
 				flex: 1,
 				minWidth: 0,
 				paddingX: space[2],
-				paddingY: space[1],
-				fontSize: textSize.xs,
+				paddingY: space[1.5],
+				radius: radius.md,
+				fontSize: textSize.sm,
 				color: colors.muted,
 				transition: duration.fast,
 			},
@@ -148,7 +150,7 @@
 		hover={labelHover()}
 		onpress={onSelect}
 	>
-		<Icon svg={shownIcon} size={14} />
+		<Icon svg={shownIcon} size={16} />
 		<Text style={{ flex: 1, minWidth: 0, truncate: true, fontWeight: labelWeight() }}>
 			{label}
 		</Text>

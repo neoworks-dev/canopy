@@ -8,11 +8,12 @@ import type { Style } from "@neoworks/svelte-gpui/ui";
 import type { FileKind } from "./fileKind";
 import { colors, duration } from "../theme";
 
-/** The height of one row: a line of text with a little air, as a terminal row has. */
-export const entryRowHeight = 26;
+/** The height of one row: a line of text with room around it to aim at. */
+export const entryRowHeight = 30;
 
-/** The width of the marker at a row's left edge. */
+/** The marker before a row's glyph: a short rounded bar. */
 export const markerWidth = 3;
+export const markerHeight = 14;
 
 export type EntryState = {
 	isSelected: boolean;

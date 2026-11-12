@@ -17,7 +17,7 @@
 	} from "../lib/statusBar";
 	import { colors, radius, space, textSize } from "../theme";
 
-	const statusBarHeight = 24;
+	const statusBarHeight = 32;
 
 	let {
 		status,
@@ -77,15 +77,15 @@
 		height: statusBarHeight,
 		shrink: 0,
 		align: "center",
-		gap: space[2],
-		paddingX: space[2],
+		gap: space[3],
+		paddingX: space[3],
 		borderTopWidth: 1,
 		borderColor: colors.line,
 		background: colors.surface,
 		fontSize: textSize.xs,
 	}}
 >
-	<View style={{ shrink: 0, paddingX: space[1.5], paddingY: 1, radius: radius.xs, background: modeColors[status.mode] }}>
+	<View style={{ shrink: 0, paddingX: space[2], paddingY: space[0.5], radius: radius.sm, background: modeColors[status.mode] }}>
 		<Text style={{ fontSize: textSize["2xs"], fontWeight: "bold", color: colors.inverse }}>{modeLabel(status.mode)}</Text>
 	</View>
 	{#if hoveredSize()}

@@ -966,7 +966,7 @@
 	{@render header?.()}
 
 	<View style={{ direction: "row", flex: 1, minHeight: 0 }}>
-		<View style={{ flex: listShare(viewMode), minWidth: 0, minHeight: 0 }}>
+		<View style={{ flex: listShare(viewMode), minWidth: 0, minHeight: 0, gap: space[2], padding: space[2] }}>
 			{#if location.kind === "trash"}
 				<TrashPane onRestored={() => onChanged()} />
 			{:else if location.kind === "search"}

@@ -2,7 +2,8 @@
 	import { onMount, tick } from "svelte";
 	import { View, type PointerEvent } from "@neoworks/svelte-gpui/ui";
 	import { clipboard, window as appWindow } from "@neoworks/svelte-gpui";
-	import { terminalWindow, textT } from "./icons";
+	import Button from "./components/design/Button.svelte";
+	import { caretLeft, caretRight, terminalWindow, textT } from "./icons";
 	import { colors, root, space } from "./theme";
 	import {
 		AddBookmark,
@@ -158,7 +159,7 @@
 	// written once the drag settles instead of once per frame.
 	const settingsSaveDebounceMilliseconds = 300;
 	const statusPollMilliseconds = 3000;
-	const headerHeight = 36;
+	const headerHeight = 48;
 	// Yazi's K and J seek five units of the preview at a time.
 	const previewSeekLines = 5;
 
@@ -1667,12 +1668,14 @@
 			height: headerHeight,
 			shrink: 0,
 			align: "center",
-			gap: space[1],
-			paddingX: space[1],
+			gap: space[2],
+			paddingX: space[2],
 			borderBottomWidth: 1,
 			borderColor: colors.line,
 		}}
 	>
+		<Button size="sm" variant="ghost" icon={caretLeft} disabled={!canGoBack(tab.history)} onpress={goBack} />
+		<Button size="sm" variant="ghost" icon={caretRight} disabled={!canGoForward(tab.history)} onpress={goForward} />
 		{#if isSearchOpen}
 			<SearchField
 				bind:this={searchField}

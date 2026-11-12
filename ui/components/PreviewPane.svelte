@@ -228,14 +228,17 @@
 
 <View style={{ ...paneSize(), overflow: "hidden" }}>
 	{#if singleEntry?.isDir}
-		{#key singleEntry.path}
-			<MillerColumn
-				path={singleEntry.path}
-				{sortOrder}
-				{showHidden}
-				onOpen={(entry) => onOpenFolder(entry.path)}
-			/>
-		{/key}
+		<View style={{ flex: 1, minHeight: 0, padding: space[2] }}>
+			{#key singleEntry.path}
+				<MillerColumn
+					path={singleEntry.path}
+					{sortOrder}
+					{showHidden}
+					isDivided={false}
+					onOpen={(entry) => onOpenFolder(entry.path)}
+				/>
+			{/key}
+		</View>
 	{:else if singleEntry}
 		<View style={{ flex: 1, minHeight: 0, gap: space[2], padding: space[2] }}>
 		{#if errorMessage}

@@ -4,7 +4,7 @@
 	preview of a hovered folder. It takes no keys; a press opens.
 -->
 <script lang="ts">
-	import { List, Text, View } from "@neoworks/svelte-gpui/ui";
+	import { List, Text, View, type Style } from "@neoworks/svelte-gpui/ui";
 	import { ListDirectory } from "../backend/FileService";
 	import type { filesystem } from "../backend/models";
 	import { entryRowHeight, type EntryState } from "../lib/entryStyles";
@@ -19,6 +19,7 @@
 		sortOrder,
 		showHidden,
 		share = 1,
+		isDivided = true,
 		onOpen,
 	}: {
 		path: string;
@@ -28,6 +29,8 @@
 		showHidden: boolean;
 		/** How much of the row's width it takes, against its siblings' shares. */
 		share?: number;
+		/** Set off from the column after it by a line, as the parent is from the listing. */
+		isDivided?: boolean;
 		onOpen: (entry: filesystem.Entry) => void;
 	} = $props();
 
@@ -102,6 +105,14 @@
 		};
 	}
 
+	// A column beside the listing is set off by a line and some room; a preview stands alone.
+	function dividerLook(): Style {
+		if (!isDivided) {
+			return {};
+		}
+		return { paddingRight: space[2], marginRight: space[2], borderRightWidth: 1, borderColor: colors.lineFaint };
+	}
+
 	function notice(): string {
 		if (hasFailed) {
 			return "Cannot read this folder";
@@ -113,7 +124,7 @@
 	}
 </script>
 
-<View style={{ flex: share, minWidth: 0, borderRightWidth: 1, borderColor: colors.lineFaint }}>
+<View style={{ flex: share, minWidth: 0, ...dividerLook() }}>
 	{#if notice()}
 		<Text style={{ padding: space[2], fontSize: textSize.xs, color: colors.faint }}>{notice()}</Text>
 	{:else}
