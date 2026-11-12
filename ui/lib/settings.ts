@@ -52,7 +52,16 @@ export type StoredSettings = {
 
 type StoredKeybinding = NonNullable<StoredSettings["keybindings"]>[number];
 
-const sortKeys: SortKey[] = ["name", "size", "modified", "permissions"];
+const sortKeys: SortKey[] = [
+	"name",
+	"natural",
+	"extension",
+	"size",
+	"modified",
+	"created",
+	"permissions",
+	"random",
+];
 
 export const defaultViewSettings: ViewSettings = {
 	viewMode: "rows",

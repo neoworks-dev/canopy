@@ -3,13 +3,14 @@
 	import { Button as PlainButton, Icon, Text, View, type PointerEvent, type Style } from "@neoworks/svelte-gpui/ui";
 	import { clipboard, window as appWindow } from "@neoworks/svelte-gpui";
 	import Button from "./components/design/Button.svelte";
-	import { caretLeft, caretRight, eye, eyeSlash, gitBranch, house, textT, warning } from "./icons";
+	import { caretLeft, caretRight, eye, eyeSlash, gitBranch, house, terminalWindow, textT, warning } from "./icons";
 	import { colors, root, space, textSize } from "./theme";
 	import {
 		AddBookmark,
 		AddTag,
 		Bookmarks,
 		CopyPathsToClipboard,
+		CreateLinks,
 		Devices,
 		ExtractionFolder,
 		ForgetSearch,
@@ -28,7 +29,9 @@
 		RemoveTag,
 		RememberWindowSize,
 		RenameSearch,
+		RunShell,
 		SaveSearch,
+		SearchContents,
 		SaveSettings,
 		SavedSearches,
 		SetDefaultApplication,
@@ -58,6 +61,7 @@
 	import SpotDialog from "./components/SpotDialog.svelte";
 	import TagDialog from "./components/TagDialog.svelte";
 	import TaskManager from "./components/TaskManager.svelte";
+	import WhichKey from "./components/WhichKey.svelte";
 	import TextPrompt from "./components/TextPrompt.svelte";
 	import ViewMenu from "./components/ViewMenu.svelte";
 	import {
@@ -76,17 +80,19 @@
 	import { entriesToCreate, renameBuffer, renamePlan } from "./lib/bulkEdit";
 	import { iconForCommand } from "./lib/commandIcons";
 	import { copyTextFor, type CopyTextKind } from "./lib/copyText";
-	import { helpRows } from "./lib/help";
+	import { continuationRows, helpRows, type HelpRow } from "./lib/help";
+	import { linkDestination } from "./lib/links";
 	import { CommandRegistry, type Command, type MenuItem } from "./lib/commands";
-	import { chordFromEvent } from "./lib/keys";
+	import { chordFromEvent, sequenceLabel } from "./lib/keys";
 	import {
 		compileKeymap,
 		resolveChord,
 		shortcutFor,
 		type ChordResolution,
+		type CompiledBinding,
 		type Keybinding,
 	} from "./lib/keymap";
-	import type { WhenContext } from "./lib/whenClause";
+	import { evaluateWhen, type WhenContext } from "./lib/whenClause";
 	import { defaultColumnIds, type ColumnId } from "./lib/columns";
 	import { isAcceptableDrop, type DropOperation } from "./lib/dragDrop";
 	import { describeError } from "./lib/errors";
@@ -210,6 +216,8 @@
 	let isHelpOpen = $state(false);
 	let isTaskManagerOpen = $state(false);
 	let isSpotOpen = $state(false);
+	// Which shell prompt is open: Yazi's `;` runs in the background, `:` in a terminal.
+	let shellPrompt = $state<"" | "background" | "terminal">("");
 	let previewPane = $state<PreviewPane>();
 
 	let showHidden = $state(false);
@@ -244,6 +252,8 @@
 	let isSearchOpen = $state(false);
 	// The directory a search is confined to, or "" for every indexed root.
 	let searchScope = $state("");
+	// Names come from the index; contents from ripgrep over the scope, as Yazi's S.
+	let searchMode = $state<"names" | "contents">("names");
 	let searchHits = $state<proto.Hit[]>([]);
 	let searchTruncated = $state(false);
 	let searchErrorMessage = $state("");
@@ -280,6 +290,7 @@
 	const isDetailsOpen = $derived(showDetails);
 	const isSidebarOpen = $derived(places.length > 0);
 	const strip = $derived(summarize(statusInput()));
+	const whichKeyRows = $derived(pendingContinuations());
 
 	onMount(() => {
 		start();
@@ -320,11 +331,12 @@
 	$effect(() => {
 		const query = searchQuery.trim();
 		const scope = searchScope;
+		const mode = searchMode;
 		if (!query) {
 			clearSearch();
 			return;
 		}
-		const timer = setTimeout(() => runSearch(query, scope), searchDebounceMilliseconds);
+		const timer = setTimeout(() => runSearch(query, scope, mode), searchDebounceMilliseconds);
 		return () => clearTimeout(timer);
 	});
 
@@ -647,10 +659,10 @@
 		return currentPath;
 	}
 
-	async function runSearch(query: string, scope: string) {
+	async function runSearch(query: string, scope: string, mode: "names" | "contents") {
 		const sequence = ++latestSearchSequence;
 		isSearching = true;
-		const outcome = await requestSearch(query, scope);
+		const outcome = await requestSearch(query, scope, mode);
 		if (sequence !== latestSearchSequence) {
 			return;
 		}
@@ -658,13 +670,20 @@
 		isSearching = false;
 	}
 
-	async function requestSearch(query: string, scope: string): Promise<SearchOutcome> {
+	async function requestSearch(query: string, scope: string, mode: "names" | "contents"): Promise<SearchOutcome> {
 		try {
-			const result = await Search(query, scope);
+			const result = await searchBy(query, scope, mode);
 			return { hits: result.hits, truncated: result.truncated, errorMessage: "" };
 		} catch (error) {
 			return { hits: [], truncated: false, errorMessage: describeError(error) };
 		}
+	}
+
+	function searchBy(query: string, scope: string, mode: "names" | "contents"): Promise<proto.SearchResult> {
+		if (mode === "contents") {
+			return SearchContents(scope, query);
+		}
+		return Search(query, scope);
 	}
 
 	function applySearchOutcome(outcome: SearchOutcome) {
@@ -702,8 +721,9 @@
 
 	// The scope is set before the field takes focus, so the first keystroke
 	// already queries the right thing.
-	async function openSearch(scope: string) {
+	async function openSearch(scope: string, mode: "names" | "contents" = "names") {
 		searchScope = scope;
+		searchMode = mode;
 		searchQuery = "";
 		isSearchOpen = true;
 		await tick();
@@ -728,8 +748,9 @@
 		return location.name;
 	}
 
+	// A saved search is a name query the index answers; a content search has no such form.
 	function startSavingSearch() {
-		if (searchQuery.trim() === "") {
+		if (searchQuery.trim() === "" || searchMode === "contents") {
 			return;
 		}
 		searchDialog = {
@@ -822,6 +843,7 @@
 			paneCount: layout.groups.length,
 			canSplit: layout.groups.length < maximumGroups,
 			directoryOpen: currentPath !== "",
+			hoveredIsLink: Boolean(status.hovered?.isSymlink),
 		};
 	}
 
@@ -1031,6 +1053,13 @@
 			"tab.rename": () => (isRenamingTab = true),
 			"help.open": () => (isHelpOpen = true),
 			"tasks.show": () => (isTaskManagerOpen = true),
+			"file.symlink": () => linkClipboard("absolute"),
+			"file.symlinkRelative": () => linkClipboard("relative"),
+			"file.hardlink": () => linkClipboard("hard"),
+			"shell.run": () => (shellPrompt = "background"),
+			"shell.runBlocking": () => (shellPrompt = "terminal"),
+			"navigate.followLink": followHoveredLink,
+			"search.contents": () => openSearch(currentPath, "contents"),
 			"list.spot": () => (isSpotOpen = true),
 			"file.trash": trashSelection,
 			"file.deletePermanently": () => (isConfirmingDelete = true),
@@ -1113,9 +1142,62 @@
 		activePane()?.createMany(entriesToCreate(buffer));
 	}
 
+	async function linkClipboard(kind: "absolute" | "relative" | "hard") {
+		actionError = "";
+		try {
+			await CreateLinks(clipboardPaths, currentPath, kind);
+		} catch (error) {
+			actionError = describeError(error);
+		}
+		reloadPanes();
+	}
+
+	// The selection is the command's $1, $2 …, as Yazi passes it.
+	async function runShellCommand(command: string) {
+		const block = shellPrompt === "terminal";
+		shellPrompt = "";
+		if (command.trim() === "") {
+			return;
+		}
+		actionError = "";
+		try {
+			await RunShell(command, currentPath, selectedPathList(), block);
+		} catch (error) {
+			actionError = describeError(error);
+		}
+	}
+
+	// The link's target is revealed in the folder holding it, the way a search hit is.
+	async function followHoveredLink() {
+		const hovered = status.hovered;
+		if (!hovered || !hovered.isSymlink) {
+			return;
+		}
+		const destination = linkDestination(hovered.path, hovered.linkTarget);
+		closeSearch();
+		navigateTo(parentDirectoryOf(destination));
+		await tick();
+		activePane()?.revealPath(destination);
+	}
+
 	function renameActiveTab(title: string) {
 		isRenamingTab = false;
 		layout = withActiveTabTitle(layout, title);
+	}
+
+	function shellPlaceholder(): string {
+		if (shellPrompt === "terminal") {
+			return "Shell command, run in a terminal";
+		}
+		return "Shell command";
+	}
+
+	function pendingContinuations(): HelpRow[] {
+		if (pendingChords.length === 0) {
+			return [];
+		}
+		const applies = (binding: CompiledBinding) => evaluateWhen(binding.when, commandContext);
+		return continuationRows(keymap, pendingChords, applies, helpTitleOf);
 	}
 
 	function runHelpCommand(command: string) {
@@ -1439,7 +1521,7 @@
 		if (isBulkCreateOpen || bulkRenamePaths.length > 0 || isRenamingTab || isHelpOpen) {
 			return true;
 		}
-		if (isTaskManagerOpen || isSpotOpen) {
+		if (isTaskManagerOpen || isSpotOpen || shellPrompt !== "") {
 			return true;
 		}
 		return openWithPath !== "" || Boolean(conflict);
@@ -1466,6 +1548,9 @@
 	}
 
 	function searchPlaceholder(): string {
+		if (searchMode === "contents") {
+			return "Search contents of this folder";
+		}
 		if (!searchScope) {
 			return "Search everywhere";
 		}
@@ -1800,6 +1885,20 @@
 			onSubmit={renameActiveTab}
 			onClose={() => (isRenamingTab = false)}
 		/>
+	{/if}
+
+	{#if shellPrompt !== ""}
+		<TextPrompt
+			icon={terminalWindow}
+			placeholder={shellPlaceholder()}
+			hint="Runs in this folder; the selected entries are $1, $2 … and $@."
+			onSubmit={runShellCommand}
+			onClose={() => (shellPrompt = "")}
+		/>
+	{/if}
+
+	{#if pendingChords.length > 0 && whichKeyRows.length > 0}
+		<WhichKey prefix={sequenceLabel(pendingChords)} rows={whichKeyRows} />
 	{/if}
 
 	{#if isTaskManagerOpen}

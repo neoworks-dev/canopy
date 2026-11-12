@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { filterHelpRows, helpRows } from "../ui/lib/help";
+import { continuationRows, filterHelpRows, helpRows } from "../ui/lib/help";
 import { compileKeymap } from "../ui/lib/keymap";
 
 describe("the help panel", () => {
@@ -21,6 +21,22 @@ describe("the help panel", () => {
 			"G H=navigate.home",
 			"D=file.deletePermanently",
 		]);
+	});
+
+	test("which-key lists the next key of each sequence that still applies", () => {
+		const sequences = compileKeymap([
+			{ key: "g h", command: "navigate.home", when: "" },
+			{ key: "g f", command: "navigate.followLink", when: "hidden" },
+			{ key: "g", command: "unrelated", when: "" },
+			{ key: "c c", command: "copy.path", when: "" },
+		]);
+		const rows = continuationRows(
+			sequences,
+			["g"],
+			(binding) => binding.when !== "hidden",
+			(command) => command,
+		);
+		expect(rows.map((row) => `${row.keys}=${row.command}`)).toEqual(["H=navigate.home"]);
 	});
 
 	test("the filter matches keys or titles, ignoring case", () => {

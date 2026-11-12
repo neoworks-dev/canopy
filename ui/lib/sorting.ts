@@ -2,7 +2,15 @@
  * How the listing is ordered. The backend does the sorting, so this mirrors the
  * order it takes and holds the rules for what a header click means.
  */
-export type SortKey = "name" | "size" | "modified" | "permissions";
+export type SortKey =
+	| "name"
+	| "natural"
+	| "extension"
+	| "size"
+	| "modified"
+	| "created"
+	| "permissions"
+	| "random";
 
 export type SortOrder = {
 	key: SortKey;

@@ -3,7 +3,7 @@ import { classifyEntry, kindLabel } from "./fileKind";
 import { formatFileSize, formatModifiedTime } from "./format";
 import type { SortKey } from "./sorting";
 
-export type ColumnId = "kind" | "size" | "modified" | "permissions";
+export type ColumnId = "kind" | "size" | "modified" | "created" | "permissions" | "owner";
 
 export type ColumnDefinition = {
 	id: ColumnId;
@@ -51,6 +51,15 @@ export const availableColumns: ColumnDefinition[] = [
 		sortKey: "modified",
 	},
 	{
+		id: "created",
+		label: "Created",
+		width: 112,
+		isRightAligned: false,
+		isMonospace: false,
+		valueOf: (entry) => formatModifiedTime(entry.createdTime),
+		sortKey: "created",
+	},
+	{
 		id: "permissions",
 		label: "Permissions",
 		width: 112,
@@ -58,6 +67,15 @@ export const availableColumns: ColumnDefinition[] = [
 		isMonospace: true,
 		valueOf: permissionsValue,
 		sortKey: "permissions",
+	},
+	{
+		id: "owner",
+		label: "Owner",
+		width: 128,
+		isRightAligned: false,
+		isMonospace: false,
+		valueOf: ownerValue,
+		sortKey: "",
 	},
 ];
 
@@ -78,6 +96,13 @@ function sizeValue(entry: filesystem.Entry): string {
 		return "—";
 	}
 	return formatFileSize(entry.size);
+}
+
+function ownerValue(entry: filesystem.Entry): string {
+	if (!entry.owner) {
+		return "—";
+	}
+	return entry.owner;
 }
 
 function permissionsValue(entry: filesystem.Entry): string {

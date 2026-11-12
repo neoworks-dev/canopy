@@ -14,6 +14,7 @@
  *   folderPinned   the folder in focus is pinned to the sidebar
  *   directoryOpen  the pane is showing a directory rather than a virtual list
  *   paletteOpen    the command palette is on screen
+ *   hoveredIsLink  the entry under the cursor is a symlink
  *   tabCount paneCount canSplit
  */
 import type { ColumnId } from "./columns";
@@ -85,7 +86,10 @@ type SortKeyRow = { key: SortKey; label: string; letter: string; linemodeId: str
 
 const sortKeyTable: SortKeyRow[] = [
 	{ key: "name", label: "name", letter: "a", linemodeId: "" },
+	{ key: "natural", label: "name, counting numbers", letter: "n", linemodeId: "" },
+	{ key: "extension", label: "extension", letter: "e", linemodeId: "" },
 	{ key: "modified", label: "date modified", letter: "m", linemodeId: "view.linemode.modified" },
+	{ key: "created", label: "date created", letter: "b", linemodeId: "view.linemode.created" },
 	{ key: "size", label: "size", letter: "s", linemodeId: "view.linemode.size" },
 	{ key: "permissions", label: "permissions", letter: "", linemodeId: "" },
 ];
@@ -129,6 +133,8 @@ export const linemodeCommands: LinemodeCommand[] = [
 		binding: "m p",
 	},
 	{ id: "view.linemode.modified", title: "Show only the date modified", columns: ["modified"], binding: "m m" },
+	{ id: "view.linemode.created", title: "Show only the date created", columns: ["created"], binding: "m b" },
+	{ id: "view.linemode.owner", title: "Show only the owner", columns: ["owner"], binding: "m o" },
 	{ id: "view.linemode.none", title: "Show no details", columns: [], binding: "m n" },
 ];
 
@@ -266,6 +272,38 @@ export const staticCommandDescriptors: CommandDescriptor[] = [
 		when: "clipboardCount > 0",
 	},
 	{ id: "file.cancelYank", title: "Forget what was copied or cut", category: "File", when: "clipboardCount > 0" },
+	{
+		id: "file.symlink",
+		title: "Link here to what was copied (absolute)",
+		category: "File",
+		when: "clipboardCount > 0 && directoryOpen",
+	},
+	{
+		id: "file.symlinkRelative",
+		title: "Link here to what was copied (relative)",
+		category: "File",
+		when: "clipboardCount > 0 && directoryOpen",
+	},
+	{
+		id: "file.hardlink",
+		title: "Hard link here to what was copied",
+		category: "File",
+		when: "clipboardCount > 0 && directoryOpen",
+	},
+	{ id: "shell.run", title: "Run a shell command", category: "General", when: "directoryOpen" },
+	{
+		id: "shell.runBlocking",
+		title: "Run a shell command in a terminal",
+		category: "General",
+		when: "directoryOpen",
+	},
+	{
+		id: "navigate.followLink",
+		title: "Go to where the link points",
+		category: "Navigation",
+		when: "listActive && hoveredIsLink",
+	},
+	{ id: "search.contents", title: "Search file contents here", category: "Search", when: "directoryOpen" },
 	{ id: "file.create", title: "Create a file or folder…", category: "File", when: "directoryOpen" },
 	{ id: "file.bulkCreate", title: "Create several files or folders…", category: "File", when: "directoryOpen" },
 	{ id: "file.rename", title: "Rename", category: "File", when: "selectionCount > 0" },
@@ -393,6 +431,7 @@ export const defaultKeymap: Keybinding[] = [
 	{ key: "g d", command: "navigate.downloads" },
 	{ key: "g t", command: "navigate.trash" },
 	{ key: "g space", command: "zoxide.jump" },
+	{ key: "g f", command: "navigate.followLink", when: "listActive" },
 	{ key: "g s", command: "navigate.terminal", when: "listActive" },
 	{ key: "ctrl+alt+t", command: "navigate.terminal" },
 	{ key: "ctrl+l", command: "navigate.editPath" },
@@ -403,6 +442,9 @@ export const defaultKeymap: Keybinding[] = [
 	{ key: "x", command: "file.cut", when: "listActive" },
 	{ key: "p", command: "file.paste", when: "listActive" },
 	{ key: "P", command: "file.pasteOverwrite", when: "listActive" },
+	{ key: "-", command: "file.symlink", when: "listActive" },
+	{ key: "_", command: "file.symlinkRelative", when: "listActive" },
+	{ key: "ctrl+-", command: "file.hardlink", when: "listActive" },
 	{ key: "Y", command: "file.cancelYank", when: "listActive" },
 	{ key: "X", command: "file.cancelYank", when: "listActive" },
 	{ key: "ctrl+c", command: "file.copy" },
@@ -450,7 +492,8 @@ export const defaultKeymap: Keybinding[] = [
 	...linemodeBindings(),
 
 	{ key: "s", command: "search.here", when: "listActive" },
-	{ key: "z", command: "search.global", when: "listActive" },
+	{ key: "S", command: "search.contents", when: "listActive" },
+	{ key: "z", command: "search.here", when: "listActive" },
 	{ key: "Z", command: "zoxide.jump", when: "listActive" },
 	{ key: "ctrl+j", command: "zoxide.jump" },
 	{ key: "ctrl+s", command: "search.close", when: "searchOpen" },
@@ -458,8 +501,8 @@ export const defaultKeymap: Keybinding[] = [
 	{ key: "ctrl+shift+s", command: "search.save", when: "searchOpen" },
 
 	{ key: "ctrl+shift+p", command: "palette.open" },
-	{ key: ":", command: "palette.open", when: "listActive" },
-	{ key: ";", command: "palette.open", when: "listActive" },
+	{ key: ";", command: "shell.run", when: "listActive" },
+	{ key: ":", command: "shell.runBlocking", when: "listActive" },
 	{ key: "~", command: "help.open", when: "listActive" },
 	{ key: "f1", command: "help.open" },
 	{ key: "q", command: "app.quit", when: "listActive" },
@@ -502,7 +545,20 @@ function buildSortCommands(): SortCommand[] {
 		commands.push(sortCommand(row, false, row.letter));
 		commands.push(sortCommand(row, true, row.letter.toUpperCase()));
 	}
+	commands.push(randomSortCommand());
 	return commands;
+}
+
+// A shuffle has no direction, so it is the one order without a capital.
+function randomSortCommand(): SortCommand {
+	return {
+		id: "view.sort.random",
+		title: "Sort randomly",
+		key: "random",
+		descending: false,
+		binding: ", r",
+		linemodeId: "",
+	};
 }
 
 function sortCommand(row: SortKeyRow, descending: boolean, letter: string): SortCommand {
