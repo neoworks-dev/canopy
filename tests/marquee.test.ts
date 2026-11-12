@@ -5,6 +5,7 @@ import {
 	indexAtPoint,
 	indexesInGrid,
 	indexesWithin,
+	isIndexInView,
 	overlaps,
 	rectangleBetween,
 	toContentPoint,
@@ -19,6 +20,30 @@ const tiles: Rectangle[] = [
 	{ left: 0, top: 50, width: 100, height: 40 },
 	{ left: 0, top: 100, width: 100, height: 40 },
 ];
+
+describe("whether an entry is already in view", () => {
+	const rows: GridLayout = { ...emptyGridLayout, columns: 1, cellWidth: 300, cellHeight: 30, hitWidth: 300, hitHeight: 30 };
+
+	test("the first row of an unscrolled list is in view, so revealing it moves nothing", () => {
+		expect(isIndexInView(0, rows, 0, 300)).toBe(true);
+	});
+
+	test("a row scrolled past, or only half shown, is not", () => {
+		expect(isIndexInView(0, rows, 30, 300)).toBe(false);
+		expect(isIndexInView(10, rows, 0, 300)).toBe(false);
+		expect(isIndexInView(9, rows, 0, 300)).toBe(true);
+	});
+
+	test("a grid counts rows of several entries", () => {
+		const grid: GridLayout = { ...rows, columns: 4, cellHeight: 100 };
+		expect(isIndexInView(7, grid, 0, 200)).toBe(true);
+		expect(isIndexInView(8, grid, 0, 200)).toBe(false);
+	});
+
+	test("a list with no height yet has nothing in view", () => {
+		expect(isIndexInView(0, rows, 0, 0)).toBe(false);
+	});
+});
 
 describe("content coordinates", () => {
 	const bounds: Rectangle = { left: 100, top: 50, width: 200, height: 100 };

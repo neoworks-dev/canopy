@@ -6,7 +6,7 @@
 	through the methods this component exports.
 -->
 <script lang="ts">
-	import { untrack, type Snippet } from "svelte";
+	import { tick, untrack, type Snippet } from "svelte";
 	import {
 		Button as PlainButton,
 		DropTarget,
@@ -40,6 +40,7 @@
 		exceedsThreshold,
 		indexAtPoint,
 		indexesInGrid,
+		isIndexInView,
 		rectangleBetween,
 		toContentPoint,
 		toViewportPoint,
@@ -63,6 +64,7 @@
 	import type { PaneStatus } from "../lib/paneStatus";
 	import type { SavedSearch } from "../lib/savedSearches";
 	import {
+		cursorIndexAfterLoad,
 		emptySelection,
 		isSameSelection,
 		pruneSelection,
@@ -93,6 +95,9 @@
 
 	type DraggedPaths = { paths: string[] };
 
+	// How many frames a reveal waits for the list to be laid out before giving up.
+	const layoutWaitFrames = 10;
+
 	let {
 		location,
 		viewMode,
@@ -102,6 +107,7 @@
 		cutPaths,
 		copiedPaths,
 		savedSearches,
+		isActive,
 		onStatus,
 		onNavigate,
 		onActivate,
@@ -124,6 +130,8 @@
 		copiedPaths: Set<string>;
 		/** Looked up by name when this pane is showing one as a folder. */
 		savedSearches: SavedSearch[];
+		/** The pane in use, which takes the keyboard when it has read a folder. */
+		isActive: boolean;
 		onStatus: (status: PaneStatus) => void;
 		onNavigate: (location: TabLocation) => void;
 		onActivate: () => void;
@@ -162,6 +170,10 @@
 	let findQuery = $state("");
 	let findDirection = $state<FindDirection>("forward");
 	let loadedLocationKey = "";
+	// The folder the last load finished on, so stepping up can hover the folder it came out of.
+	let shownDirectory = "";
+	// An entry asked to be revealed before its folder had been read.
+	let pendingReveal = "";
 	let gitReport = $state.raw<git.Report | null>(null);
 	// Set while entries dragged out of this pane are still in flight, and while
 	// files dragged in from another program are over it.
@@ -388,11 +400,14 @@
 	}
 
 	/** Puts the focus on one entry, which is how a search hit is arrived at. */
+	/** Puts the cursor on an entry; one the listing has not read yet is held until it arrives. */
 	export function revealPath(path: string) {
 		const index = visiblePaths.indexOf(path);
 		if (index < 0) {
+			pendingReveal = path;
 			return;
 		}
+		pendingReveal = "";
 		setSelection(selectionAfterJump(emptySelection, visiblePaths, index, false));
 		focusList();
 	}
@@ -566,6 +581,37 @@
 		}
 		isLoading = false;
 		refreshGitReport(wanted.path);
+		await tick();
+		settleAfterLoad(wanted.path);
+	}
+
+	/**
+	 * As Yazi does, a freshly read folder always has an entry under the cursor:
+	 * the one asked for, the folder just stepped out of, or the first. The pane
+	 * in use takes the keyboard, so its keys work without a click first.
+	 */
+	function settleAfterLoad(path: string) {
+		if (path !== directoryPath) {
+			return;
+		}
+		const cameFrom = shownDirectory;
+		shownDirectory = path;
+		placeCursorAfterLoad(cameFrom, path);
+		if (isActive) {
+			focusList();
+		}
+	}
+
+	function placeCursorAfterLoad(cameFrom: string, path: string) {
+		if (pendingReveal) {
+			revealPath(pendingReveal);
+			return;
+		}
+		const index = cursorIndexAfterLoad(visiblePaths, cameFrom, path);
+		if (index < 0) {
+			return;
+		}
+		moveCursorTo(index);
 	}
 
 	/** Re-reads the directory in place, keeping the selection where it can. */
@@ -678,10 +724,32 @@
 		onLaunch(entry.path);
 	}
 
-	function revealEntry(index: number) {
-		if (index < 0) {
+	// svelte-gpui: a list asked to bring a row into view before it has a height
+	// lines the row's bottom up with a window of nothing, which scrolls the first
+	// row out of sight. So a row is only revealed once the list is laid out, and
+	// only when it is not already in view.
+	function revealEntry(index: number, framesToWait = layoutWaitFrames) {
+		if (index < 0 || !listContainer) {
 			return;
 		}
+		if (viewport.height <= 0) {
+			revealOnNextFrame(index, framesToWait);
+			return;
+		}
+		if (isIndexInView(index, gridLayout, scrollTop, viewport.height)) {
+			return;
+		}
+		scrollEntryIntoView(index);
+	}
+
+	function revealOnNextFrame(index: number, framesToWait: number) {
+		if (framesToWait <= 0) {
+			return;
+		}
+		requestAnimationFrame(() => revealEntry(index, framesToWait - 1));
+	}
+
+	function scrollEntryIntoView(index: number) {
 		if (viewMode === "columns") {
 			columnsView?.scrollToIndex(index);
 			return;

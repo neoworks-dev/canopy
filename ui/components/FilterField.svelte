@@ -4,7 +4,7 @@
 	Esc drops it.
 -->
 <script lang="ts">
-	import { onMount } from "svelte";
+	import { onMount, tick } from "svelte";
 	import { Icon, Text, View, type KeyEvent } from "@neoworks/svelte-gpui/ui";
 	import { funnel } from "../icons";
 	import { colors, radius, space, textSize } from "../theme";
@@ -20,7 +20,9 @@
 
 	let input = $state<BareInput>();
 
-	onMount(() => {
+	// The field exists once the frame it was added in is done, so focus waits for it.
+	onMount(async () => {
+		await tick();
 		input?.focus();
 		input?.select();
 	});

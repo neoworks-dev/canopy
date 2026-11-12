@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+	cursorIndexAfterLoad,
 	emptySelection,
 	isSameSelection,
 	pruneSelection,
@@ -10,6 +11,23 @@ import {
 	selectionAfterRelisting,
 	type Selection,
 } from "../ui/lib/selection";
+
+describe("where the cursor lands in a folder just read", () => {
+	const paths = ["/home/me/a", "/home/me/projects", "/home/me/z"];
+
+	test("stepping up lands on the folder just left", () => {
+		expect(cursorIndexAfterLoad(paths, "/home/me/projects", "/home/me")).toBe(1);
+	});
+
+	test("anywhere else lands on the first entry", () => {
+		expect(cursorIndexAfterLoad(paths, "/tmp", "/home/me")).toBe(0);
+		expect(cursorIndexAfterLoad(paths, "", "/home/me")).toBe(0);
+	});
+
+	test("an empty folder has nowhere to land", () => {
+		expect(cursorIndexAfterLoad([], "/home/me/projects", "/home/me")).toBe(-1);
+	});
+});
 
 describe("comparing selections, so a band that covers the same entries changes nothing", () => {
 	const swept: Selection = { paths: ["/a", "/b"], anchorIndex: 0, focusIndex: 1 };

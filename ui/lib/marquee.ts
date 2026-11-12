@@ -160,6 +160,18 @@ function appendIfCovered(
 	}
 }
 
+/**
+ * Whether an entry's whole cell is inside the scrolled window, so revealing it
+ * would move nothing. Rows are counted from the top of the scrolled content.
+ */
+export function isIndexInView(index: number, layout: GridLayout, scrollTop: number, viewportHeight: number): boolean {
+	if (layout.cellHeight <= 0 || layout.columns <= 0) {
+		return false;
+	}
+	const rowTop = Math.floor(index / layout.columns) * layout.cellHeight;
+	return rowTop >= scrollTop && rowTop + layout.cellHeight <= scrollTop + viewportHeight;
+}
+
 /** The entry under a point in viewport coordinates, or -1 where there is none. */
 export function indexAtPoint(point: Point, scrollTop: number, layout: GridLayout, total: number): number {
 	const covered = indexesInGrid({ left: point.x, top: point.y, width: 0, height: 0 }, scrollTop, layout, total);

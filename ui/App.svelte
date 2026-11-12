@@ -1731,6 +1731,7 @@
 					{cutPaths}
 					{copiedPaths}
 					{savedSearches}
+					isActive={paneGroup.id === layout.activeGroupId}
 					onStatus={(reported) => reportStatus(paneGroup.id, reported)}
 					onNavigate={(location) => {
 						activateGroup(paneGroup.id);

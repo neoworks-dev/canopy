@@ -6,7 +6,7 @@
 	it is being typed.
 -->
 <script lang="ts">
-	import { onMount } from "svelte";
+	import { onMount, tick } from "svelte";
 	import { Icon, Text, View, type KeyEvent } from "@neoworks/svelte-gpui/ui";
 	import { magnifyingGlass } from "../icons";
 	import { nextMatchIndex, type FindDirection } from "../lib/finder";
@@ -32,7 +32,11 @@
 	let input = $state<BareInput>();
 	let hasMatch = $state(true);
 
-	onMount(() => input?.focus());
+	// The field exists once the frame it was added in is done, so focus waits for it.
+	onMount(async () => {
+		await tick();
+		input?.focus();
+	});
 
 	function jumpToMatch() {
 		const match = nextMatchIndex(names, query, focusIndex, direction, true);

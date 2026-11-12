@@ -40,14 +40,6 @@
 
 	const kind = $derived(classifyEntry(entry));
 	const nameColor = $derived(kindColor(kind));
-
-	// Folders stand out by weight as well as colour, as Yazi's default theme has them.
-	function nameWeight(shown: filesystem.Entry): "medium" | "normal" {
-		if (shown.isDir) {
-			return "medium";
-		}
-		return "normal";
-	}
 </script>
 
 <View
@@ -69,7 +61,6 @@
 				minWidth: 0,
 				truncate: true,
 				fontSize: textSize.sm,
-				fontWeight: nameWeight(entry),
 				color: nameColor,
 			}}
 		>

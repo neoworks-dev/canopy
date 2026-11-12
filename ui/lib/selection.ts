@@ -86,6 +86,29 @@ export function selectionFromIndexes(
 	};
 }
 
+/**
+ * Where the cursor lands in a folder just read, as Yazi places it: on the
+ * folder just stepped out of, else on the first entry; -1 when it is empty.
+ */
+export function cursorIndexAfterLoad(paths: string[], cameFrom: string, folder: string): number {
+	if (paths.length === 0) {
+		return -1;
+	}
+	const childIndex = paths.indexOf(cameFrom);
+	if (childIndex >= 0 && parentOf(cameFrom) === folder) {
+		return childIndex;
+	}
+	return 0;
+}
+
+function parentOf(path: string): string {
+	const lastSeparator = path.lastIndexOf("/");
+	if (lastSeparator <= 0) {
+		return "/";
+	}
+	return path.slice(0, lastSeparator);
+}
+
 /** Whether two selections hold the same paths in the same order, with the same anchor and focus. */
 export function isSameSelection(first: Selection, second: Selection): boolean {
 	if (first.anchorIndex !== second.anchorIndex || first.focusIndex !== second.focusIndex) {

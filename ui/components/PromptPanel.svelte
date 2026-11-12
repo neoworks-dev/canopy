@@ -4,7 +4,7 @@
 	the window over a transparent backdrop, and a press outside it closes it.
 -->
 <script lang="ts">
-	import { onMount, type Snippet } from "svelte";
+	import { onMount, tick, type Snippet } from "svelte";
 	import { Icon, View, type KeyEvent } from "@neoworks/svelte-gpui/ui";
 	import { colors, radius, space } from "../theme";
 	import BareInput from "./BareInput.svelte";
@@ -34,7 +34,11 @@
 
 	let field = $state<BareInput>();
 
-	onMount(() => field?.focus());
+	// The field exists once the frame it was added in is done, so focus waits for it.
+	onMount(async () => {
+		await tick();
+		field?.focus();
+	});
 </script>
 
 <!-- The inner press handler gives the panel a hitbox, so a press on it is not a press on the backdrop. -->
