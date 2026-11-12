@@ -56,7 +56,15 @@ export namespace filesystem {
 		isDir: boolean;
 		size: number;
 		modTime: string;
+		/** Empty when the filesystem does not record creation time. */
+		createdTime: string;
 		mode: string;
+		/** "user:group", numeric ids where no name is known. */
+		owner: string;
+		/** A symlink reports its target's isDir, size and times. */
+		isSymlink: boolean;
+		/** The raw link target; empty unless isSymlink. */
+		linkTarget: string;
 	}
 	export interface Listing {
 		path: string;
@@ -64,6 +72,7 @@ export namespace filesystem {
 		entries: Entry[];
 	}
 	export interface Order {
+		/** "name" | "size" | "modified" | "permissions" | "extension" | "natural" | "created" | "random"; anything else sorts by name. */
 		key: string;
 		descending: boolean;
 		directoriesFirst: boolean;

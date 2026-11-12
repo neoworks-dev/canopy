@@ -849,6 +849,7 @@ dependencies = [
  "chrono",
  "serde",
  "serde_json",
+ "tempfile",
 ]
 
 [[package]]
@@ -5549,6 +5550,7 @@ dependencies = [
  "gpui",
  "image",
  "libc",
+ "lyon",
  "notify",
  "polling",
  "rquickjs",

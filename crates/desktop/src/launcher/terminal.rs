@@ -23,6 +23,25 @@ const KNOWN_TERMINALS: [&str; 12] = [
     "xterm",
 ];
 
+/// The arguments that make each known emulator run a command, given as the
+/// program and its arguments after them. Any other emulator gets `-e`.
+const TERMINAL_EXEC_FLAGS: [(&str, &[&str]); 12] = [
+    ("ghostty", &["-e"]),
+    ("kitty", &[]),
+    ("alacritty", &["-e"]),
+    ("wezterm", &["start", "--"]),
+    ("foot", &[]),
+    ("konsole", &["-e"]),
+    ("gnome-terminal", &["--"]),
+    ("xfce4-terminal", &["-x"]),
+    ("tilix", &["-e"]),
+    ("terminator", &["-x"]),
+    ("urxvt", &["-e"]),
+    ("xterm", &["-e"]),
+];
+
+const DEFAULT_EXEC_FLAG: &str = "-e";
+
 /// Starts a terminal in a directory. The terminal inherits its working
 /// directory from the process that starts it, which avoids every emulator's own
 /// spelling of a directory flag.
@@ -34,6 +53,16 @@ impl Environment {
     pub(crate) fn open_terminal(&self, directory: &str) -> io::Result<()> {
         require_directory(directory)?;
         let command = self.terminal_command();
+        let Some((program, arguments)) = command.split_first() else {
+            return Err(io::Error::other("no terminal emulator found"));
+        };
+        self.run_detached(Some(Path::new(directory)), program, arguments)
+    }
+
+    /// Starts a terminal in `directory` running `program_and_arguments`.
+    pub(crate) fn run_in_terminal(&self, directory: &str, program_and_arguments: &[String]) -> io::Result<()> {
+        require_directory(directory)?;
+        let command = terminal_running(&self.terminal_command(), program_and_arguments);
         let Some((program, arguments)) = command.split_first() else {
             return Err(io::Error::other("no terminal emulator found"));
         };
@@ -73,6 +102,27 @@ impl Environment {
             Some(name) => vec![name.to_string()],
             None => Vec::new(),
         }
+    }
+}
+
+/// The full command line for `terminal` (its program and own arguments) to run
+/// `program_and_arguments`. Empty when there is no terminal.
+pub(crate) fn terminal_running(terminal: &[String], program_and_arguments: &[String]) -> Vec<String> {
+    let Some(program) = terminal.first() else {
+        return Vec::new();
+    };
+    let mut command = terminal.to_vec();
+    command.extend(exec_flags_for(program));
+    command.extend_from_slice(program_and_arguments);
+    command
+}
+
+/// Matched on the program's file name, so `/usr/bin/kitty` counts as kitty.
+fn exec_flags_for(program: &str) -> Vec<String> {
+    let name = Path::new(program).file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
+    match TERMINAL_EXEC_FLAGS.iter().find(|(known, _)| *known == name) {
+        Some((_, flags)) => flags.iter().map(|flag| flag.to_string()).collect(),
+        None => vec![DEFAULT_EXEC_FLAG.to_string()],
     }
 }
 
@@ -163,6 +213,33 @@ mod tests {
         terminals.install("thirdterm");
 
         assert_eq!(terminals.environment.first_installed(&["missingterm", "thirdterm"]), ["thirdterm"]);
+    }
+
+    fn strings(items: &[&str]) -> Vec<String> {
+        items.iter().map(|item| item.to_string()).collect()
+    }
+
+    #[test]
+    fn terminal_running_uses_each_emulators_exec_flag() {
+        let program = strings(&["sh", "-c", "ls"]);
+
+        assert_eq!(terminal_running(&strings(&["kitty"]), &program), ["kitty", "sh", "-c", "ls"]);
+        assert_eq!(terminal_running(&strings(&["/usr/bin/foot"]), &program), ["/usr/bin/foot", "sh", "-c", "ls"]);
+        assert_eq!(terminal_running(&strings(&["wezterm"]), &program), ["wezterm", "start", "--", "sh", "-c", "ls"]);
+        assert_eq!(terminal_running(&strings(&["gnome-terminal"]), &program), ["gnome-terminal", "--", "sh", "-c", "ls"]);
+        assert_eq!(terminal_running(&strings(&["alacritty"]), &program), ["alacritty", "-e", "sh", "-c", "ls"]);
+    }
+
+    #[test]
+    fn terminal_running_keeps_the_terminals_own_arguments_and_defaults_to_dash_e() {
+        let program = strings(&["sh"]);
+
+        assert_eq!(terminal_running(&strings(&["myterm", "--login"]), &program), ["myterm", "--login", "-e", "sh"]);
+    }
+
+    #[test]
+    fn terminal_running_without_a_terminal_is_empty() {
+        assert!(terminal_running(&[], &strings(&["sh"])).is_empty());
     }
 
     #[test]

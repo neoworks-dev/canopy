@@ -3,6 +3,7 @@
 //! glue over that client.
 
 pub mod client;
+pub mod contentsearch;
 pub mod daemon;
 pub mod index;
 pub mod lockfile;

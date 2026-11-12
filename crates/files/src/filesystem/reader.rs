@@ -24,8 +24,9 @@ pub fn read_directory(requested_path: &str, order: &Order) -> Result<Listing> {
     })
 }
 
-/// An entry whose metadata cannot be read (a broken symlink, a race with
-/// deletion) still shows up with its name and path.
+/// An entry whose metadata cannot be read (a race with deletion) still shows
+/// up with its name and path. `DirEntry::metadata` does not follow symlinks;
+/// `entry_from_metadata` follows them itself.
 fn to_entry(parent_directory: &Path, directory_entry: &DirEntry) -> Entry {
     let name = directory_entry.file_name().to_string_lossy().into_owned();
     let path = parent_directory.join(directory_entry.file_name()).to_string_lossy().into_owned();
@@ -95,6 +96,24 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let missing = root.path().join("does-not-exist");
         assert!(read_directory(missing.to_str().unwrap(), &Order::default()).is_err());
+    }
+
+    #[test]
+    fn a_link_to_a_directory_lists_among_the_directories() {
+        let root = tempfile::tempdir().unwrap();
+        fs::create_dir(root.path().join("target")).unwrap();
+        std::os::unix::fs::symlink("target", root.path().join("b-link")).unwrap();
+        std::os::unix::fs::symlink("missing", root.path().join("a-broken")).unwrap();
+        fs::write(root.path().join("a-file"), "x").unwrap();
+
+        let listing = read_directory(root.path().to_str().unwrap(), &Order::default()).unwrap();
+
+        assert_eq!(names(&listing), ["b-link", "target", "a-broken", "a-file"]);
+        let link = &listing.entries[0];
+        assert!(link.is_dir && link.is_symlink);
+        assert_eq!(link.link_target, "target");
+        let broken = &listing.entries[2];
+        assert!(!broken.is_dir && broken.is_symlink);
     }
 
     #[test]

@@ -1,10 +1,10 @@
 //! Changing the filesystem: queued operations and their conflicts, undo and
-//! redo, renaming, creating entries, and the trash.
+//! redo, renaming, creating entries and links, and the trash.
 
 use std::path::Path;
 use std::sync::Arc;
 
-use canopy_files::fileops::{self, Kind, Resolution, TrashedItem};
+use canopy_files::fileops::{self, Kind, LinkKind, Resolution, TrashedItem};
 use serde::Deserialize;
 use svelte_gpui::{CommandError, Commands};
 
@@ -46,6 +46,13 @@ struct CreateArguments {
 }
 
 #[derive(Deserialize)]
+struct LinkArguments {
+    sources: Vec<String>,
+    directory: String,
+    kind: String,
+}
+
+#[derive(Deserialize)]
 struct NameArguments {
     name: String,
 }
@@ -60,6 +67,7 @@ pub fn register(commands: Commands, services: &Arc<Services>) -> Commands {
     let commands = register_queue(commands, services);
     let commands = register_history(commands, services);
     let commands = register_entries(commands, services);
+    let commands = commands.command("CreateLinks", typed(create_links));
     register_trash(commands, services)
 }
 
@@ -150,6 +158,11 @@ fn resolve_conflict(services: &Services, arguments: ResolveArguments) -> Result<
     services.engine.resolve(&arguments.operation_id, resolution, arguments.apply_to_all).map_err(failure)
 }
 
-fn list_trash() -> Result<Vec<TrashedItem>, CommandError> {
+fn create_links(arguments: LinkArguments) -> Result<Vec<String>, CommandError> {
+    let kind = LinkKind::from_name(&arguments.kind).map_err(failure)?;
+    fileops::create_links(&arguments.sources, &arguments.directory, kind).map_err(failure)
+}
+
+fn list_trash() ->Result<Vec<TrashedItem>, CommandError> {
     fileops::list_trashed().map_err(failure)
 }

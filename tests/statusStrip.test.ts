@@ -9,6 +9,10 @@ function file(name: string, size: number) {
 		size,
 		modTime: "2026-03-09T10:00:00Z",
 		mode: "-rw-r--r--",
+		createdTime: "",
+		owner: "moritz:moritz",
+		isSymlink: false,
+		linkTarget: "",
 	};
 }
 

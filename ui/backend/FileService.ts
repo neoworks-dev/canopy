@@ -1,5 +1,5 @@
 import { invoke } from "@neoworks/svelte-gpui";
-import type { archive, bookmarks, fileops, filesystem, git, launcher, recents, searches, settings, thumbnail, zoxide } from "./models";
+import type { archive, bookmarks, fileops, filesystem, git, launcher, proto, recents, searches, settings, thumbnail, zoxide } from "./models";
 
 export function AddBookmark(path: string): Promise<void> {
 	return invoke<void>("AddBookmark", { path });
@@ -45,7 +45,12 @@ export function CreateFolder(directory: string, name: string): Promise<string> {
 	return invoke<string>("CreateFolder", { directory, name });
 }
 
-export function Devices(): Promise<Array<filesystem.Device>> {
+/** `kind` is "absolute", "relative" or "hard". Answers with the paths created. */
+export function CreateLinks(sources: Array<string>, directory: string, kind: string): Promise<Array<string>> {
+	return invoke<Array<string>>("CreateLinks", { sources, directory, kind });
+}
+
+export function Devices():Promise<Array<filesystem.Device>> {
 	return invoke<Array<filesystem.Device>>("Devices");
 }
 
@@ -173,6 +178,11 @@ export function ResumeOperation(operationId: string): Promise<void> {
 	return invoke<void>("ResumeOperation", { operationId });
 }
 
+/** Runs `sh -c command sh ...paths` in `directory`; with `block`, in a terminal that waits for Enter. */
+export function RunShell(command: string, directory: string, paths: Array<string>, block: boolean): Promise<void> {
+	return invoke<void>("RunShell", { command, directory, paths, block });
+}
+
 export function SaveSearch(name: string, query: string, scope: string): Promise<void> {
 	return invoke<void>("SaveSearch", { name, query, scope });
 }
@@ -183,6 +193,11 @@ export function SaveSettings(next: settings.ViewSettings): Promise<void> {
 
 export function SavedSearches(): Promise<Array<searches.Search>> {
 	return invoke<Array<searches.Search>>("SavedSearches");
+}
+
+/** Files under `directory` whose contents hold `query`, through ripgrep. */
+export function SearchContents(directory: string, query: string): Promise<proto.SearchResult> {
+	return invoke<proto.SearchResult>("SearchContents", { directory, query });
 }
 
 export function SetDefaultApplication(path: string, applicationId: string): Promise<void> {

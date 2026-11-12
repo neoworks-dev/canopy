@@ -1,9 +1,10 @@
-//! Finding things: the shared search index, saved searches and zoxide's ranked
-//! directories.
+//! Finding things: the shared search index, file contents through ripgrep,
+//! saved searches and zoxide's ranked directories.
 
 use std::sync::Arc;
 
 use canopy_desktop::searches::Search;
+use canopy_index::contentsearch;
 use serde::Deserialize;
 use svelte_gpui::Commands;
 
@@ -18,6 +19,12 @@ const ZOXIDE_RESULT_LIMIT: usize = 12;
 struct QueryArguments {
     query: String,
     scope: String,
+}
+
+#[derive(Deserialize)]
+struct ContentsArguments {
+    directory: String,
+    query: String,
 }
 
 #[derive(Deserialize)]
@@ -69,6 +76,12 @@ fn register_index(commands: Commands, services: &Arc<Services>) -> Commands {
             }),
         )
         .command("IndexStatus", typed(move |_: NoArguments| reporting.index.status().map_err(failure)))
+        .command(
+            "SearchContents",
+            typed(|arguments: ContentsArguments| {
+                contentsearch::search_contents(&arguments.directory, &arguments.query).map_err(failure)
+            }),
+        )
 }
 
 fn register_saved_searches(commands: Commands, services: &Arc<Services>) -> Commands {

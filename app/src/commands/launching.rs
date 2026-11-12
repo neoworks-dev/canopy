@@ -1,5 +1,5 @@
-//! Handing entries to other programs: opening them, a terminal, a chosen
-//! application, and the system clipboard's file list.
+//! Handing entries to other programs: opening them, a terminal, a shell
+//! command, a chosen application, and the system clipboard's file list.
 
 use std::sync::Arc;
 
@@ -32,6 +32,14 @@ struct PathsArguments {
     paths: Vec<String>,
 }
 
+#[derive(Deserialize)]
+struct ShellArguments {
+    command: String,
+    directory: String,
+    paths: Vec<String>,
+    block: bool,
+}
+
 pub fn register(commands: Commands, services: &Arc<Services>) -> Commands {
     let opening = services.clone();
     commands
@@ -39,6 +47,13 @@ pub fn register(commands: Commands, services: &Arc<Services>) -> Commands {
         .command(
             "OpenTerminal",
             typed(|arguments: DirectoryArguments| launcher::open_terminal(&arguments.directory).map_err(failure)),
+        )
+        .command(
+            "RunShell",
+            typed(|arguments: ShellArguments| {
+                launcher::run_shell(&arguments.command, &arguments.directory, &arguments.paths, arguments.block)
+                    .map_err(failure)
+            }),
         )
         .command("ApplicationsFor", typed(|arguments: PathArguments| Ok(launcher::applications_for(&arguments.path))))
         .command(
