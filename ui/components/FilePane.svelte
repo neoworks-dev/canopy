@@ -329,9 +329,17 @@
 		selectedEntries.forEach(openEntry);
 	}
 
+	function hoveredEntry(): filesystem.Entry | null {
+		const entry = visibleEntries[selection.focusIndex];
+		if (!entry) {
+			return null;
+		}
+		return entry;
+	}
+
 	/** Goes into the folder under the cursor; files and archives are left alone. */
 	export function enterFocusedFolder() {
-		const entry = visibleEntries[selection.focusIndex];
+		const entry = hoveredEntry();
 		if (!entry || !entry.isDir) {
 			return;
 		}
@@ -448,6 +456,7 @@
 			entryCount: visibleEntries.length,
 			hiddenCount: hiddenEntryCount(),
 			selected: selectedEntries,
+			hovered: hoveredEntry(),
 			isListActive: isListActive(),
 			branch: reportedBranch(),
 		};

@@ -55,7 +55,9 @@
 	import SaveSearchDialog from "./components/SaveSearchDialog.svelte";
 	import SearchField from "./components/SearchField.svelte";
 	import TabStrip from "./components/TabStrip.svelte";
+	import SpotDialog from "./components/SpotDialog.svelte";
 	import TagDialog from "./components/TagDialog.svelte";
+	import TaskManager from "./components/TaskManager.svelte";
 	import TextPrompt from "./components/TextPrompt.svelte";
 	import ViewMenu from "./components/ViewMenu.svelte";
 	import {
@@ -206,6 +208,8 @@
 	let bulkRenameError = $state("");
 	let isRenamingTab = $state(false);
 	let isHelpOpen = $state(false);
+	let isTaskManagerOpen = $state(false);
+	let isSpotOpen = $state(false);
 	let previewPane = $state<PreviewPane>();
 
 	let showHidden = $state(false);
@@ -1026,6 +1030,8 @@
 			"preview.seekUp": () => previewPane?.seek(-previewSeekLines),
 			"tab.rename": () => (isRenamingTab = true),
 			"help.open": () => (isHelpOpen = true),
+			"tasks.show": () => (isTaskManagerOpen = true),
+			"list.spot": () => (isSpotOpen = true),
 			"file.trash": trashSelection,
 			"file.deletePermanently": () => (isConfirmingDelete = true),
 			"file.extract": extractSelection,
@@ -1147,6 +1153,13 @@
 
 	function moveSelection(movement: Movement, extend: boolean) {
 		activePane()?.moveSelection(movement, extend);
+	}
+
+	function stepMovement(step: number): Movement {
+		if (step < 0) {
+			return "up";
+		}
+		return "down";
 	}
 
 	// A built-in without a handler is a wiring mistake, and one that would show up
@@ -1424,6 +1437,9 @@
 			return true;
 		}
 		if (isBulkCreateOpen || bulkRenamePaths.length > 0 || isRenamingTab || isHelpOpen) {
+			return true;
+		}
+		if (isTaskManagerOpen || isSpotOpen) {
 			return true;
 		}
 		return openWithPath !== "" || Boolean(conflict);
@@ -1783,6 +1799,22 @@
 			initialValue={tab.title}
 			onSubmit={renameActiveTab}
 			onClose={() => (isRenamingTab = false)}
+		/>
+	{/if}
+
+	{#if isTaskManagerOpen}
+		<TaskManager
+			operations={operations.operations}
+			onCancel={(id) => operations.cancel(id)}
+			onClose={() => (isTaskManagerOpen = false)}
+		/>
+	{/if}
+
+	{#if isSpotOpen && status.hovered}
+		<SpotDialog
+			entry={status.hovered}
+			onSwipe={(step) => moveSelection(stepMovement(step), false)}
+			onClose={() => (isSpotOpen = false)}
 		/>
 	{/if}
 

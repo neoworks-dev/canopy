@@ -11,6 +11,8 @@ export type PaneStatus = {
 	/** Entries the current filter is keeping off screen. */
 	hiddenCount: number;
 	selected: filesystem.Entry[];
+	/** The entry under the cursor, whatever is marked; null in an empty listing. */
+	hovered: filesystem.Entry | null;
 	/** The listing is what the pane is showing, rather than trash, tags or an error. */
 	isListActive: boolean;
 	/** The branch the folder is on, empty outside a working tree. */
@@ -23,6 +25,7 @@ export const emptyPaneStatus: PaneStatus = {
 	entryCount: 0,
 	hiddenCount: 0,
 	selected: [],
+	hovered: null,
 	isListActive: false,
 	branch: "",
 };

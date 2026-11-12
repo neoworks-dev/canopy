@@ -320,6 +320,13 @@ export const staticCommandDescriptors: CommandDescriptor[] = [
 		when: "!paletteOpen",
 	},
 	{ id: "help.open", title: "Show every key", category: "General" },
+	{ id: "tasks.show", title: "Show running tasks", category: "General" },
+	{
+		id: "list.spot",
+		title: "Show everything about the entry under the cursor",
+		category: "Listing",
+		when: "listActive && entryCount > 0",
+	},
 	{ id: "app.quit", title: "Quit", category: "General" },
 ];
 
@@ -389,7 +396,8 @@ export const defaultKeymap: Keybinding[] = [
 	{ key: "g s", command: "navigate.terminal", when: "listActive" },
 	{ key: "ctrl+alt+t", command: "navigate.terminal" },
 	{ key: "ctrl+l", command: "navigate.editPath" },
-	{ key: "tab", command: "view.toggleDetails", when: "listActive" },
+	{ key: "tab", command: "list.spot", when: "listActive" },
+	{ key: "w", command: "tasks.show", when: "listActive" },
 
 	{ key: "y", command: "file.copy", when: "listActive" },
 	{ key: "x", command: "file.cut", when: "listActive" },

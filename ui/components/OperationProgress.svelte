@@ -9,12 +9,11 @@
 	import {
 		completionPercent,
 		isFinished,
-		isMeasuring,
-		movesData,
+		operationDetailLine,
 		operationLabel,
+		operationStatusLine,
 		type OperationProgress,
 	} from "../lib/fileops";
-	import { formatFileSize } from "../lib/format";
 	import { colors, radius, shadow, space, textSize } from "../theme";
 	import Button from "./design/Button.svelte";
 	import Card from "./design/Card.svelte";
@@ -32,47 +31,6 @@
 		onCancel: (id: string) => void;
 		onDismiss: (id: string) => void;
 	} = $props();
-
-	function statusLine(operation: OperationProgress): string {
-		if (operation.status === "paused") {
-			return "Paused";
-		}
-		if (isFinished(operation)) {
-			return finishedLine(operation);
-		}
-		if (isMeasuring(operation)) {
-			return "Sizing up…";
-		}
-		return `${itemLine(operation)}${byteLine(operation)}`;
-	}
-
-	function itemLine(operation: OperationProgress): string {
-		return `${operation.doneItems} of ${operation.totalItems}`;
-	}
-
-	function byteLine(operation: OperationProgress): string {
-		if (!movesData(operation)) {
-			return "";
-		}
-		return ` · ${formatFileSize(operation.doneBytes)} of ${formatFileSize(operation.totalBytes)}`;
-	}
-
-	function finishedLine(operation: OperationProgress): string {
-		if (operation.status === "cancelled") {
-			return "Cancelled";
-		}
-		if (operation.failures.length > 0) {
-			return `Finished with ${operation.failures.length} problem(s)`;
-		}
-		return "Finished";
-	}
-
-	function detailLine(operation: OperationProgress): string {
-		if (isFinished(operation)) {
-			return operation.destination;
-		}
-		return operation.currentPath;
-	}
 </script>
 
 {#if operations.length > 0}
@@ -85,7 +43,7 @@
 							{operationLabel(operation.kind)}
 						</Text>
 						<Text style={{ truncate: true, fontSize: textSize["2xs"], color: colors.faint }}>
-							{detailLine(operation)}
+							{operationDetailLine(operation)}
 						</Text>
 					</View>
 					{#if isFinished(operation)}
@@ -106,7 +64,7 @@
 					</View>
 				{/if}
 
-				<Text style={{ fontSize: textSize.xs, color: colors.dim }}>{statusLine(operation)}</Text>
+				<Text style={{ fontSize: textSize.xs, color: colors.dim }}>{operationStatusLine(operation)}</Text>
 
 				{#each operation.failures as failure (failure.path)}
 					<Text style={{ truncate: true, fontSize: textSize["2xs"], color: colors.red }}>

@@ -95,6 +95,8 @@ describe("the default keymap", () => {
 		expect(commandFor("f1")).toBe("help.open");
 		expect(commandFor("A")).toBe("file.bulkCreate");
 		expect(commandFor("shift+enter")).toBe("navigate.openWith");
+		expect(commandFor("tab")).toBe("list.spot");
+		expect(commandFor("w")).toBe("tasks.show");
 	});
 
 	test("sorting by time or size also shows that column, as Yazi's linemode does", () => {

@@ -2,6 +2,8 @@
  * Mirrors the payloads the operation engine emits. They arrive as events rather
  * than as a command's answer, so their types are declared here.
  */
+import { formatFileSize } from "./format";
+
 export type OperationKind = "copy" | "move" | "trash" | "delete" | "extract" | "compress";
 
 export type OperationStatus = "queued" | "running" | "paused" | "done" | "cancelled";
@@ -75,6 +77,49 @@ export function isMeasuring(progress: OperationProgress): boolean {
 
 export function movesData(progress: OperationProgress): boolean {
 	return progress.kind === "copy" || progress.kind === "move";
+}
+
+/** What an operation is doing, in a few words: its counts, or how it ended. */
+export function operationStatusLine(operation: OperationProgress): string {
+	if (operation.status === "paused") {
+		return "Paused";
+	}
+	if (isFinished(operation)) {
+		return finishedLine(operation);
+	}
+	if (isMeasuring(operation)) {
+		return "Sizing up…";
+	}
+	return `${itemLine(operation)}${byteLine(operation)}`;
+}
+
+/** The file being worked on, or where the result went once it is done. */
+export function operationDetailLine(operation: OperationProgress): string {
+	if (isFinished(operation)) {
+		return operation.destination;
+	}
+	return operation.currentPath;
+}
+
+function itemLine(operation: OperationProgress): string {
+	return `${operation.doneItems} of ${operation.totalItems}`;
+}
+
+function byteLine(operation: OperationProgress): string {
+	if (!movesData(operation)) {
+		return "";
+	}
+	return ` · ${formatFileSize(operation.doneBytes)} of ${formatFileSize(operation.totalBytes)}`;
+}
+
+function finishedLine(operation: OperationProgress): string {
+	if (operation.status === "cancelled") {
+		return "Cancelled";
+	}
+	if (operation.failures.length > 0) {
+		return `Finished with ${operation.failures.length} problem(s)`;
+	}
+	return "Finished";
 }
 
 function percentOf(done: number, total: number): number {
