@@ -4,6 +4,7 @@ import {
 	defaultKeymap,
 	movementCommands,
 	selectionMenuIds,
+	sortCommands,
 	staticCommandDescriptors,
 } from "../ui/lib/builtinCommands";
 import { compileKeymap } from "../ui/lib/keymap";
@@ -78,6 +79,29 @@ describe("the default keymap", () => {
 		expect(commandFor("right")).toBe("navigate.enter");
 		expect(commandFor("enter")).toBe("navigate.open");
 		expect(commandFor("o")).toBe("navigate.open");
+	});
+
+	test("Yazi's copy, seek, tab, help and bulk keys are bound", () => {
+		expect(commandFor("c c")).toBe("copy.path");
+		expect(commandFor("c C")).toBe("copy.url");
+		expect(commandFor("c d")).toBe("copy.dirpath");
+		expect(commandFor("c D")).toBe("copy.dirurl");
+		expect(commandFor("c f")).toBe("copy.filename");
+		expect(commandFor("c n")).toBe("copy.nameWithoutExtension");
+		expect(commandFor("K")).toBe("preview.seekUp");
+		expect(commandFor("J")).toBe("preview.seekDown");
+		expect(commandFor("t r")).toBe("tab.rename");
+		expect(commandFor("~")).toBe("help.open");
+		expect(commandFor("f1")).toBe("help.open");
+		expect(commandFor("A")).toBe("file.bulkCreate");
+		expect(commandFor("shift+enter")).toBe("navigate.openWith");
+	});
+
+	test("sorting by time or size also shows that column, as Yazi's linemode does", () => {
+		const bySize = sortCommands.find((command) => command.id === "view.sort.size.descending");
+		const byName = sortCommands.find((command) => command.id === "view.sort.name.ascending");
+		expect(bySize?.linemodeId).toBe("view.linemode.size");
+		expect(byName?.linemodeId).toBe("");
 	});
 
 	test("copy and undo answer both the Yazi letter and the desktop chord", () => {

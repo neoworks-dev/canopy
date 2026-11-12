@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount, tick } from "svelte";
 	import { Button as PlainButton, Icon, Text, View, type PointerEvent, type Style } from "@neoworks/svelte-gpui/ui";
-	import { window as appWindow } from "@neoworks/svelte-gpui";
+	import { clipboard, window as appWindow } from "@neoworks/svelte-gpui";
 	import Button from "./components/design/Button.svelte";
-	import { caretLeft, caretRight, eye, eyeSlash, gitBranch, house, warning } from "./icons";
+	import { caretLeft, caretRight, eye, eyeSlash, gitBranch, house, textT, warning } from "./icons";
 	import { colors, root, space, textSize } from "./theme";
 	import {
 		AddBookmark,
@@ -43,7 +43,9 @@
 	import ContextMenu from "./components/ContextMenu.svelte";
 	import CreateEntryDialog from "./components/CreateEntryDialog.svelte";
 	import FilePane from "./components/FilePane.svelte";
+	import HelpPanel from "./components/HelpPanel.svelte";
 	import JumpField from "./components/JumpField.svelte";
+	import LinesDialog from "./components/LinesDialog.svelte";
 	import OpenWithDialog from "./components/OpenWithDialog.svelte";
 	import OperationProgress from "./components/OperationProgress.svelte";
 	import PaneResizer from "./components/PaneResizer.svelte";
@@ -54,9 +56,11 @@
 	import SearchField from "./components/SearchField.svelte";
 	import TabStrip from "./components/TabStrip.svelte";
 	import TagDialog from "./components/TagDialog.svelte";
+	import TextPrompt from "./components/TextPrompt.svelte";
 	import ViewMenu from "./components/ViewMenu.svelte";
 	import {
 		backgroundMenuIds,
+		copyTextCommands,
 		defaultKeymap,
 		linemodeCommands,
 		movementCommands,
@@ -64,9 +68,13 @@
 		sortCommands,
 		staticCommandDescriptors,
 		tabSelectCommands,
+		type SortCommand,
 	} from "./lib/builtinCommands";
 	import { isArchiveName } from "./lib/archive";
+	import { entriesToCreate, renameBuffer, renamePlan } from "./lib/bulkEdit";
 	import { iconForCommand } from "./lib/commandIcons";
+	import { copyTextFor, type CopyTextKind } from "./lib/copyText";
+	import { helpRows } from "./lib/help";
 	import { CommandRegistry, type Command, type MenuItem } from "./lib/commands";
 	import { chordFromEvent } from "./lib/keys";
 	import {
@@ -128,6 +136,7 @@
 		swapActiveTab,
 		watchedPaths,
 		withActiveGroup,
+		withActiveTabTitle,
 		withHistory,
 		withLocation,
 		type Layout,
@@ -141,6 +150,8 @@
 	// written once the drag settles instead of once per frame.
 	const settingsSaveDebounceMilliseconds = 300;
 	const statusPollMilliseconds = 3000;
+	// Yazi's K and J seek five units of the preview at a time.
+	const previewSeekLines = 5;
 
 	type SearchOutcome = {
 		hits: proto.Hit[];
@@ -189,6 +200,13 @@
 	let selectionTags = $state<string[]>([]);
 	let isTagDialogOpen = $state(false);
 	let isCreateDialogOpen = $state(false);
+	let isBulkCreateOpen = $state(false);
+	// The paths a bulk rename was opened on, empty while no rename is under way.
+	let bulkRenamePaths = $state<string[]>([]);
+	let bulkRenameError = $state("");
+	let isRenamingTab = $state(false);
+	let isHelpOpen = $state(false);
+	let previewPane = $state<PreviewPane>();
 
 	let showHidden = $state(false);
 	let viewMode = $state<ViewMode>("rows");
@@ -1002,7 +1020,12 @@
 			"file.pasteOverwrite": pasteOverwriting,
 			"file.cancelYank": cancelYank,
 			"file.create": () => (isCreateDialogOpen = true),
-			"file.rename": () => activePane()?.startRename(),
+			"file.bulkCreate": () => (isBulkCreateOpen = true),
+			"file.rename": renameSelection,
+			"preview.seekDown": () => previewPane?.seek(previewSeekLines),
+			"preview.seekUp": () => previewPane?.seek(-previewSeekLines),
+			"tab.rename": () => (isRenamingTab = true),
+			"help.open": () => (isHelpOpen = true),
 			"file.trash": trashSelection,
 			"file.deletePermanently": () => (isConfirmingDelete = true),
 			"file.extract": extractSelection,
@@ -1029,15 +1052,77 @@
 	function generatedHandlers(): Record<string, () => void> {
 		const handlers: Record<string, () => void> = {};
 		for (const command of sortCommands) {
-			handlers[command.id] = () => (sortOrder = sortOrderBy(sortOrder, command.key, command.descending));
+			handlers[command.id] = () => sortBy(command);
 		}
 		for (const command of linemodeCommands) {
 			handlers[command.id] = () => setColumns(command.columns);
+		}
+		for (const command of copyTextCommands) {
+			handlers[command.id] = () => copySelectionAsText(command.kind);
 		}
 		for (const command of tabSelectCommands) {
 			handlers[command.id] = () => (layout = activateTabAt(layout, command.index));
 		}
 		return handlers;
+	}
+
+	function sortBy(command: SortCommand) {
+		sortOrder = sortOrderBy(sortOrder, command.key, command.descending);
+		const linemode = linemodeCommands.find((candidate) => candidate.id === command.linemodeId);
+		if (linemode) {
+			setColumns(linemode.columns);
+		}
+	}
+
+	async function copySelectionAsText(kind: CopyTextKind) {
+		const text = copyTextFor(selectedPathList(), kind);
+		if (text === "") {
+			return;
+		}
+		await clipboard.write(text);
+	}
+
+	// One entry is renamed in place; several open a buffer of their names.
+	function renameSelection() {
+		if (selectedEntries.length === 1) {
+			activePane()?.startRename();
+			return;
+		}
+		bulkRenameError = "";
+		bulkRenamePaths = selectedPathList();
+	}
+
+	function applyBulkRename(buffer: string) {
+		const plan = renamePlan(bulkRenamePaths, buffer);
+		if (plan.errorMessage) {
+			bulkRenameError = plan.errorMessage;
+			return;
+		}
+		bulkRenamePaths = [];
+		activePane()?.renameMany(plan.pairs);
+	}
+
+	function applyBulkCreate(buffer: string) {
+		isBulkCreateOpen = false;
+		activePane()?.createMany(entriesToCreate(buffer));
+	}
+
+	function renameActiveTab(title: string) {
+		isRenamingTab = false;
+		layout = withActiveTabTitle(layout, title);
+	}
+
+	function runHelpCommand(command: string) {
+		isHelpOpen = false;
+		registry.run(command, commandContext);
+	}
+
+	function helpTitleOf(command: string): string {
+		const registered = registry.byId(command);
+		if (!registered) {
+			return command;
+		}
+		return registered.title;
 	}
 
 	function builtinCommandList(): Command[] {
@@ -1338,6 +1423,9 @@
 		if (Boolean(menu) || isConfirmingDelete || isTagDialogOpen || isCreateDialogOpen) {
 			return true;
 		}
+		if (isBulkCreateOpen || bulkRenamePaths.length > 0 || isRenamingTab || isHelpOpen) {
+			return true;
+		}
 		return openWithPath !== "" || Boolean(conflict);
 	}
 
@@ -1570,7 +1658,7 @@
 								label="Resize the details pane"
 								onWidth={(width) => (detailsWidth = width)}
 							/>
-							<PreviewPane entries={selectedEntries} width={detailsWidth} />
+							<PreviewPane bind:this={previewPane} entries={selectedEntries} width={detailsWidth} />
 						{/if}
 					{/snippet}
 				</FilePane>
@@ -1663,6 +1751,43 @@
 
 	{#if isCreateDialogOpen}
 		<CreateEntryDialog onCreate={createNamed} onClose={() => (isCreateDialogOpen = false)} />
+	{/if}
+
+	{#if isBulkCreateOpen}
+		<LinesDialog
+			title="Create several"
+			hint="One name per line; end a name with / to make a folder. Ctrl+Enter creates."
+			submitLabel="Create"
+			onSubmit={applyBulkCreate}
+			onClose={() => (isBulkCreateOpen = false)}
+		/>
+	{/if}
+
+	{#if bulkRenamePaths.length > 0}
+		<LinesDialog
+			title="Rename {bulkRenamePaths.length} entries"
+			hint="Edit the names in place, one per line. Ctrl+Enter renames."
+			initialText={renameBuffer(bulkRenamePaths)}
+			errorMessage={bulkRenameError}
+			submitLabel="Rename"
+			onSubmit={applyBulkRename}
+			onClose={() => (bulkRenamePaths = [])}
+		/>
+	{/if}
+
+	{#if isRenamingTab}
+		<TextPrompt
+			icon={textT}
+			placeholder="Tab name"
+			hint="Leave empty to name the tab after its folder again."
+			initialValue={tab.title}
+			onSubmit={renameActiveTab}
+			onClose={() => (isRenamingTab = false)}
+		/>
+	{/if}
+
+	{#if isHelpOpen}
+		<HelpPanel rows={helpRows(keymap, helpTitleOf)} onRun={runHelpCommand} onClose={() => (isHelpOpen = false)} />
 	{/if}
 
 	{#if isTagDialogOpen}

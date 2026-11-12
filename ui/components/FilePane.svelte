@@ -24,6 +24,7 @@
 	import type { filesystem, git } from "../backend/models";
 	import { funnel, warning } from "../icons";
 	import { isArchiveName } from "../lib/archive";
+	import type { EntryToCreate, RenamePair } from "../lib/bulkEdit";
 	import { columnsFor, type ColumnId } from "../lib/columns";
 	import {
 		dropOperation,
@@ -387,6 +388,46 @@
 			actionError = describeError(error);
 		}
 		onChanged();
+	}
+
+	/** Creates every entry in turn; the first failure stops the rest and is shown. */
+	export async function createMany(entries: EntryToCreate[]) {
+		actionError = "";
+		try {
+			await createInOrder(entries);
+		} catch (error) {
+			actionError = describeError(error);
+		}
+		await reloadListing();
+		onChanged();
+	}
+
+	async function createInOrder(entries: EntryToCreate[]) {
+		for (const entry of entries) {
+			await createOfKind(entry.kind, entry.name);
+		}
+	}
+
+	/** Renames in turn; the first failure stops the rest and is shown. */
+	export async function renameMany(pairs: RenamePair[]) {
+		actionError = "";
+		try {
+			await renameInOrder(pairs);
+		} catch (error) {
+			actionError = describeError(error);
+		}
+		await reloadListing();
+		onChanged();
+	}
+
+	async function renameInOrder(pairs: RenamePair[]) {
+		for (const pair of pairs) {
+			await RenameEntry(pair.path, pair.newName);
+		}
+	}
+
+	export function showActionError(message: string) {
+		actionError = message;
 	}
 
 	export function dismissActionError() {

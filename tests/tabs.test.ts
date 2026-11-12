@@ -20,6 +20,7 @@ import {
 	swapActiveTab,
 	tabTitle,
 	watchedPaths,
+	withActiveTabTitle,
 	withHistory,
 	withLocation,
 	type Layout,
@@ -322,5 +323,20 @@ describe("swapping tabs", () => {
 		layout = openTab(layout, directoryLocation("/b"), nextId);
 		expect(swapActiveTab(layout, 1)).toBe(layout);
 		expect(swapActiveTab(activateTabAt(layout, 0), -1)).toEqual(activateTabAt(layout, 0));
+	});
+});
+
+describe("naming a tab", () => {
+	test("a given name outranks the folder, and a blank one gives it back", () => {
+		const named = withActiveTabTitle(layoutAt("/home/me/projects"), "  work  ");
+		expect(tabTitle(activeTab(activeGroup(named)))).toBe("work");
+		const cleared = withActiveTabTitle(named, "   ");
+		expect(tabTitle(activeTab(activeGroup(cleared)))).toBe("projects");
+	});
+
+	test("the name stays with the tab as it moves", () => {
+		const named = withActiveTabTitle(layoutAt("/home/me"), "work");
+		const moved = withLocation(named, directoryLocation("/tmp"));
+		expect(tabTitle(activeTab(activeGroup(moved)))).toBe("work");
 	});
 });

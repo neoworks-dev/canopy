@@ -24,6 +24,8 @@ export type Tab = {
 	id: string;
 	location: TabLocation;
 	history: History;
+	/** A name the user gave the tab, which outranks its location; "" when none. */
+	title: string;
 };
 
 export type PaneGroup = {
@@ -85,6 +87,13 @@ export function directoryPathOf(location: TabLocation): string {
 
 /** The name a tab is labelled with, which is the last part of where it is. */
 export function tabTitle(tab: Tab): string {
+	if (tab.title !== "") {
+		return tab.title;
+	}
+	return locationTitle(tab);
+}
+
+function locationTitle(tab: Tab): string {
 	if (tab.location.kind === "trash") {
 		return "Trash";
 	}
@@ -130,6 +139,11 @@ export function withLocation(layout: Layout, location: TabLocation): Layout {
  */
 export function withHistory(layout: Layout, location: TabLocation, history: History): Layout {
 	return mapActiveTab(layout, (tab) => ({ ...tab, location, history }));
+}
+
+/** Names the active tab; an empty or blank title gives it back its location's name. */
+export function withActiveTabTitle(layout: Layout, title: string): Layout {
+	return mapActiveTab(layout, (tab) => ({ ...tab, title: title.trim() }));
 }
 
 export function openTab(layout: Layout, location: TabLocation, nextId: () => string): Layout {
@@ -252,6 +266,7 @@ function newTab(location: TabLocation, nextId: () => string): Tab {
 		id: nextId(),
 		location,
 		history: historyAfterVisit(emptyHistory, locationKey(location)),
+		title: "",
 	};
 }
 

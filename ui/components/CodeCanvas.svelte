@@ -5,7 +5,7 @@
 	sideways; plain text wraps at the width it has.
 -->
 <script lang="ts">
-	import { List, Scroll, Text, View, type Layout } from "@neoworks/svelte-gpui/ui";
+	import { List, Scroll, Text, View, type Layout, type ScrollPosition } from "@neoworks/svelte-gpui/ui";
 	import type { highlight } from "../backend/models";
 	import { layoutLines, longestLine, type CodeRun } from "../lib/codeCanvas";
 	import { styleOfTokenClass } from "../lib/highlightColors";
@@ -41,6 +41,22 @@
 		color: colors.text,
 	} as const;
 
+	let list = $state<List<CodeRun[]>>();
+	// The line at the top of the window. Wrapped lines are taller than one row,
+	// so there it is an estimate, which is all a seek needs.
+	let topLine = 0;
+
+	/** Moves the window by a number of lines, down when positive. */
+	export function seek(lineCount: number) {
+		const target = Math.max(0, Math.min(lines.length - 1, topLine + lineCount));
+		topLine = target;
+		list?.scrollToIndex(target, { align: "start" });
+	}
+
+	function followScroll(position: ScrollPosition) {
+		topLine = Math.floor(position.y / lineHeight);
+	}
+
 	function measured(layout: Layout) {
 		width = layout.width;
 		height = layout.height;
@@ -64,7 +80,7 @@
 	onresize={measured}
 >
 	{#if isWrapped}
-		<List items={lines} style={{ flex: 1, minHeight: 0 }}>
+		<List bind:this={list} items={lines} onscroll={followScroll} style={{ flex: 1, minHeight: 0 }}>
 			{#snippet row(line)}
 				<View style={{ paddingX: padding }}>{@render lineText(line)}</View>
 			{/snippet}
@@ -72,7 +88,13 @@
 	{:else}
 		<Scroll horizontal style={{ flex: 1, minHeight: 0 }}>
 			<View style={{ width: contentWidth, height }}>
-				<List items={lines} rowHeight={lineHeight} style={{ flex: 1, minHeight: 0 }}>
+				<List
+					bind:this={list}
+					items={lines}
+					rowHeight={lineHeight}
+					onscroll={followScroll}
+					style={{ flex: 1, minHeight: 0 }}
+				>
 					{#snippet row(line)}
 						<View style={{ paddingX: padding, height: lineHeight }}>{@render lineText(line)}</View>
 					{/snippet}

@@ -117,8 +117,14 @@ import bookmarkSimpleFill from "@phosphor-icons/core/fill/bookmark-simple-fill.s
 import plugsConnectedFill from "@phosphor-icons/core/fill/plugs-connected-fill.svg";
 import tagFill from "@phosphor-icons/core/fill/tag-fill.svg";
 import magnifyingGlassFill from "@phosphor-icons/core/fill/magnifying-glass-fill.svg";
+import question from "@phosphor-icons/core/regular/question.svg";
+import link from "@phosphor-icons/core/regular/link.svg";
+import textT from "@phosphor-icons/core/regular/text-t.svg";
 
 export {
+	question,
+	link,
+	textT,
 	arrowClockwise,
 	arrowClockwiseBold,
 	arrowCounterClockwise,

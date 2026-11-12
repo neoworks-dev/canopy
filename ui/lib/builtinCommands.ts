@@ -18,6 +18,7 @@
  */
 import type { ColumnId } from "./columns";
 import type { CommandDescriptor } from "./commands";
+import type { CopyTextKind } from "./copyText";
 import type { Keybinding } from "./keymap";
 import type { Movement } from "./movement";
 import type { SortKey } from "./sorting";
@@ -76,16 +77,41 @@ export type SortCommand = {
 	descending: boolean;
 	/** Bound to the lower case key for ascending and the capital for descending. */
 	binding: string;
+	/** The linemode that shows what the order is by, as Yazi switches to it; "" leaves the columns alone. */
+	linemodeId: string;
 };
 
-const sortKeyTable: Array<{ key: SortKey; label: string; letter: string }> = [
-	{ key: "name", label: "name", letter: "a" },
-	{ key: "modified", label: "date modified", letter: "m" },
-	{ key: "size", label: "size", letter: "s" },
-	{ key: "permissions", label: "permissions", letter: "" },
+type SortKeyRow = { key: SortKey; label: string; letter: string; linemodeId: string };
+
+const sortKeyTable: SortKeyRow[] = [
+	{ key: "name", label: "name", letter: "a", linemodeId: "" },
+	{ key: "modified", label: "date modified", letter: "m", linemodeId: "view.linemode.modified" },
+	{ key: "size", label: "size", letter: "s", linemodeId: "view.linemode.size" },
+	{ key: "permissions", label: "permissions", letter: "", linemodeId: "" },
 ];
 
 export const sortCommands: SortCommand[] = buildSortCommands();
+
+export type CopyTextCommand = {
+	id: string;
+	title: string;
+	kind: CopyTextKind;
+	binding: string;
+};
+
+export const copyTextCommands: CopyTextCommand[] = [
+	{ id: "copy.path", title: "Copy the path", kind: "path", binding: "c c" },
+	{ id: "copy.url", title: "Copy the file URL", kind: "url", binding: "c C" },
+	{ id: "copy.dirpath", title: "Copy the folder's path", kind: "dirpath", binding: "c d" },
+	{ id: "copy.dirurl", title: "Copy the folder's URL", kind: "dirurl", binding: "c D" },
+	{ id: "copy.filename", title: "Copy the name", kind: "filename", binding: "c f" },
+	{
+		id: "copy.nameWithoutExtension",
+		title: "Copy the name without its extension",
+		kind: "nameWithoutExtension",
+		binding: "c n",
+	},
+];
 
 export type LinemodeCommand = {
 	id: string;
@@ -174,7 +200,27 @@ export const staticCommandDescriptors: CommandDescriptor[] = [
 	{ id: "list.findNext", title: "Next match", category: "Listing", when: "listActive" },
 	{ id: "list.findPrevious", title: "Previous match", category: "Listing", when: "listActive" },
 
+	{
+		id: "preview.seekDown",
+		title: "Scroll the preview down",
+		category: "View",
+		when: "listActive && selectionCount == 1",
+	},
+	{
+		id: "preview.seekUp",
+		title: "Scroll the preview up",
+		category: "View",
+		when: "listActive && selectionCount == 1",
+	},
+	...copyTextCommands.map((command) => ({
+		id: command.id,
+		title: command.title,
+		category: "File",
+		when: "selectionCount > 0",
+	})),
+
 	{ id: "tab.new", title: "New tab", category: "Tabs" },
+	{ id: "tab.rename", title: "Rename tab", category: "Tabs" },
 	{
 		id: "tab.close",
 		title: "Close tab",
@@ -221,7 +267,8 @@ export const staticCommandDescriptors: CommandDescriptor[] = [
 	},
 	{ id: "file.cancelYank", title: "Forget what was copied or cut", category: "File", when: "clipboardCount > 0" },
 	{ id: "file.create", title: "Create a file or folder…", category: "File", when: "directoryOpen" },
-	{ id: "file.rename", title: "Rename", category: "File", when: "selectionCount == 1" },
+	{ id: "file.bulkCreate", title: "Create several files or folders…", category: "File", when: "directoryOpen" },
+	{ id: "file.rename", title: "Rename", category: "File", when: "selectionCount > 0" },
 	{ id: "file.trash", title: "Move to Trash", category: "File", when: "selectionCount > 0" },
 	{
 		id: "file.deletePermanently",
@@ -272,6 +319,7 @@ export const staticCommandDescriptors: CommandDescriptor[] = [
 		category: "General",
 		when: "!paletteOpen",
 	},
+	{ id: "help.open", title: "Show every key", category: "General" },
 	{ id: "app.quit", title: "Quit", category: "General" },
 ];
 
@@ -321,6 +369,9 @@ export const defaultKeymap: Keybinding[] = [
 	{ key: "enter", command: "navigate.open" },
 	{ key: "o", command: "navigate.open", when: "listActive" },
 	{ key: "O", command: "navigate.openWith", when: "listActive" },
+	{ key: "shift+enter", command: "navigate.openWith", when: "listActive" },
+	{ key: "K", command: "preview.seekUp", when: "listActive" },
+	{ key: "J", command: "preview.seekDown", when: "listActive" },
 	{ key: "l", command: "navigate.enter", when: "listActive" },
 	{ key: "right", command: "navigate.enter", when: "listActive && viewMode != grid" },
 	{ key: "h", command: "navigate.parent", when: "listActive" },
@@ -354,6 +405,8 @@ export const defaultKeymap: Keybinding[] = [
 	{ key: "delete", command: "file.trash" },
 	{ key: "shift+delete", command: "file.deletePermanently" },
 	{ key: "a", command: "file.create", when: "listActive" },
+	{ key: "A", command: "file.bulkCreate", when: "listActive" },
+	...copyTextBindings(),
 	{ key: "r", command: "file.rename", when: "listActive" },
 	{ key: "f2", command: "file.rename" },
 	{ key: "ctrl+shift+n", command: "file.newFolder" },
@@ -366,6 +419,7 @@ export const defaultKeymap: Keybinding[] = [
 	{ key: "ctrl+y", command: "file.redo" },
 
 	{ key: "t t", command: "tab.new", when: "listActive" },
+	{ key: "t r", command: "tab.rename", when: "listActive" },
 	{ key: "ctrl+t", command: "tab.new" },
 	{ key: "ctrl+w", command: "tab.close" },
 	{ key: "[", command: "tab.previous", when: "listActive" },
@@ -398,8 +452,8 @@ export const defaultKeymap: Keybinding[] = [
 	{ key: "ctrl+shift+p", command: "palette.open" },
 	{ key: ":", command: "palette.open", when: "listActive" },
 	{ key: ";", command: "palette.open", when: "listActive" },
-	{ key: "~", command: "palette.open", when: "listActive" },
-	{ key: "f1", command: "palette.open" },
+	{ key: "~", command: "help.open", when: "listActive" },
+	{ key: "f1", command: "help.open" },
 	{ key: "q", command: "app.quit", when: "listActive" },
 	{ key: "Q", command: "app.quit", when: "listActive" },
 ];
@@ -408,6 +462,14 @@ function sortBindings(): Keybinding[] {
 	return sortCommands
 		.filter((command) => command.binding !== "")
 		.map((command) => ({ key: command.binding, command: command.id, when: "listActive" }));
+}
+
+function copyTextBindings(): Keybinding[] {
+	return copyTextCommands.map((command) => ({
+		key: command.binding,
+		command: command.id,
+		when: "listActive",
+	}));
 }
 
 function linemodeBindings(): Keybinding[] {
@@ -428,14 +490,14 @@ function tabSelectBindings(): Keybinding[] {
 
 function buildSortCommands(): SortCommand[] {
 	const commands: SortCommand[] = [];
-	for (const { key, label, letter } of sortKeyTable) {
-		commands.push(sortCommand(key, label, false, letter));
-		commands.push(sortCommand(key, label, true, letter.toUpperCase()));
+	for (const row of sortKeyTable) {
+		commands.push(sortCommand(row, false, row.letter));
+		commands.push(sortCommand(row, true, row.letter.toUpperCase()));
 	}
 	return commands;
 }
 
-function sortCommand(key: SortKey, label: string, descending: boolean, letter: string): SortCommand {
+function sortCommand(row: SortKeyRow, descending: boolean, letter: string): SortCommand {
 	let direction = "ascending";
 	if (descending) {
 		direction = "descending";
@@ -445,11 +507,12 @@ function sortCommand(key: SortKey, label: string, descending: boolean, letter: s
 		binding = `, ${letter}`;
 	}
 	return {
-		id: `view.sort.${key}.${direction}`,
-		title: `Sort by ${label}, ${direction}`,
-		key,
+		id: `view.sort.${row.key}.${direction}`,
+		title: `Sort by ${row.label}, ${direction}`,
+		key: row.key,
 		descending,
 		binding,
+		linemodeId: row.linemodeId,
 	};
 }
 

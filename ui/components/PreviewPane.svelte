@@ -30,6 +30,12 @@
 	let isLoading = $state(false);
 	let measurement = $state<Measurement | null>(null);
 	let isCounting = $state(false);
+	let codeCanvas = $state<CodeCanvas>();
+
+	/** Scrolls a text preview by a number of lines; other previews do not move. */
+	export function seek(lineCount: number) {
+		codeCanvas?.seek(lineCount);
+	}
 
 	// Guards against a slow preview of an earlier selection landing after a
 	// faster one that replaced it.
@@ -242,14 +248,14 @@
 			</Scroll>
 		{:else if preview?.kind === "text" && hasTokens(preview)}
 			{#key preview.path}
-				<CodeCanvas tokens={preview.tokens} />
+				<CodeCanvas bind:this={codeCanvas} tokens={preview.tokens} />
 			{/key}
 			{#if preview.truncated}
 				{@render truncationNote()}
 			{/if}
 		{:else if preview?.kind === "text"}
 			{#key preview.path}
-				<CodeCanvas tokens={plainTokens(preview.text)} isWrapped />
+				<CodeCanvas bind:this={codeCanvas} tokens={plainTokens(preview.text)} isWrapped />
 			{/key}
 			{#if preview.truncated}
 				{@render truncationNote()}
