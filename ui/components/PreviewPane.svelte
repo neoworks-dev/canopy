@@ -44,6 +44,9 @@
 		onOpenFolder: (path: string) => void;
 	} = $props();
 
+	// Long enough to skip the entries a sweep or a held key passes over, short enough to feel immediate.
+	const settleMilliseconds = 80;
+
 	let preview = $state<filesystem.Preview | null>(null);
 	let errorMessage = $state("");
 	let isLoading = $state(false);
@@ -69,23 +72,28 @@
 	const totalSize = $derived(entries.reduce((sum, entry) => sum + entry.size, 0));
 	const footer = $derived(footerLine(singleEntry, measurement, isCounting));
 
-	// A folder previews as its listing, which the column reads for itself.
+	// A folder previews as its listing, which the column reads for itself. The
+	// read waits for the selection to settle, so sweeping a band or holding j
+	// does not start one for every entry passed over.
 	$effect(() => {
 		const entry = singleEntry;
 		if (!entry || entry.isDir) {
 			resetPreview();
 			return;
 		}
-		loadPreview(entry.path);
+		const timer = setTimeout(() => loadPreview(entry.path), settleMilliseconds);
+		return () => clearTimeout(timer);
 	});
 
+	// Measuring walks the whole folder, which is worth starting only once the selection has settled.
 	$effect(() => {
 		const entry = singleEntry;
 		stopMeasuring();
 		if (!entry || !entry.isDir) {
 			return;
 		}
-		startMeasuring(entry.path);
+		const timer = setTimeout(() => startMeasuring(entry.path), settleMilliseconds);
+		return () => clearTimeout(timer);
 	});
 
 	$effect(() => {

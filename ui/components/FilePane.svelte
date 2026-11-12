@@ -64,6 +64,7 @@
 	import type { SavedSearch } from "../lib/savedSearches";
 	import {
 		emptySelection,
+		isSameSelection,
 		pruneSelection,
 		selectionAfterClick,
 		selectionAfterJump,
@@ -230,11 +231,20 @@
 
 	// Keyboard movement is useless if the entry it lands on is off screen. Only
 	// the focus is a reason to scroll: reacting to the scroll as well would drag
-	// the focused entry back every time the user scrolled away from it.
+	// the focused entry back every time the user scrolled away from it. A band
+	// moves the focus too, but the pointer is what places it, so scrolling to it
+	// would slide the listing out from under the band.
 	$effect(() => {
 		const index = selection.focusIndex;
-		untrack(() => revealEntry(index));
+		untrack(() => revealUnlessBanding(index));
 	});
+
+	function revealUnlessBanding(index: number) {
+		if (band) {
+			return;
+		}
+		revealEntry(index);
+	}
 
 	// The report is tracked so a change to the listing or the selection sends a
 	// fresh one; delivering it is not, or reading the callback back would make
@@ -828,10 +838,16 @@
 		redrawBand();
 	}
 
+	// The band is redrawn on every move, but the selection only changes when the
+	// band crosses into or out of an entry: rebuilding it per move re-renders
+	// every row and everything that reads the selection.
 	function redrawBand() {
 		const current = rectangleBetween(anchorOnScreen(), bandPointer);
 		band = current;
 		const swept = bandSelection(indexesInGrid(current, scrollTop, gridLayout, visibleEntries.length));
+		if (isSameSelection(swept, selection)) {
+			return;
+		}
 		setSelection(swept, swept.paths.length > 1);
 	}
 

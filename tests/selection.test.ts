@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
 	emptySelection,
+	isSameSelection,
 	pruneSelection,
 	selectAll,
 	selectionAfterClick,
@@ -9,6 +10,21 @@ import {
 	selectionAfterRelisting,
 	type Selection,
 } from "../ui/lib/selection";
+
+describe("comparing selections, so a band that covers the same entries changes nothing", () => {
+	const swept: Selection = { paths: ["/a", "/b"], anchorIndex: 0, focusIndex: 1 };
+
+	test("the same paths, anchor and focus are the same selection", () => {
+		expect(isSameSelection(swept, { paths: ["/a", "/b"], anchorIndex: 0, focusIndex: 1 })).toBe(true);
+	});
+
+	test("a different path, order or focus is not", () => {
+		expect(isSameSelection(swept, { paths: ["/a", "/c"], anchorIndex: 0, focusIndex: 1 })).toBe(false);
+		expect(isSameSelection(swept, { paths: ["/b", "/a"], anchorIndex: 0, focusIndex: 1 })).toBe(false);
+		expect(isSameSelection(swept, { paths: ["/a", "/b"], anchorIndex: 0, focusIndex: 0 })).toBe(false);
+		expect(isSameSelection(swept, { paths: ["/a"], anchorIndex: 0, focusIndex: 1 })).toBe(false);
+	});
+});
 
 const paths = ["/a", "/b", "/c", "/d", "/e"];
 

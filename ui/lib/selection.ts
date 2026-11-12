@@ -86,6 +86,17 @@ export function selectionFromIndexes(
 	};
 }
 
+/** Whether two selections hold the same paths in the same order, with the same anchor and focus. */
+export function isSameSelection(first: Selection, second: Selection): boolean {
+	if (first.anchorIndex !== second.anchorIndex || first.focusIndex !== second.focusIndex) {
+		return false;
+	}
+	if (first.paths.length !== second.paths.length) {
+		return false;
+	}
+	return first.paths.every((path, index) => path === second.paths[index]);
+}
+
 export function selectAll(allPaths: string[]): Selection {
 	if (allPaths.length === 0) {
 		return emptySelection;
