@@ -33,6 +33,8 @@
 		sortOrder,
 		showHidden,
 		onOpenFolder,
+		canDropInto,
+		onDropPaths,
 	}: {
 		entries: filesystem.Entry[];
 		/** The width it was dragged to, used while it has no share. */
@@ -42,6 +44,9 @@
 		sortOrder: SortOrder;
 		showHidden: boolean;
 		onOpenFolder: (path: string) => void;
+		/** A previewed folder takes drops, as the folder it shows. */
+		canDropInto: (folder: string, sources: string[]) => boolean;
+		onDropPaths: (folder: string, sources: string[]) => void;
 	} = $props();
 
 	// Long enough to skip the entries a sweep or a held key passes over, short enough to feel immediate.
@@ -243,6 +248,8 @@
 					{sortOrder}
 					{showHidden}
 					isDivided={false}
+					{canDropInto}
+					{onDropPaths}
 					onOpen={(entry) => onOpenFolder(entry.path)}
 				/>
 			{/key}

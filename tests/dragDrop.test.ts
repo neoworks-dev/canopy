@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+	acceptsInternalDrop,
 	dragSourceOf,
 	dropDestination,
 	dropOperation,
@@ -27,6 +28,27 @@ function payload(values: Record<string, string>): DragPayload {
 		},
 	};
 }
+
+describe("which folders light up under a drag from inside the window", () => {
+	const dragged = ["/home/me/notes.txt", "/home/me/photos"];
+
+	test("another folder does", () => {
+		expect(acceptsInternalDrop(dragged, "/home/me/archive", noModifiers)).toBe(true);
+	});
+
+	test("the folder the drag came from does not, since moving there changes nothing", () => {
+		expect(acceptsInternalDrop(dragged, "/home/me", noModifiers)).toBe(false);
+	});
+
+	test("unless Ctrl is held, which makes it a copy beside the originals", () => {
+		expect(acceptsInternalDrop(dragged, "/home/me", { ...noModifiers, ctrlKey: true })).toBe(true);
+	});
+
+	test("a dragged folder and anything inside it never do", () => {
+		expect(acceptsInternalDrop(dragged, "/home/me/photos", noModifiers)).toBe(false);
+		expect(acceptsInternalDrop(dragged, "/home/me/photos/2026", { ...noModifiers, ctrlKey: true })).toBe(false);
+	});
+});
 
 describe("what a drag carries", () => {
 	test("dragging an entry inside the selection drags the whole selection", () => {

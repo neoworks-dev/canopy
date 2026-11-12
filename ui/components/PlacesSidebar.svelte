@@ -221,6 +221,7 @@
 						active={isCurrent(place.path)}
 						onSelect={() => onNavigate(place.path)}
 						onDropPaths={folderDrop(place.path)}
+						dropDestination={place.path}
 					/>
 				{/each}
 				<SidebarItem
@@ -249,6 +250,7 @@
 							active={isCurrent(device.path)}
 							onSelect={() => onNavigate(device.path)}
 							onDropPaths={folderDrop(device.path)}
+							dropDestination={device.path}
 						/>
 					{/each}
 				</SidebarSection>
@@ -268,6 +270,7 @@
 						active={isCurrent(bookmark.path)}
 						onSelect={() => onNavigate(bookmark.path)}
 						onDropPaths={folderDrop(bookmark.path)}
+						dropDestination={bookmark.path}
 						onRemove={() => onRemoveBookmark(bookmark.path)}
 						removeLabel="Unpin {bookmark.name}"
 					/>
@@ -336,6 +339,7 @@
 						active={isRecentCurrent(entry)}
 						onSelect={() => onOpenRecent(entry)}
 						onDropPaths={recentDrop(entry)}
+						dropDestination={entry.path}
 					/>
 				{/each}
 				{#if visibleRecent.length === 0}

@@ -30,6 +30,8 @@ export type EntryViewProps = {
 	onDragEnd: () => void;
 	/** Something dragged out of this window was dropped on a folder entry. */
 	onDropOnFolder: (folder: filesystem.Entry, sources: string[]) => void;
+	/** Whether dropping these paths into this folder would do anything, which is what lights it up. */
+	canDropInto: (folder: string, sources: string[]) => boolean;
 	onRenameCommit: (name: string) => void;
 	onRenameCancel: () => void;
 	/** Reports where the entries sit, which is what a band and a right press are matched against. */

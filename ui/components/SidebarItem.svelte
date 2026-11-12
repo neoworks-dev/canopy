@@ -18,7 +18,8 @@
 		type FileDragEvent,
 	} from "@neoworks/svelte-gpui/ui";
 	import { pencilSimple, x } from "../icons";
-	import { dropOperation, type DropOperation } from "../lib/dragDrop";
+	import { acceptsInternalDrop, dropOperation, type DropOperation } from "../lib/dragDrop";
+	import { heldModifiers } from "../lib/heldModifiers.svelte";
 	import { colors, duration, radius, space, textSize } from "../theme";
 	import IconButton from "./IconButton.svelte";
 
@@ -37,6 +38,7 @@
 		onEdit = undefined,
 		editLabel = "",
 		onDropPaths = undefined,
+		dropDestination = "",
 	}: {
 		/** SVG markup. */
 		icon: string;
@@ -56,6 +58,8 @@
 		editLabel?: string;
 		/** Present on the items a drag can be dropped on. */
 		onDropPaths?: (sources: string[], operation: DropOperation) => void;
+		/** The folder a drop lands in, checked before it lights up; "" for a target that is not a folder, such as the trash. */
+		dropDestination?: string;
 	} = $props();
 
 	// Drops carry no modifier keys, so a drag inside the window moves and one from
@@ -74,8 +78,15 @@
 		return icon;
 	}
 
+	// A folder that would take nothing from the drag, such as the one it came from, does not light up.
 	function acceptsPaths(data: DraggedPaths): boolean {
-		return onDropPaths !== undefined && Array.isArray(data?.paths);
+		if (onDropPaths === undefined || !Array.isArray(data?.paths)) {
+			return false;
+		}
+		if (dropDestination === "") {
+			return true;
+		}
+		return acceptsInternalDrop(data.paths, dropDestination, heldModifiers);
 	}
 
 	function dropFromWindow(data: DraggedPaths) {

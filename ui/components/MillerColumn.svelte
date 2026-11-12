@@ -4,13 +4,15 @@
 	preview of a hovered folder. It takes no keys; a press opens.
 -->
 <script lang="ts">
-	import { List, Text, View, type Style } from "@neoworks/svelte-gpui/ui";
+	import { DropTarget, List, Text, type Style } from "@neoworks/svelte-gpui/ui";
 	import { ListDirectory } from "../backend/FileService";
 	import type { filesystem } from "../backend/models";
 	import { entryRowHeight, type EntryState } from "../lib/entryStyles";
 	import { leadingChild } from "../lib/millerColumns";
 	import type { SortOrder } from "../lib/sorting";
-	import { colors, space, textSize } from "../theme";
+	import { colors, radius, space, textSize } from "../theme";
+
+	type DraggedPaths = { paths: string[] };
 	import EntryLine from "./EntryLine.svelte";
 
 	let {
@@ -20,6 +22,8 @@
 		showHidden,
 		share = 1,
 		isDivided = true,
+		canDropInto = undefined,
+		onDropPaths = undefined,
 		onOpen,
 	}: {
 		path: string;
@@ -31,6 +35,9 @@
 		share?: number;
 		/** Set off from the column after it by a line, as the parent is from the listing. */
 		isDivided?: boolean;
+		/** Whether a drop of these paths into a folder would do anything; absent, the column takes no drops. */
+		canDropInto?: (folder: string, sources: string[]) => boolean;
+		onDropPaths?: (folder: string, sources: string[]) => void;
 		onOpen: (entry: filesystem.Entry) => void;
 	} = $props();
 
@@ -94,11 +101,21 @@
 		return listed.filter((entry) => !entry.name.startsWith("."));
 	}
 
-	function stateOf(entry: filesystem.Entry): EntryState {
+	// A folder in the column takes a drop into itself; anywhere else in the column,
+	// a file included, means the column's own folder.
+	function acceptsInto(folder: string): (data: DraggedPaths) => boolean {
+		return (data) => Array.isArray(data?.paths) && canDropInto !== undefined && canDropInto(folder, data.paths);
+	}
+
+	function dropInto(folder: string, data: DraggedPaths) {
+		onDropPaths?.(folder, data.paths);
+	}
+
+	function stateOf(entry: filesystem.Entry, isDropOver: boolean): EntryState {
 		return {
 			isSelected: false,
 			isFocused: entry.path === openChild,
-			isDropOver: false,
+			isDropOver,
 			isCut: false,
 			isCopied: false,
 			isMuted: false,
@@ -124,14 +141,35 @@
 	}
 </script>
 
-<View style={{ flex: share, minWidth: 0, ...dividerLook() }}>
+{#snippet line(entry: filesystem.Entry, isDropOver: boolean)}
+	<EntryLine {entry} state={stateOf(entry, isDropOver)} onpress={() => onOpen(entry)} />
+{/snippet}
+
+<DropTarget
+	accept={acceptsInto(path)}
+	ondrop={({ data }) => dropInto(path, data)}
+	style={{ flex: share, minWidth: 0, radius: radius.md, borderWidth: 1, borderColor: "transparent", ...dividerLook() }}
+	over={{ borderColor: colors.action }}
+>
 	{#if notice()}
 		<Text style={{ padding: space[2], fontSize: textSize.xs, color: colors.faint }}>{notice()}</Text>
 	{:else}
 		<List bind:this={list} items={visibleEntries} rowHeight={entryRowHeight} key={(entry) => entry.path} style={{ flex: 1, minHeight: 0 }}>
 			{#snippet row(entry)}
-				<EntryLine {entry} state={stateOf(entry)} onpress={() => onOpen(entry)} />
+				{#if entry.isDir}
+					<DropTarget
+						accept={acceptsInto(entry.path)}
+						ondrop={({ data }) => dropInto(entry.path, data)}
+						style={{ flex: 1, direction: "row" }}
+					>
+						{#snippet children({ over })}
+							{@render line(entry, over)}
+						{/snippet}
+					</DropTarget>
+				{:else}
+					{@render line(entry, false)}
+				{/if}
 			{/snippet}
 		</List>
 	{/if}
-</View>
+</DropTarget>

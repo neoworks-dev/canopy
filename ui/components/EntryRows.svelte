@@ -38,6 +38,7 @@
 		onDragStart,
 		onDragEnd,
 		onDropOnFolder,
+		canDropInto,
 		onRenameCommit,
 		onRenameCancel,
 		onLayout,
@@ -168,6 +169,7 @@
 				onDragStart={() => onDragStart(index)}
 				{onDragEnd}
 				{onDropOnFolder}
+				{canDropInto}
 			>
 				{#snippet children(isDropOver)}
 					{@const rowState = stateOf(entry, index, isDropOver)}

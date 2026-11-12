@@ -26,12 +26,8 @@
 	import { isArchiveName } from "../lib/archive";
 	import type { EntryToCreate, RenamePair } from "../lib/bulkEdit";
 	import { columnsFor, type ColumnId } from "../lib/columns";
-	import {
-		dropOperation,
-		pathsForDrag,
-		type DragModifiers,
-		type DropOperation,
-	} from "../lib/dragDrop";
+	import { acceptsInternalDrop, dropOperation, pathsForDrag, type DropOperation } from "../lib/dragDrop";
+	import { heldModifiers, rememberModifiers } from "../lib/heldModifiers.svelte";
 	import { describeError } from "../lib/errors";
 	import { parentDirectoryOf } from "../lib/format";
 	import {
@@ -179,7 +175,6 @@
 	// files dragged in from another program are over it.
 	let isDraggingEntries = $state(false);
 	let isOutsideDragOver = $state(false);
-	let modifiers = $state<DragModifiers>({ ctrlKey: false, shiftKey: false, metaKey: false });
 
 	// Where the entries sit and how far they are scrolled, which a band, a right
 	// press and the page keys are matched against.
@@ -963,10 +958,6 @@
 		redrawBand();
 	}
 
-	function rememberModifiers(event: KeyboardEvent) {
-		modifiers = { ctrlKey: event.ctrlKey, shiftKey: event.shiftKey, metaKey: event.metaKey };
-	}
-
 	/**
 	 * Dragging an entry outside the selection takes the selection with it, the way
 	 * a right-click does, so what moves is always what is highlighted.
@@ -988,29 +979,37 @@
 		return pathsForDrag(selection.paths, entry.path);
 	}
 
+	// The folder on screen takes a drop anywhere that no folder entry claims,
+	// files included: dropping on a file means the folder it sits in.
 	function acceptsPaths(data: DraggedPaths): boolean {
-		return Array.isArray(data?.paths);
+		if (!Array.isArray(data?.paths)) {
+			return false;
+		}
+		return canDropInto(directoryPath, data.paths);
+	}
+
+	function canDropInto(folder: string, sources: string[]): boolean {
+		return acceptsInternalDrop(sources, folder, heldModifiers);
 	}
 
 	function dropOntoFolder(folder: filesystem.Entry, sources: string[]) {
-		onDropPaths(sources, folder.path, dropOperation("internal", modifiers));
+		dropIntoPath(folder.path, sources);
+	}
+
+	function dropIntoPath(folder: string, sources: string[]) {
+		onDropPaths(sources, folder, dropOperation("internal", heldModifiers));
 	}
 
 	function dropIntoThisFolder(data: DraggedPaths) {
-		onDropPaths(data.paths, directoryPath, dropOperation("internal", modifiers));
+		dropIntoPath(directoryPath, data.paths);
 	}
 
 	function dropFromOutside(event: FileDragEvent) {
 		isOutsideDragOver = false;
-		onDropPaths(event.paths, directoryPath, dropOperation("external", modifiers));
+		onDropPaths(event.paths, directoryPath, dropOperation("external", heldModifiers));
 	}
 
-	// Dropping entries back into the folder they came from does nothing, so the
-	// listing only offers itself as a target to a drag from somewhere else.
 	function wholeFolderRing(): { borderColor: string } {
-		if (isDraggingEntries) {
-			return { borderColor: "transparent" };
-		}
 		return { borderColor: colors.action };
 	}
 
@@ -1179,6 +1178,8 @@
 								onDragStart={startDrag}
 								onDragEnd={endDrag}
 								onDropOnFolder={dropOntoFolder}
+								{canDropInto}
+								onDropIntoPath={dropIntoPath}
 								onLayout={(layout) => (gridLayout = layout)}
 								onScroll={trackScroll}
 								onNavigate={(path) => onNavigate({ kind: "directory", path })}
@@ -1199,6 +1200,7 @@
 								onDragStart={startDrag}
 								onDragEnd={endDrag}
 								onDropOnFolder={dropOntoFolder}
+								{canDropInto}
 								onRenameCommit={commitRename}
 								onRenameCancel={cancelRename}
 								onLayout={(layout) => (gridLayout = layout)}
@@ -1220,6 +1222,7 @@
 								onDragStart={startDrag}
 								onDragEnd={endDrag}
 								onDropOnFolder={dropOntoFolder}
+								{canDropInto}
 								onRenameCommit={commitRename}
 								onRenameCancel={cancelRename}
 								onLayout={(layout) => (gridLayout = layout)}

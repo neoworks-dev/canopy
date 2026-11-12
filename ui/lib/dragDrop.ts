@@ -96,6 +96,14 @@ export function isAcceptableDrop(
 	return operation === "copy" || movesAnything(sources, destination);
 }
 
+/**
+ * Whether a folder takes a drag from inside the window, and so lights up under
+ * it: only when dropping there would do something, given the keys held.
+ */
+export function acceptsInternalDrop(sources: string[], destination: string, modifiers: DragModifiers): boolean {
+	return isAcceptableDrop(sources, destination, dropOperation("internal", modifiers));
+}
+
 // A folder cannot be dropped into itself or into anything it contains, which
 // would otherwise ask the engine to move a tree inside its own subtree.
 function swallowsDestination(source: string, destination: string): boolean {

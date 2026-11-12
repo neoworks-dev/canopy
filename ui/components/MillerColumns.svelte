@@ -36,11 +36,13 @@
 		onDragStart,
 		onDragEnd,
 		onDropOnFolder,
+		canDropInto,
 		onLayout,
 		onScroll,
 		currentPath,
 		sortOrder,
 		showHidden,
+		onDropIntoPath,
 		onNavigate,
 	}: Pick<
 		EntryViewProps,
@@ -55,12 +57,15 @@
 		| "onDragStart"
 		| "onDragEnd"
 		| "onDropOnFolder"
+		| "canDropInto"
 		| "onLayout"
 		| "onScroll"
 	> & {
 		currentPath: string;
 		sortOrder: SortOrder;
 		showHidden: boolean;
+		/** Something dragged here was dropped into the parent folder or one of its folders. */
+		onDropIntoPath: (folder: string, sources: string[]) => void;
 		onNavigate: (path: string) => void;
 	} = $props();
 
@@ -123,6 +128,8 @@
 			{sortOrder}
 			{showHidden}
 			share={parentShare}
+			{canDropInto}
+			onDropPaths={onDropIntoPath}
 			onOpen={openFromParent}
 		/>
 	{/if}
@@ -150,6 +157,7 @@
 					onDragStart={() => onDragStart(index)}
 					{onDragEnd}
 					{onDropOnFolder}
+					{canDropInto}
 				>
 					{#snippet children(isDropOver)}
 						{@const rowState = stateOf(entry, index, isDropOver)}

@@ -95,7 +95,8 @@
 	} from "./lib/keymap";
 	import { evaluateWhen, type WhenContext } from "./lib/whenClause";
 	import { defaultColumnIds, type ColumnId } from "./lib/columns";
-	import { isAcceptableDrop, type DropOperation } from "./lib/dragDrop";
+	import { acceptsInternalDrop, dropOperation, isAcceptableDrop, type DropOperation } from "./lib/dragDrop";
+	import { heldModifiers } from "./lib/heldModifiers.svelte";
 	import { describeError } from "./lib/errors";
 	import { parentDirectoryOf } from "./lib/format";
 	import {
@@ -1421,6 +1422,10 @@
 		settlePanesAfterDrop();
 	}
 
+	function canDragInto(folder: string, sources: string[]): boolean {
+		return acceptsInternalDrop(sources, folder, heldModifiers);
+	}
+
 	function dropIntoTrash(sources: string[]) {
 		operations.start("trash", sources, "");
 		settlePanesAfterDrop();
@@ -1780,6 +1785,9 @@
 								{sortOrder}
 								{showHidden}
 								onOpenFolder={navigateTo}
+								canDropInto={canDragInto}
+								onDropPaths={(folder, sources) =>
+									dropOntoFolder(sources, folder, dropOperation("internal", heldModifiers))}
 							/>
 						{/if}
 					{/snippet}

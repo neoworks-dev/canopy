@@ -21,6 +21,7 @@
 		onDragStart,
 		onDragEnd,
 		onDropOnFolder,
+		canDropInto,
 		children: content,
 	}: {
 		entry: filesystem.Entry;
@@ -30,11 +31,17 @@
 		onDragStart: () => void;
 		onDragEnd: () => void;
 		onDropOnFolder: (folder: filesystem.Entry, sources: string[]) => void;
+		canDropInto: (folder: string, sources: string[]) => boolean;
 		children: Snippet<[boolean]>;
 	} = $props();
 
+	// The folder being dragged, the folder the drag came from and anything inside
+	// what is dragged would take nothing, so they do not light up.
 	function acceptsPaths(data: DraggedPaths): boolean {
-		return Array.isArray(data?.paths);
+		if (!Array.isArray(data?.paths)) {
+			return false;
+		}
+		return canDropInto(entry.path, data.paths);
 	}
 
 	function drop(data: DraggedPaths) {
